@@ -185,8 +185,8 @@ flutter test
 - Dart
 - Material 3
 - Sizer
-- Provider / Riverpod (if used)
-- Firebase (optional)
+- Riverpod
+- Firebase functions(optional)
 - Clean architecture
 - Reusable widgets & services
 
