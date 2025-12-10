@@ -1,102 +1,219 @@
 # Skill Link GH – Flutter App
 
-A modern Flutter-based mobile application connecting customers with skilled artisans in Ghana.  
-Features real-time messaging, short video reels, service discovery, booking system, beautiful profiles and a super-fast, fully responsive UI.
-
-Built with Flutter 3 + Material 3 – runs perfectly on Android & iOS.
+A modern Flutter-based mobile application designed for seamless cross-platform performance, clean UI, in-app messaging, artisan discovery, bookings, reels, and more.  
+Built for speed, scalability, and modern mobile UX.
 
 ---
 
-## Features
+## ✨ Features
 
-| Feature                     | Description                                                                 |
-|-----------------------------|-----------------------------------------------------------------------------|
-| Artisan Search & Discovery  | Powerful search and category-based discovery of local artisans             |
-| In-App Messaging            | Real-time chat between customers and artisans                               |
-| Reels / Short Videos        | TikTok-style vertical video feed for artisans to showcase their work        |
-| Service Booking             | Book services, select date/time, confirm payment (in-app or cash)           |
-| Artisan Profile Pages     | Detailed profiles with portfolio, reviews, ratings, reels and contact       |
-| Posts Homepage              | Instagram-like feed with posts, stories and reels                           |
-| Responsive UI (Sizer)       | Perfect layout on every screen size – phones, tablets and foldables         |
-| Light & Dark Theme          | Full Material 3 light/dark mode support with smooth transitions            |
-| Fast Navigation             | Clean GoRouter / Named routes with deep linking                             |
-| Optimized Assets            | All images compressed, reusable widgets, clean architecture                  |
+- 🔍 **Artisan Search & Discovery**
+- 💬 **In-App Messaging**
+- 🎥 **Reels / Short Videos**
+- 📄 **Service Booking**
+- 👤 **Artisan Profile Pages**
+- 🏠 **Posts Homepage**
+- 📱 **Responsive UI (Sizer)**
+- 🎨 **Light & Dark Theme Support**
+- 🚀 **Fast Navigation With Clean Routes**
+- 🗄️ **Optimized Assets & Reusable Components**
 
 ---
 
-## Prerequisites
+## 📋 Prerequisites
 
-- Flutter SDK **≥3.29.2** (latest stable recommended)
-- Dart SDK (bundled with Flutter)
-- Android Studio or VS Code + Flutter/Dart extensions
-- Android SDK (for Android)
-- Xcode 15+ (for iOS – macOS only)
+Before running the project, ensure you have:
+
+- Flutter SDK **^3.29.2**
+- Dart SDK
+- Android Studio or VS Code with Flutter extensions
+- Android SDK / Xcode (iOS)
 
 ---
 
-Home Feed
- src="assets/screenshots/2.png" width="200" alt="Reels"/>
- src="assets/screenshots/3.png" width="200" alt="Artisan Profile"/>
- src="assets/screenshots/4.png" width="200" alt="Booking"/>
-src="assets/screenshots/5.png" width="200" alt="Chat"/>
-src="assets/screenshots/6.png" width="200" alt="Search"/>
-src="assets/screenshots/7.png" width="200" alt="Dark Mode"/>
-
-
-skill-link-gh/
-├── android/                  # Android native configs
-├── ios/                      # iOS native configs
-├── lib/
-│   ├── core/                 # Global utilities & services
-│   │   ├── utils/            # Helpers, extensions, constants
-│   │   ├── services/         # API, Firebase, local storage services
-│   │   └── di/               # Dependency injection (get_it or Riverpod)
-│   │
-│   ├── data/                 # Data layer (repositories, models, remote/local sources)
-│   │   ├── models/           # Dart data classes
-│   │   └── repositories/     # Repository implementations
-│   │
-│   ├── domain/               # Business logic (optional clean architecture layer)
-│   │
-│   ├── presentation/         # UI layer – everything you see
-│   │   ├── screens/          # All main screens
-│   │   │   ├── splash_screen/
-│   │   │   ├── auth/
-│   │   │   │   ├── login_screen.dart
-│   │   │   │   └── registration_screen.dart
-│   │   │   ├── home/
-│   │   │   │   └── posts_homepage.dart
-│   │   │   ├── reels/
-│   │   │   │   └── reels_screen.dart
-│   │   │   ├── messaging/
-│   │   │   │   └── in_app_messaging_screen.dart
-│   │   │   ├── profile/
-│   │   │   │   └── artisan_profile_screen.dart
-│   │   │   ├── booking/
-│   │   │   │   └── service_booking_screen.dart
-│   │   │   └── search/
-│   │   │       └── search_and_discovery_screen.dart
-│   │   │
-│   │   ├── widgets/          # Reusable custom widgets
-│   │   ├── bloc/ or provider/   # State management (choose one)
-│   │   └── theme/            # AppTheme, colors, typography
-│   │
-│   ├── routes/               # app_routes.dart + GoRouter config
-│   └── main.dart             # App entry point
-│
-├── assets/
-│   ├── images/               # App icons, logos, illustrations
-│   └── screenshots/          # 1.png to 7.png (app preview)
-│
-├── test/                     # Unit & widget tests
-├── pubspec.yaml
-└── README.md
-## Installation & Running
+## 📦 Dependencies Installation
 
 ```bash
-# Clone the repo
-git clone https://github.com/your-username/skill-link-gh.git
-cd skill-link-gh
-
-# Get dependencies
 flutter pub get
+```
+
+---
+
+## ▶️ Run the Application
+
+```bash
+flutter run
+```
+
+---
+
+## 📁 Project Structure
+
+```
+flutter_app/
+├── android/                   # Android configuration
+├── ios/                       # iOS configuration
+├── lib/
+│   ├── core/                  # Core helpers, utilities, services
+│   │   └── utils/             # Utility functions
+│   ├── presentation/          # Screens & widgets
+│   │   ├── splash_screen/
+│   │   ├── in_app_messaging/
+│   │   ├── posts_homepage/
+│   │   ├── reels_screen/
+│   │   ├── artisan_profile_screen/
+│   │   ├── registration_screen/
+│   │   └── service_booking_screen/
+│   ├── routes/                # AppRoutes
+│   ├── theme/                 # Light & Dark themes
+│   ├── widgets/               # Reusable components
+│   └── main.dart              # Entry point
+├── assets/
+│   ├── images/
+│   └── screenshots/           # 1.png → 7.png
+├── pubspec.yaml
+└── README.md
+```
+
+---
+
+## 🧩 Routing Configuration
+
+Routes are defined in `lib/routes/app_routes.dart`:
+
+```dart
+class AppRoutes {
+  static const String initial = '/';
+  static const String postsHomepage = '/posts-homepage';
+  static const String artisanProfile = '/artisan-profile-screen';
+  static const String reels = '/reels-screen';
+  static const String serviceBooking = '/service-booking-screen';
+  static const String registration = '/registration-screen';
+  static const String searchAndDiscovery = '/search-and-discovery-screen';
+  static const String inAppMessagingScreen = '/in-app-messaging-screen';
+
+  static Map<String, WidgetBuilder> routes = {
+    initial: (_) => const PostsHomepage(),
+    postsHomepage: (_) => const PostsHomepage(),
+    artisanProfile: (_) => const ArtisanProfileScreen(),
+    reels: (_) => const ReelsScreen(),
+    serviceBooking: (_) => const ServiceBookingScreen(),
+    registration: (_) => const RegistrationScreen(),
+    searchAndDiscovery: (_) => const SearchAndDiscoveryScreen(),
+    inAppMessagingScreen: (_) => const InAppMessaging(),
+  };
+}
+```
+
+---
+
+## 🎨 Theming
+
+Access theme values:
+
+```dart
+final theme = Theme.of(context);
+final primary = theme.colorScheme.primary;
+```
+
+Supports:
+
+- Dark & light mode
+- Custom typography
+- Buttons
+- Text styles
+- Cards & surfaces
+- Input fields
+
+---
+
+## 📱 Responsive UI (Sizer)
+
+Sizer helps scale UI dynamically:
+
+```dart
+Container(
+  width: 50.w,  // 50% of screen width
+  height: 20.h, // 20% of screen height
+  child: Text('Responsive'),
+)
+```
+
+---
+
+## 🖼️ Screenshots
+
+All screenshots are in:
+
+```
+assets/screenshots/1.png → 7.png
+```
+
+### App Preview (4 Per Row)
+
+| Screenshot                    | Screenshot                    | Screenshot                    | Screenshot                    |
+| ----------------------------- | ----------------------------- | ----------------------------- | ----------------------------- |
+| ![](assets/screenshots/1.png) | ![](assets/screenshots/2.png) | ![](assets/screenshots/3.png) | ![](assets/screenshots/4.png) |
+| ![](assets/screenshots/5.png) | ![](assets/screenshots/6.png) | ![](assets/screenshots/7.png) | —                             |
+
+---
+
+## ⚙️ Building for Release
+
+### Android (APK)
+
+```bash
+flutter build apk --release
+```
+
+### iOS
+
+```bash
+flutter build ios --release
+```
+
+---
+
+## 🧪 Testing
+
+Run all Flutter tests:
+
+```bash
+flutter test
+```
+
+---
+
+## 🛠️ Tools & Tech
+
+- Flutter
+- Dart
+- Material 3
+- Sizer
+- Provider / Riverpod (if used)
+- Firebase (optional)
+- Clean architecture
+- Reusable widgets & services
+
+---
+
+## 👨‍💻 Development Workflow
+
+1. Create/modify features inside `presentation/`
+2. Add route to `AppRoutes`
+3. Add assets to `pubspec.yaml`
+4. Run `flutter pub get`
+5. Test on Android & iOS profiles
+6. Push with clear commit messages
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License**.
+
+---
+
+## 💬 Contact
+
+For support, issues, or feature requests — open a GitHub issue.
