@@ -276,6 +276,8 @@ class _PostsHomepageState extends State<PostsHomepage> {
     Navigator.pushNamed(context, '/search-and-discovery-screen');
   }
 
+
+
   void _showPostOptions(Map<String, dynamic> post) {
     showModalBottomSheet(
       context: context,

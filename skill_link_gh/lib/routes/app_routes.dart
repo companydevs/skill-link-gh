@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skill_link_gh/presentation/in_app_messaging/in_app_messaging.dart';
 import '../presentation/artisan_profile_screen/artisan_profile_screen.dart';
 import '../presentation/reels_screen/reels_screen.dart';
 import '../presentation/service_booking_screen/service_booking_screen.dart';
@@ -15,6 +16,7 @@ class AppRoutes {
   static const String registration = '/registration-screen';
   static const String searchAndDiscovery = '/search-and-discovery-screen';
   static const String postsHomepage = '/posts-homepage';
+  static const String inAppMessagingScreen = '/in-app-messaging-screen';
 
   static Map<String, WidgetBuilder> routes = {
     initial: (context) => const PostsHomepage(),
@@ -24,6 +26,7 @@ class AppRoutes {
     registration: (context) => const RegistrationScreen(),
     searchAndDiscovery: (context) => const SearchAndDiscoveryScreen(),
     postsHomepage: (context) => const PostsHomepage(),
+    inAppMessagingScreen: (context) => const InAppMessaging(),
     // TODO: Add your other routes here
   };
 }

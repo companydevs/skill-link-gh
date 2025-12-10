@@ -67,7 +67,7 @@ class CustomBottomBar extends StatelessWidget {
       icon: Icons.chat_bubble_outline,
       activeIcon: Icons.chat_bubble,
       label: 'Messages',
-      route: '/posts-homepage', // Using posts as placeholder for messages
+      route: '/in-app-messaging-screen', // Using posts as placeholder for messages
     ),
     BottomNavItem(
       icon: Icons.person_outline,
