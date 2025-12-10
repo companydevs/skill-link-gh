@@ -70,7 +70,7 @@ flutter_app/
 │   └── main.dart              # Entry point
 ├── assets/
 │   ├── images/
-│   └── screenshots/           # 1.png → 7.png
+│   └── screenshots/           
 ├── pubspec.yaml
 └── README.md
 ```
@@ -146,7 +146,7 @@ Container(
 All screenshots are in:
 
 ```
-assets/screenshots/1.png → 7.png
+assets/screenshots/1.png 
 ```
 
 ### App Preview (4 Per Row)
