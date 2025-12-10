@@ -143,20 +143,15 @@ Container(
 
 ## 🖼️ Screenshots
 
-All screenshots are in:
-
-```
-assets/screenshots/1.png 
-```
+All screenshots are in the `assets/screenshots/` folder:
 
 ### App Preview (4 Per Row)
 
 | Screenshot                    | Screenshot                    | Screenshot                    | Screenshot                    |
 | ----------------------------- | ----------------------------- | ----------------------------- | ----------------------------- |
-| ![](assets/screenshots/1.png) | ![](assets/screenshots/2.png) | ![](assets/screenshots/3.png) | ![](assets/screenshots/4.png) |
-| ![](assets/screenshots/5.png) | ![](assets/screenshots/6.png) | ![](assets/screenshots/7.png) | —                             |
+| ![Screenshot 1](assets/screenshots/1.png) | ![Screenshot 2](assets/screenshots/2.png) | ![Screenshot 3](assets/screenshots/3.png) | ![Screenshot 4](assets/screenshots/4.png) |
+| ![Screenshot 5](assets/screenshots/5.png) | ![Screenshot 6](assets/screenshots/6.png) | ![Screenshot 7](assets/screenshots/7.png) | —                             |
 
----
 
 ## ⚙️ Building for Release
 
