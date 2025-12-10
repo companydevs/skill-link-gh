@@ -149,8 +149,8 @@ All screenshots are in the `assets/screenshots/` folder:
 
 | Screenshot                    | Screenshot                    | Screenshot                    | Screenshot                    |
 | ----------------------------- | ----------------------------- | ----------------------------- | ----------------------------- |
-| ![Screenshot 1](assets/screenshots/1.png) | ![Screenshot 2](assets/screenshots/2.png) | ![Screenshot 3](assets/screenshots/3.png) | ![Screenshot 4](assets/screenshots/4.png) |
-| ![Screenshot 5](assets/screenshots/5.png) | ![Screenshot 6](assets/screenshots/6.png) | ![Screenshot 7](assets/screenshots/7.png) | —                             |
+| ![Screenshot 1](skill_link_gh/assets/screenshots/1.png) | ![Screenshot 2](skill_link_gh/assets/screenshots/2.png) | ![Screenshot 3](skill_link_gh/assets/screenshots/3.png) | ![Screenshot 4](skill_link_gh/assets/screenshots/4.png) |
+| ![Screenshot 5](skill_link_gh/assets/screenshots/5.png) | ![Screenshot 6](skill_link_gh/assets/screenshots/6.png) | ![Screenshot 7](skill_link_gh/assets/screenshots/7.png) | —                             |
 
 
 ## ⚙️ Building for Release
