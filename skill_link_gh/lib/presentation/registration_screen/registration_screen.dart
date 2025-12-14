@@ -1,33 +1,56 @@
+// lib/presentation/registration/registration_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:sizer/sizer.dart';
-
+import 'package:skill_link_gh/data/repository/auth_repository.dart';
+import 'package:skill_link_gh/provider/registration_provider.dart';
+import 'package:skill_link_gh/widgets/custom_error_handler.dart';
 import '../../core/app_export.dart';
+import '../../widgets/custom_icon_widget.dart';
 import './widgets/registration_form_widget.dart';
-import './widgets/terms_checkbox_widget.dart';
-import './widgets/user_type_toggle_widget.dart';
+import './widgets/social_registration_widget.dart';
+import './widgets/terms_agreement_widget.dart';
+import '../../domain/models/user_model.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Registration screen for new user account creation
-class RegistrationScreen extends StatefulWidget {
+class RegistrationScreen extends ConsumerStatefulWidget {
   const RegistrationScreen({super.key});
 
   @override
-  State<RegistrationScreen> createState() => _RegistrationScreenState();
+  ConsumerState<RegistrationScreen> createState() =>
+      _RegistrationScreenState();
 }
 
-class _RegistrationScreenState extends State<RegistrationScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _fullNameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
-  final _businessNameController = TextEditingController();
-  final _descriptionController = TextEditingController();
+class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _fullNameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
+  final TextEditingController _businessNameController = TextEditingController();
+  final TextEditingController _businessDescriptionController =
+      TextEditingController();
 
-  bool _isArtisan = false;
-  bool _termsAccepted = false;
-  bool _isLoading = false;
-  String? _selectedCategory;
+  final FocusNode _fullNameFocus = FocusNode();
+  final FocusNode _emailFocus = FocusNode();
+  final FocusNode _phoneFocus = FocusNode();
+  final FocusNode _passwordFocus = FocusNode();
+  final FocusNode _confirmPasswordFocus = FocusNode();
+  final FocusNode _businessNameFocus = FocusNode();
+  final FocusNode _businessDescriptionFocus = FocusNode();
+
+  bool _isAgreedToTerms = false;
+  String _userType = 'artisan'; // default to artisan
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args != null && args is String) _userType = args;
+  }
 
   @override
   void dispose() {
@@ -37,64 +60,117 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _businessNameController.dispose();
-    _descriptionController.dispose();
+    _businessDescriptionController.dispose();
+    _fullNameFocus.dispose();
+    _emailFocus.dispose();
+    _phoneFocus.dispose();
+    _passwordFocus.dispose();
+    _confirmPasswordFocus.dispose();
+    _businessNameFocus.dispose();
+    _businessDescriptionFocus.dispose();
     super.dispose();
   }
+Future<void> _handleRegistration() async {
+  FocusScope.of(context).unfocus();
+
+  if (!_formKey.currentState!.validate()) {
+    Fluttertoast.showToast(
+      msg: 'Please fix the errors in the form',
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.TOP_RIGHT,
+      backgroundColor: Colors.red,
+      textColor: Colors.white,
+      fontSize: 14.sp,
+    );
+    return;
+  }
+
+  if (!_isAgreedToTerms) {
+    Fluttertoast.showToast(
+      msg: 'Please agree to Terms of Service and Privacy Policy',
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.TOP_RIGHT,
+      backgroundColor: Colors.red,
+      textColor: Colors.white,
+      fontSize: 14.sp,
+    );
+    return;
+  }
+
+  final user = UserModel(
+    fullName: _fullNameController.text.trim(),
+    email: _emailController.text.trim(),
+    phone: _phoneController.text.trim(),
+    password: _passwordController.text.trim(),
+    userType: _userType,
+    businessName: _businessNameController.text.trim(),
+    businessDescription: _businessDescriptionController.text.trim(),
+  );
+
+  await ErrorHandler.runWithLoader(
+    context: context,
+    action: () async {
+      final authRepository = AuthRepository();
+      await authRepository.registerUser(user);
+
+      Navigator.pushReplacementNamed(context, '/login-screen');
+    },
+    successMessage: 'Registration successful!',
+  );
+}
+
+  void _navigateToLogin() =>
+      Navigator.pushReplacementNamed(context, '/login-screen');
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final state = ref.watch(registrationProvider);
+    final isArtisan = _userType == 'artisan';
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
+        backgroundColor: theme.colorScheme.surface,
+        elevation: 0,
         leading: IconButton(
           icon: CustomIconWidget(
             iconName: 'arrow_back',
-            size: 24,
             color: theme.colorScheme.onSurface,
+            size: 24,
           ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          'Create Account',
-          style: theme.textTheme.titleLarge,
-        ),
+        title: Text('Create Account', style: theme.textTheme.titleLarge),
       ),
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            Expanded(
+            GestureDetector(
+              onTap: () => FocusScope.of(context).unfocus(),
               child: SingleChildScrollView(
                 padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 2.h),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      'Join SkillLink GH',
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
+                      'Join SkillLink',
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.primary,
                       ),
                     ),
                     SizedBox(height: 1.h),
                     Text(
-                      'Create your account to get started',
-                      style: theme.textTheme.bodyMedium?.copyWith(
+                      isArtisan
+                          ? 'Create your artisan profile and connect with clients'
+                          : 'Create your account to find skilled artisans',
+                      style: theme.textTheme.bodyLarge?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    SizedBox(height: 3.h),
-                    UserTypeToggleWidget(
-                      isArtisan: _isArtisan,
-                      onToggle: (isArtisan) {
-                        setState(() {
-                          _isArtisan = isArtisan;
-                        });
-                      },
-                    ),
-                    SizedBox(height: 3.h),
+                    SizedBox(height: 4.h),
                     RegistrationFormWidget(
-                      isArtisan: _isArtisan,
                       formKey: _formKey,
                       fullNameController: _fullNameController,
                       emailController: _emailController,
@@ -102,51 +178,33 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       passwordController: _passwordController,
                       confirmPasswordController: _confirmPasswordController,
                       businessNameController: _businessNameController,
-                      descriptionController: _descriptionController,
-                      selectedCategory: _selectedCategory,
-                      onCategoryChanged: (value) {
-                        setState(() {
-                          _selectedCategory = value;
-                        });
-                      },
+                      businessDescriptionController:
+                          _businessDescriptionController,
+                      fullNameFocus: _fullNameFocus,
+                      emailFocus: _emailFocus,
+                      phoneFocus: _phoneFocus,
+                      passwordFocus: _passwordFocus,
+                      confirmPasswordFocus: _confirmPasswordFocus,
+                      businessNameFocus: _businessNameFocus,
+                      businessDescriptionFocus: _businessDescriptionFocus,
+                      isArtisan: isArtisan,
                     ),
                     SizedBox(height: 3.h),
-                    TermsCheckboxWidget(
-                      isChecked: _termsAccepted,
-                      onChanged: (value) {
-                        setState(() {
-                          _termsAccepted = value ?? false;
-                        });
-                      },
+                    TermsAgreementWidget(
+                      isAgreed: _isAgreedToTerms,
+                      onChanged: (value) =>
+                          setState(() => _isAgreedToTerms = value ?? false),
                     ),
                     SizedBox(height: 3.h),
-                  ],
-                ),
-              ),
-            ),
-            Container(
-              padding: EdgeInsets.all(5.w),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                boxShadow: [
-                  BoxShadow(
-                    color: theme.colorScheme.shadow,
-                    blurRadius: 8,
-                    offset: const Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isFormValid() ? _handleRegistration : null,
+                    ElevatedButton(
+                      onPressed: state.isLoading ? null : _handleRegistration,
                       style: ElevatedButton.styleFrom(
                         padding: EdgeInsets.symmetric(vertical: 2.h),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                      child: _isLoading
+                      child: state.isLoading
                           ? SizedBox(
                               height: 20,
                               width: 20,
@@ -159,169 +217,59 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                             )
                           : Text(
                               'Create Account',
-                              style: theme.textTheme.titleMedium?.copyWith(
+                              style: theme.textTheme.labelLarge?.copyWith(
                                 color: theme.colorScheme.onPrimary,
-                                fontWeight: FontWeight.w600,
                               ),
                             ),
                     ),
-                  ),
-                  SizedBox(height: 2.h),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
+                    SizedBox(height: 3.h),
+                    if (state.errorMessage != null)
                       Text(
-                        'Already have an account? ',
+                        state.errorMessage!,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+                          color: Colors.red,
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Text(
-                          'Sign In',
+                    SizedBox(height: 3.h),
+                    SocialRegistrationWidget(
+                      onGoogleSignIn: () {},
+                      onAppleSignIn: () {},
+                    ),
+                    SizedBox(height: 4.h),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Already have an account? ',
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                        GestureDetector(
+                          onTap: _navigateToLogin,
+                          child: Text(
+                            'Login',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 2.h),
+                  ],
+                ),
               ),
             ),
+            if (state.isLoading)
+              Container(
+                color: Colors.black.withOpacity(0.3),
+                child: const Center(child: CircularProgressIndicator()),
+              ),
           ],
         ),
-      ),
-    );
-  }
-
-  bool _isFormValid() {
-    return _termsAccepted && !_isLoading;
-  }
-
-  Future<void> _handleRegistration() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      await Future.delayed(const Duration(seconds: 2));
-
-      final email = _emailController.text.toLowerCase();
-      if (email == 'existing@example.com') {
-        if (mounted) {
-          _showErrorDialog(
-            'Account Already Exists',
-            'An account with this email already exists. Please sign in or use a different email.',
-          );
-        }
-        return;
-      }
-
-      if (mounted) {
-        _showSuccessDialog();
-      }
-    } catch (e) {
-      if (mounted) {
-        _showErrorDialog(
-          'Registration Failed',
-          'Unable to create account. Please check your internet connection and try again.',
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  void _showSuccessDialog() {
-    final theme = Theme.of(context);
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: EdgeInsets.all(4.w),
-              decoration: BoxDecoration(
-                color: AppTheme.successLight.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: CustomIconWidget(
-                iconName: 'check_circle',
-                size: 48,
-                color: AppTheme.successLight,
-              ),
-            ),
-            SizedBox(height: 2.h),
-            Text(
-              'Account Created!',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            SizedBox(height: 1.h),
-            Text(
-              'Please verify your phone number to continue',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.pushReplacementNamed(context, '/posts-homepage');
-              },
-              child: const Text('Continue'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showErrorDialog(String title, String message) {
-    final theme = Theme.of(context);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            CustomIconWidget(
-              iconName: 'error',
-              size: 24,
-              color: theme.colorScheme.error,
-            ),
-            SizedBox(width: 2.w),
-            Text(title),
-          ],
-        ),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
       ),
     );
   }

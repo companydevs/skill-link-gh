@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:skill_link_gh/presentation/in_app_messaging/in_app_messaging.dart';
+import 'package:skill_link_gh/presentation/login_screen/login_screen.dart';
+import 'package:skill_link_gh/presentation/onboarding_flow/onboarding_flow.dart';
+import 'package:skill_link_gh/presentation/splash_screen/splash_screen.dart';
+import 'package:skill_link_gh/presentation/user_type_selection_screen/user_type_selection_screen.dart';
 import '../presentation/artisan_profile_screen/artisan_profile_screen.dart';
 import '../presentation/reels_screen/reels_screen.dart';
 import '../presentation/service_booking_screen/service_booking_screen.dart';
@@ -10,6 +14,10 @@ import '../presentation/posts_homepage/posts_homepage.dart';
 class AppRoutes {
   // TODO: Add your routes here
   static const String initial = '/';
+  static const String splashScreen = '/splash-screen';
+  static const String onboardingScreen = '/onboarding-screen';
+  static const String loginScreen = '/login-screen';
+  static const String userTypeSelectionScreen = '/user-type-selection-screen';
   static const String artisanProfile = '/artisan-profile-screen';
   static const String reels = '/reels-screen';
   static const String serviceBooking = '/service-booking-screen';
@@ -19,7 +27,11 @@ class AppRoutes {
   static const String inAppMessagingScreen = '/in-app-messaging-screen';
 
   static Map<String, WidgetBuilder> routes = {
-    initial: (context) => const PostsHomepage(),
+    initial: (context) => const SplashScreen(),
+    splashScreen: (context) => const SplashScreen(),
+    onboardingScreen: (context) => const OnboardingFlow(),
+    loginScreen: (context) => const LoginScreen(),
+    userTypeSelectionScreen: (context) => const UserTypeSelectionScreen(),
     artisanProfile: (context) => const ArtisanProfileScreen(),
     reels: (context) => const ReelsScreen(),
     serviceBooking: (context) => const ServiceBookingScreen(),
