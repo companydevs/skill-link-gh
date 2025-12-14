@@ -70,7 +70,7 @@ flutter_app/
 │   └── main.dart              # Entry point
 ├── assets/
 │   ├── images/
-│   └── screenshots/           # 1.png → 7.png
+│   └── screenshots/           
 ├── pubspec.yaml
 └── README.md
 ```
@@ -143,20 +143,15 @@ Container(
 
 ## 🖼️ Screenshots
 
-All screenshots are in:
-
-```
-assets/screenshots/1.png → 7.png
-```
+All screenshots are in the `assets/screenshots/` folder:
 
 ### App Preview (4 Per Row)
 
 | Screenshot                    | Screenshot                    | Screenshot                    | Screenshot                    |
 | ----------------------------- | ----------------------------- | ----------------------------- | ----------------------------- |
-| ![](assets/screenshots/1.png) | ![](assets/screenshots/2.png) | ![](assets/screenshots/3.png) | ![](assets/screenshots/4.png) |
-| ![](assets/screenshots/5.png) | ![](assets/screenshots/6.png) | ![](assets/screenshots/7.png) | —                             |
+| ![Screenshot 1](skill_link_gh/assets/screenshots/1.png) | ![Screenshot 2](skill_link_gh/assets/screenshots/2.png) | ![Screenshot 3](skill_link_gh/assets/screenshots/3.png) | ![Screenshot 4](skill_link_gh/assets/screenshots/4.png) |
+| ![Screenshot 5](skill_link_gh/assets/screenshots/5.png) | ![Screenshot 6](skill_link_gh/assets/screenshots/6.png) | ![Screenshot 7](skill_link_gh/assets/screenshots/7.png) | —                             |
 
----
 
 ## ⚙️ Building for Release
 
@@ -190,8 +185,8 @@ flutter test
 - Dart
 - Material 3
 - Sizer
-- Provider / Riverpod (if used)
-- Firebase (optional)
+- Riverpod
+- Firebase functions(optional)
 - Clean architecture
 - Reusable widgets & services
 
