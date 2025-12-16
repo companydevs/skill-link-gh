@@ -1,4 +1,3 @@
-// functions/src/index.ts
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 
@@ -8,27 +7,31 @@ export const registerUser = onCall(async (request) => {
   const {
     fullName,
     email,
+    phone,
     password,
     isArtisan,
     businessName,
     description,
     category,
+    provider = "password",
   } = request.data as {
     fullName: string;
     email: string;
+    phone: string;
     password: string;
     isArtisan: boolean;
     businessName?: string;
     description?: string;
     category?: string;
+    provider?: "password" | "google";
   };
 
-  // 🔐 Validation
-  if (!fullName || !email || !password) {
+  // Validation
+  if (!fullName || !email || (!password && provider === "password")) {
     throw new HttpsError("invalid-argument", "Missing required fields");
   }
 
-  if (password.length < 8) {
+  if (provider === "password" && password.length < 8) {
     throw new HttpsError(
       "invalid-argument",
       "Password must be at least 8 characters"
@@ -37,52 +40,58 @@ export const registerUser = onCall(async (request) => {
 
   try {
     // Check if user already exists
-    let existingUser;
     try {
-      existingUser = await admin.auth().getUserByEmail(email);
-    } catch (err) {
-      // user not found is fine
-    }
-    if (existingUser) {
+      await admin.auth().getUserByEmail(email);
       throw new HttpsError("already-exists", "Email is already registered");
+    } catch (_) {/* empty */}
+
+    // Create Auth user if password signup
+    let userRecord;
+    if (provider === "password") {
+      userRecord = await admin.auth().createUser({
+        email,
+        password,
+        displayName: fullName,
+        emailVerified: false, // explicitly false
+      });
     }
 
-    // 🔐 Create Auth user
-    const userRecord = await admin.auth().createUser({
-      email,
-      password,
-      displayName: fullName,
-    });
+    const role = isArtisan ? "artisan" : "client";
 
-    // 📦 Firestore profile
-    await admin
-      .firestore()
+    // Firestore profile
+    await admin.firestore()
       .collection("users")
-      .doc(userRecord.uid)
+      .doc(userRecord?.uid ?? email)
       .set({
-        uid: userRecord.uid,
+        uid: userRecord?.uid ?? email,
         fullName,
         email,
-        role: isArtisan ? "artisan" : "client",
-        businessName: isArtisan ? businessName ?? null : null,
-        description: isArtisan ? description ?? null : null,
-        category: isArtisan ? category ?? null : null,
+        phone,
+        role,
+        businessName: role === "artisan" ? businessName ?? null : null,
+        description: role === "artisan" ? description ?? null : null,
+        category: role === "artisan" ? category ?? null : null,
+        isVerified: provider === "google" ? true :
+          userRecord?.emailVerified ?? false,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
+
     return {
       success: true,
-      uid: userRecord.uid,
+      uid: userRecord?.uid ?? email,
+      isVerified: provider === "google" ? true :
+        userRecord?.emailVerified ?? false,
     };
   } catch (error: unknown) {
     console.error("Register user error:", error);
 
-    let message = "Registration failed";
-    if (error instanceof Error) message = error.message;
-
     if (error instanceof HttpsError) throw error;
 
-    throw new HttpsError("internal", message);
+    throw new HttpsError(
+      "internal",
+      error instanceof Error ? error.message : "Registration failed"
+    );
   }
 });

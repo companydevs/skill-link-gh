@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:skill_link_gh/presentation/in_app_messaging/in_app_messaging.dart';
 import 'package:skill_link_gh/presentation/login_screen/login_screen.dart';
 import 'package:skill_link_gh/presentation/onboarding_flow/onboarding_flow.dart';
+import 'package:skill_link_gh/presentation/otp_verification_screen/otp_verification_screen.dart';
 import 'package:skill_link_gh/presentation/splash_screen/splash_screen.dart';
 import 'package:skill_link_gh/presentation/user_type_selection_screen/user_type_selection_screen.dart';
 import '../presentation/artisan_profile_screen/artisan_profile_screen.dart';
@@ -18,6 +19,7 @@ class AppRoutes {
   static const String onboardingScreen = '/onboarding-screen';
   static const String loginScreen = '/login-screen';
   static const String userTypeSelectionScreen = '/user-type-selection-screen';
+  static const String otpVerificationScreen = '/otp-verification-screen';
   static const String artisanProfile = '/artisan-profile-screen';
   static const String reels = '/reels-screen';
   static const String serviceBooking = '/service-booking-screen';
@@ -32,6 +34,16 @@ class AppRoutes {
     onboardingScreen: (context) => const OnboardingFlow(),
     loginScreen: (context) => const LoginScreen(),
     userTypeSelectionScreen: (context) => const UserTypeSelectionScreen(),
+    otpVerificationScreen: (context) {
+      final args =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      final email = args?['email'] as String?;
+      if (email == null) {
+        throw Exception("Email is required for OTP verification");
+      }
+      return OtpVerificationScreen(email: email);
+    },
+
     artisanProfile: (context) => const ArtisanProfileScreen(),
     reels: (context) => const ReelsScreen(),
     serviceBooking: (context) => const ServiceBookingScreen(),

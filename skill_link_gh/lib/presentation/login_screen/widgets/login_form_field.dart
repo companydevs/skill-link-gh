@@ -16,6 +16,7 @@ class LoginFormField extends StatefulWidget {
   final bool showError;
   final String? errorText;
   final VoidCallback? onChanged;
+  final VoidCallback? onForgotPassword; // ✅ NEW
 
   const LoginFormField({
     super.key,
@@ -29,6 +30,7 @@ class LoginFormField extends StatefulWidget {
     this.showError = false,
     this.errorText,
     this.onChanged,
+    this.onForgotPassword,
   });
 
   @override
@@ -54,11 +56,10 @@ class _LoginFormFieldState extends State<LoginFormField> {
           ),
         ),
         SizedBox(height: 1.h),
+
         Focus(
           onFocusChange: (hasFocus) {
-            setState(() {
-              _isFocused = hasFocus;
-            });
+            setState(() => _isFocused = hasFocus);
           },
           child: TextFormField(
             controller: widget.controller,
@@ -67,11 +68,7 @@ class _LoginFormFieldState extends State<LoginFormField> {
             textInputAction:
                 widget.isPassword ? TextInputAction.done : TextInputAction.next,
             style: theme.textTheme.bodyLarge,
-            onChanged: (value) {
-              if (widget.onChanged != null) {
-                widget.onChanged!();
-              }
-            },
+            onChanged: (_) => widget.onChanged?.call(),
             decoration: InputDecoration(
               hintText: widget.hint,
               hintStyle: theme.textTheme.bodyMedium?.copyWith(
@@ -93,66 +90,37 @@ class _LoginFormFieldState extends State<LoginFormField> {
                         iconName:
                             _obscureText ? 'visibility_off' : 'visibility',
                         size: 20,
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
-                      onPressed: () {
-                        setState(() {
-                          _obscureText = !_obscureText;
-                        });
-                      },
+                      onPressed: () =>
+                          setState(() => _obscureText = !_obscureText),
                     )
                   : null,
               filled: true,
               fillColor: theme.colorScheme.surface,
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 4.w,
-                vertical: 1.5.h,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: widget.showError
-                      ? theme.colorScheme.error
-                      : theme.colorScheme.outline.withValues(alpha: 0.2),
-                  width: 1,
-                ),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: widget.showError
-                      ? theme.colorScheme.error
-                      : theme.colorScheme.outline.withValues(alpha: 0.2),
-                  width: 1,
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: widget.showError
-                      ? theme.colorScheme.error
-                      : theme.colorScheme.primary,
-                  width: 2,
-                ),
-              ),
-              errorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: theme.colorScheme.error,
-                  width: 1,
-                ),
-              ),
-              focusedErrorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: theme.colorScheme.error,
-                  width: 2,
-                ),
-              ),
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
+              border: _border(theme),
+              enabledBorder: _border(theme),
+              focusedBorder: _focusedBorder(theme),
+              errorBorder: _errorBorder(theme),
+              focusedErrorBorder: _focusedErrorBorder(theme),
             ),
           ),
         ),
+
+        /// 🔹 Forgot password (ONLY for password field)
+        if (widget.isPassword && widget.onForgotPassword != null) ...[
+          SizedBox(height: 0.8.h),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: widget.onForgotPassword,
+              child: const Text('Forgot password?'),
+            ),
+          ),
+        ],
+
         if (widget.showError && widget.errorText != null) ...[
           SizedBox(height: 0.5.h),
           Row(
@@ -177,4 +145,35 @@ class _LoginFormFieldState extends State<LoginFormField> {
       ],
     );
   }
+
+  OutlineInputBorder _border(ThemeData theme) => OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: widget.showError
+              ? theme.colorScheme.error
+              : theme.colorScheme.outline.withValues(alpha: 0.2),
+        ),
+      );
+
+  OutlineInputBorder _focusedBorder(ThemeData theme) => OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: widget.showError
+              ? theme.colorScheme.error
+              : theme.colorScheme.primary,
+          width: 2,
+        ),
+      );
+
+  OutlineInputBorder _errorBorder(ThemeData theme) => OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: theme.colorScheme.error),
+      );
+
+  OutlineInputBorder _focusedErrorBorder(ThemeData theme) =>
+      OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide:
+            BorderSide(color: theme.colorScheme.error, width: 2),
+      );
 }

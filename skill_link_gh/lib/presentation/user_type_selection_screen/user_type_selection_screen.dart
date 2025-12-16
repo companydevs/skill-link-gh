@@ -20,11 +20,7 @@ class _UserTypeSelectionScreenState extends State<UserTypeSelectionScreen> {
 
   void _navigateToRegistration(String userType) {
     HapticFeedback.lightImpact();
-    Navigator.pushNamed(
-      context,
-      AppRoutes.registration,
-      arguments: userType,
-    );
+    Navigator.pushNamed(context, AppRoutes.registration, arguments: userType);
   }
 
   void _navigateToLogin() {
@@ -51,16 +47,14 @@ class _UserTypeSelectionScreenState extends State<UserTypeSelectionScreen> {
         duration: const Duration(milliseconds: 200),
         padding: EdgeInsets.all(4.w),
         decoration: BoxDecoration(
-          color:
-              isSelected
-                  ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
-                  : theme.colorScheme.surface,
+          color: isSelected
+              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
+              : theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color:
-                isSelected
-                    ? theme.colorScheme.primary
-                    : theme.dividerColor.withValues(alpha: 0.5),
+            color: isSelected
+                ? theme.colorScheme.primary
+                : theme.dividerColor.withValues(alpha: 0.5),
             width: isSelected ? 2 : 1,
           ),
           boxShadow: [
@@ -132,18 +126,7 @@ class _UserTypeSelectionScreenState extends State<UserTypeSelectionScreen> {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: theme.colorScheme.surface,
-        elevation: 0,
-        leading: IconButton(
-          icon: CustomIconWidget(
-            iconName: 'arrow_back',
-            color: theme.colorScheme.onSurface,
-            size: 24,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
+
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 2.h),
@@ -199,7 +182,7 @@ class _UserTypeSelectionScreenState extends State<UserTypeSelectionScreen> {
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.primary,
                         fontWeight: FontWeight.w600,
-                     //   decoration: TextDecoration.underline,
+                        //   decoration: TextDecoration.underline,
                       ),
                     ),
                   ),

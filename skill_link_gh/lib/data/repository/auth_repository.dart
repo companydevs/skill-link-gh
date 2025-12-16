@@ -2,65 +2,77 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:skill_link_gh/domain/models/userTypes.dart';
 import '../../domain/models/user_model.dart';
-
+//re_ELnkx9vT_ND9bpNDnajjngqHu68dT4mpy
 class AuthRepository {
     final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
 
  final FirebaseAuth _auth = FirebaseAuth.instance;
   final functions = FirebaseFunctions.instance;
 
-  Future<void> registerUser(UserModel user) async {
-    try {
-      final result = await functions
-          .httpsCallable('registerUser')
-          .call(user.toJson());
-      if (result.data['success'] != true) {
-        throw Exception(result.data['message'] ?? 'Registration failed');
-      }
-    } catch (e) {
-      throw Exception(e.toString());
+
+Future<Map<String, dynamic>> registerUser(UserModel user, {String provider = "password"}) async {
+  try {
+    final result = await functions.httpsCallable('registerUser').call({
+      ...user.toJson(),
+      'provider': provider,
+      'isArtisan': user.userType == UserType.artisan,
+
+    });
+    if (result.data['success'] != true) {
+      throw Exception(result.data['message'] ?? 'Registration failed');
     }
+    return Map<String, dynamic>.from(result.data);
+  } on FirebaseFunctionsException catch (e) {
+    throw Exception(_mapFunctionError(e));
+  } catch (_) {
+    throw Exception('Registration failed. Please try again.');
   }
+}
+
+
+
+String _mapFunctionError(FirebaseFunctionsException e) {
+  switch (e.code) {
+    case 'already-exists':
+      return 'This email is already registered. Please log in or use another email.';
+
+    case 'invalid-argument':
+      return 'Some information you entered is invalid. Please check and try again.';
+
+    case 'unauthenticated':
+      return 'You are not authorized. Please log in again.';
+
+    case 'permission-denied':
+      return 'You do not have permission to perform this action.';
+
+    case 'unavailable':
+      return 'Service temporarily unavailable. Please check your internet connection.';
+
+    default:
+      return e.message ?? 'Registration failed. Please try again.';
+  }
+}
+
+
 
 
   // Initialize GoogleSignIn properly
 
-  /// Google Sign-In
-  Future<UserCredential> signInWithGoogle({required String userType}) async {
-    try {
-      //  Pick Google account
-      final GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
-      if (googleUser == null) {
-        throw Exception("Google sign-in cancelled");
-      }
+ Future<UserCredential> signUpWithGoogle({required String userType}) async {
+  try {
+    final googleUser = await _googleSignIn.authenticate();
 
-      //  Get OAuth tokens
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+    final googleAuth = await googleUser.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.idToken,
+      idToken: googleAuth.idToken,
+    );
 
-      //  In version 7+, accessToken and idToken are nullable
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.idToken,
-        idToken: googleAuth.idToken,
-      );
-
-      //  Firebase sign-in
-      final userCredential = await _auth.signInWithCredential(credential);
-
-      //  Save profile if first login
-      await _saveUserProfileIfNew(userCredential, userType);
-
-      return userCredential;
-    } catch (e) {
-      throw Exception("Google Sign-In failed: $e");
-    }
-  }
-
-  Future<void> _saveUserProfileIfNew(
-      UserCredential userCredential, String userType) async {
+    final userCredential = await _auth.signInWithCredential(credential);
     final user = userCredential.user;
-    if (user == null) return;
+    if (user == null) throw Exception("Google user is null");
 
     final doc = FirebaseFirestore.instance.collection('users').doc(user.uid);
     final snapshot = await doc.get();
@@ -72,9 +84,48 @@ class AuthRepository {
         'email': user.email ?? '',
         'role': userType,
         'photoUrl': user.photoURL ?? '',
+        'isVerified': true, // Google users always verified
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      // Register in backend
+      await registerUser(
+        UserModel(
+          fullName: user.displayName ?? '',
+          email: user.email ?? '',
+          userType: (userType == 'artisan') ? UserType.artisan : UserType.client,
+          password: '', phone: '',
+        ),
+        provider: 'google',
+      );
+    }
+
+    return userCredential;
+  } catch (e) {
+    throw Exception("Google Sign-Up failed: $e");
+  }
+}
+
+
+
+  Future<UserCredential> signInWithGoogle({required String userType}) async {
+    try {
+      final GoogleSignInAccount? googleUser =
+          await _googleSignIn.authenticate();
+      if (googleUser == null) {
+        throw Exception('Google sign-in cancelled');
+      }
+
+      final googleAuth = googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.idToken,
+        idToken: googleAuth.idToken,
+      );
+
+      return await _auth.signInWithCredential(credential);
+    } catch (e) {
+      throw Exception('Google Sign-In failed: $e');
     }
   }
 

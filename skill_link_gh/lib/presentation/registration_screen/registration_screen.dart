@@ -4,7 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:sizer/sizer.dart';
 import 'package:skill_link_gh/data/repository/auth_repository.dart';
+import 'package:skill_link_gh/domain/models/userTypes.dart';
 import 'package:skill_link_gh/provider/registration_provider.dart';
+import 'package:skill_link_gh/widgets/custom_app_toast.dart';
 import 'package:skill_link_gh/widgets/custom_error_handler.dart';
 import '../../core/app_export.dart';
 import '../../widgets/custom_icon_widget.dart';
@@ -18,8 +20,7 @@ class RegistrationScreen extends ConsumerStatefulWidget {
   const RegistrationScreen({super.key});
 
   @override
-  ConsumerState<RegistrationScreen> createState() =>
-      _RegistrationScreenState();
+  ConsumerState<RegistrationScreen> createState() => _RegistrationScreenState();
 }
 
 class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
@@ -41,15 +42,17 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   final FocusNode _confirmPasswordFocus = FocusNode();
   final FocusNode _businessNameFocus = FocusNode();
   final FocusNode _businessDescriptionFocus = FocusNode();
+  late UserType _userType;
 
   bool _isAgreedToTerms = false;
-  String _userType = 'artisan'; // default to artisan
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final args = ModalRoute.of(context)?.settings.arguments;
-    if (args != null && args is String) _userType = args;
+    if (args != null && args is String) {
+      _userType = (args == 'artisan') ? UserType.artisan : UserType.client;
+    }
   }
 
   @override
@@ -70,54 +73,91 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     _businessDescriptionFocus.dispose();
     super.dispose();
   }
-Future<void> _handleRegistration() async {
-  FocusScope.of(context).unfocus();
 
-  if (!_formKey.currentState!.validate()) {
-    Fluttertoast.showToast(
-      msg: 'Please fix the errors in the form',
-      toastLength: Toast.LENGTH_SHORT,
-      gravity: ToastGravity.TOP_RIGHT,
-      backgroundColor: Colors.red,
-      textColor: Colors.white,
-      fontSize: 14.sp,
+  Future<void> _handleRegistration() async {
+    FocusScope.of(context).unfocus();
+
+    if (!_formKey.currentState!.validate()) {
+      AppToast.show(
+        context,
+        message: 'Please fix the errors in the form',
+        type: ToastType.error,
+      );
+
+      return;
+    }
+
+    if (!_isAgreedToTerms) {
+      Fluttertoast.showToast(
+        msg: 'Please agree to Terms of Service and Privacy Policy',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.TOP_RIGHT,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 14.sp,
+      );
+      return;
+    }
+
+    final user = UserModel(
+      fullName: _fullNameController.text.trim(),
+      email: _emailController.text.trim(),
+      phone: normalizePhoneNumber(_phoneController.text),
+      password: _passwordController.text.trim(),
+      userType: _userType, // enum
+
+      businessName: _businessNameController.text.trim(),
+      businessDescription: _businessDescriptionController.text.trim(),
     );
-    return;
-  }
 
-  if (!_isAgreedToTerms) {
-    Fluttertoast.showToast(
-      msg: 'Please agree to Terms of Service and Privacy Policy',
-      toastLength: Toast.LENGTH_SHORT,
-      gravity: ToastGravity.TOP_RIGHT,
-      backgroundColor: Colors.red,
-      textColor: Colors.white,
-      fontSize: 14.sp,
+    bool goToOtp = false;
+
+    await ErrorHandler.runWithLoader(
+      context: context,
+      action: () async {
+        final authRepository = AuthRepository();
+        final result = await authRepository.registerUser(user);
+
+        goToOtp = !(result['isVerified'] as bool? ?? false);
+      },
+      successMessage: 'Registration successful!',
     );
-    return;
-  }
 
-  final user = UserModel(
-    fullName: _fullNameController.text.trim(),
-    email: _emailController.text.trim(),
-    phone: _phoneController.text.trim(),
-    password: _passwordController.text.trim(),
-    userType: _userType,
-    businessName: _businessNameController.text.trim(),
-    businessDescription: _businessDescriptionController.text.trim(),
-  );
+    if (!mounted) return;
 
-  await ErrorHandler.runWithLoader(
-    context: context,
-    action: () async {
-      final authRepository = AuthRepository();
-      await authRepository.registerUser(user);
-
+    // ✅ NAVIGATE AFTER LOADER IS CLOSED
+    if (goToOtp) {
+      Navigator.pushReplacementNamed(
+        context,
+        AppRoutes.otpVerificationScreen,
+        arguments: {'email': user.email, 'userType': _userType},
+      );
+    } else {
       Navigator.pushReplacementNamed(context, '/login-screen');
-    },
-    successMessage: 'Registration successful!',
-  );
+    }
+  }
+
+  String normalizePhoneNumber(String input) {
+  String phone = input.trim().replaceAll(' ', '');
+
+  // Already international
+  if (phone.startsWith('+')) {
+    return phone;
+  }
+
+  // Ghana numbers
+  if (phone.startsWith('0')) {
+    return '+233${phone.substring(1)}';
+  }
+
+  // If user typed without 0 (e.g. 551234567)
+  if (phone.length == 9) {
+    return '+233$phone';
+  }
+
+  return phone; // fallback
 }
+
 
   void _navigateToLogin() =>
       Navigator.pushReplacementNamed(context, '/login-screen');
@@ -187,7 +227,7 @@ Future<void> _handleRegistration() async {
                       confirmPasswordFocus: _confirmPasswordFocus,
                       businessNameFocus: _businessNameFocus,
                       businessDescriptionFocus: _businessDescriptionFocus,
-                      isArtisan: isArtisan,
+                      isArtisan: _userType == UserType.artisan,
                     ),
                     SizedBox(height: 3.h),
                     TermsAgreementWidget(
@@ -232,9 +272,38 @@ Future<void> _handleRegistration() async {
                       ),
                     SizedBox(height: 3.h),
                     SocialRegistrationWidget(
-                      onGoogleSignIn: () {},
+                      onGoogleSignIn: () async {
+                        final authRepository = AuthRepository();
+                        try {
+                          await ErrorHandler.runWithLoader(
+                            context: context,
+                            action: () async {
+                              final userCredential = await authRepository
+                                  .signUpWithGoogle(
+                                    userType: _userType
+                                        .name, // pass string to AuthRepository
+                                  );
+
+                              if (userCredential.user != null) {
+                                Navigator.pushReplacementNamed(
+                                  context,
+                                  '/login-screen',
+                                );
+                              }
+                            },
+                            successMessage: 'Google Sign-Up successful!',
+                          );
+                        } catch (e) {
+                          AppToast.show(
+                            context,
+                            message: e.toString(),
+                            type: ToastType.error,
+                          );
+                        }
+                      },
                       onAppleSignIn: () {},
                     ),
+
                     SizedBox(height: 4.h),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,

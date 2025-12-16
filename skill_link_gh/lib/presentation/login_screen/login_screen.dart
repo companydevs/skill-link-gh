@@ -1,15 +1,17 @@
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:sizer/sizer.dart';
+import 'package:skill_link_gh/data/repository/auth_repository.dart';
+import 'package:skill_link_gh/widgets/custom_app_toast.dart';
 
 import '../../routes/app_routes.dart';
 import './widgets/app_logo_section.dart';
 import './widgets/login_form_field.dart';
 import './widgets/social_login_button.dart';
 
-/// Login screen for SkillLink application
-/// Provides email/password authentication and social login options
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -18,22 +20,16 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
   bool _isLoading = false;
+  bool _isGoogleLoading = false;
+
   bool _showEmailError = false;
   bool _showPasswordError = false;
   String? _emailErrorText;
   String? _passwordErrorText;
-  bool _isGoogleLoading = false;
-  bool _isAppleLoading = false;
-  bool _isFacebookLoading = false;
-
-  // Mock credentials for testing
-  final String _mockEmail = 'artisan@skilllink.com';
-  final String _mockPassword = 'Artisan@123';
 
   @override
   void dispose() {
@@ -42,455 +38,345 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  // ---------------- VALIDATION ----------------
+
   void _validateEmail() {
-    setState(() {
-      final email = _emailController.text.trim();
-      if (email.isEmpty) {
-        _showEmailError = true;
-        _emailErrorText = 'Email is required';
-      } else if (!RegExp(
-        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}\$',
-      ).hasMatch(email)) {
-        _showEmailError = true;
-        _emailErrorText = 'Please enter a valid email address';
-      } else {
-        _showEmailError = false;
-        _emailErrorText = null;
-      }
-    });
+    final email = _emailController.text.trim();
+
+    if (email.isEmpty) {
+      _showEmailError = true;
+      _emailErrorText = 'Email is required';
+    } else if (!RegExp(r'^[\w.-]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+      _showEmailError = true;
+      _emailErrorText = 'Enter a valid email';
+    } else {
+      _showEmailError = false;
+      _emailErrorText = null;
+    }
+
+    setState(() {});
   }
 
   void _validatePassword() {
-    setState(() {
-      final password = _passwordController.text;
-      if (password.isEmpty) {
-        _showPasswordError = true;
-        _passwordErrorText = 'Password is required';
-      } else if (password.length < 6) {
-        _showPasswordError = true;
-        _passwordErrorText = 'Password must be at least 6 characters';
-      } else {
-        _showPasswordError = false;
-        _passwordErrorText = null;
-      }
-    });
+    final password = _passwordController.text;
+
+    if (password.isEmpty) {
+      _showPasswordError = true;
+      _passwordErrorText = 'Password is required';
+    } else if (password.length < 6) {
+      _showPasswordError = true;
+      _passwordErrorText = 'Minimum 6 characters';
+    } else {
+      _showPasswordError = false;
+      _passwordErrorText = null;
+    }
+
+    setState(() {});
   }
 
   bool _isFormValid() {
     return _emailController.text.trim().isNotEmpty &&
-        _passwordController.text.isNotEmpty &&
-        !_showEmailError &&
-        !_showPasswordError;
+        _passwordController.text.isNotEmpty;
   }
+
+  // ---------------- LOGIN ----------------
 
   Future<void> _handleLogin() async {
     _validateEmail();
     _validatePassword();
 
     if (!_isFormValid()) {
+      AppToast.show(
+        context,
+        message: 'Please fix the form errors',
+        type: ToastType.error,
+      );
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
-    // Simulate authentication delay
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
 
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
+      final user = FirebaseAuth.instance.currentUser;
+      await user?.reload();
 
-    if (email == _mockEmail && password == _mockPassword) {
-      // Success - trigger haptic feedback
-      HapticFeedback.mediumImpact();
+      final bool emailVerified = user?.emailVerified ?? false;
 
-      if (mounted) {
-        // Navigate to artisan profile screen
-        Navigator.pushReplacementNamed(context, '/artisan-profile-screen');
-      }
-    } else {
-      // Show error message
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _showEmailError = true;
-          _showPasswordError = true;
-          _emailErrorText = 'Invalid credentials';
-          _passwordErrorText = 'Please check your email and password';
-        });
+      if (!mounted) return;
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Invalid credentials. Use: $_mockEmail / $_mockPassword',
-              style: TextStyle(color: Colors.white),
-            ),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 4),
-          ),
+      // ✅ Show success toast
+      AppToast.show(
+        context,
+        message: 'Login successful',
+        type: ToastType.success,
+      );
+
+      if (!emailVerified) {
+        Navigator.pushReplacementNamed(
+          context,
+          '/otp-verification-screen',
+          arguments: {'email': _emailController.text.trim()},
+        );
+      } else {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/posts-homepage',
+          (route) => false,
         );
       }
+    } on FirebaseAuthException catch (e) {
+      AppToast.show(
+        context,
+        message: e.code == 'user-not-found' || e.code == 'wrong-password'
+            ? 'Invalid email or password'
+            : e.message ?? 'Login failed',
+        type: ToastType.error,
+      );
+    } catch (_) {
+      AppToast.show(
+        context,
+        message: 'Something went wrong. Try again.',
+        type: ToastType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
+
+  // ---------------- GOOGLE ----------------
 
   Future<void> _handleGoogleSignIn() async {
-    setState(() {
-      _isGoogleLoading = true;
-    });
+    setState(() => _isGoogleLoading = true);
 
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final authRepository = AuthRepository();
+      final credential = await authRepository.signInWithGoogle(
+        userType: 'artisan',
+      );
 
-    if (mounted) {
-      setState(() {
-        _isGoogleLoading = false;
+      if (credential.user == null) {
+        throw Exception('Google sign-in failed');
+      }
+
+      await FirebaseFunctions.instance.httpsCallable('signInUser').call({
+        'email': credential.user!.email,
+        'provider': 'google',
       });
 
       HapticFeedback.mediumImpact();
-      Navigator.pushReplacementNamed(context, '/artisan-profile-screen');
+
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/posts-homepage');
+    } catch (_) {
+      AppToast.show(
+        context,
+        message: 'Google sign-in failed',
+        type: ToastType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _isGoogleLoading = false);
     }
-  }
-
-  Future<void> _handleAppleSignIn() async {
-    setState(() {
-      _isAppleLoading = true;
-    });
-
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (mounted) {
-      setState(() {
-        _isAppleLoading = false;
-      });
-
-      HapticFeedback.mediumImpact();
-      Navigator.pushReplacementNamed(context, '/artisan-profile-screen');
-    }
-  }
-
-  Future<void> _handleFacebookSignIn() async {
-    setState(() {
-      _isFacebookLoading = true;
-    });
-
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (mounted) {
-      setState(() {
-        _isFacebookLoading = false;
-      });
-
-      HapticFeedback.mediumImpact();
-      Navigator.pushReplacementNamed(context, '/artisan-profile-screen');
-    }
-  }
-
-  void _handleForgotPassword() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        final theme = Theme.of(context);
-        final resetEmailController = TextEditingController();
-
-        return AlertDialog(
-          title: Text('Reset Password', style: theme.textTheme.titleLarge),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Enter your email address and we\'ll send you a link to reset your password.',
-                style: theme.textTheme.bodyMedium,
-              ),
-              SizedBox(height: 2.h),
-              TextField(
-                controller: resetEmailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  labelText: 'Email',
-                  hintText: 'Enter your email',
-                  prefixIcon: Icon(Icons.email_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Password reset link sent to your email'),
-                    backgroundColor: theme.colorScheme.primary,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
-              child: Text('Send Link'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void _navigateToRegistration() {
     Navigator.pushNamed(context, AppRoutes.userTypeSelectionScreen);
   }
 
+  // ---------------- FORGOT PASSWORD ----------------
+
+  Future<void> _handleForgotPassword() async {
+    final email = _emailController.text.trim();
+
+    if (email.isEmpty) {
+      AppToast.show(
+        context,
+        message: 'Please enter your email first',
+        type: ToastType.error,
+      );
+      return;
+    }
+
+    if (!RegExp(r'^[\w.-]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+      AppToast.show(
+        context,
+        message: 'Enter a valid email address',
+        type: ToastType.error,
+      );
+      return;
+    }
+
+    try {
+      // Call Firebase Cloud Function
+      final HttpsCallable callable = FirebaseFunctions.instance.httpsCallable(
+        'resetPassword',
+      );
+      final result = await callable.call(<String, dynamic>{'email': email});
+
+      if (!mounted) return;
+
+      AppToast.show(
+        context,
+        message: result.data['message'] ?? 'Password reset link sent',
+        type: ToastType.success,
+      );
+    } on FirebaseFunctionsException catch (e) {
+      String msg = 'Failed to send reset email';
+
+      if (e.code == 'not-found') {
+        msg = 'No account found with this email';
+      } else if (e.code == 'invalid-argument') {
+        msg = 'Invalid email address';
+      }
+
+      AppToast.show(context, message: msg, type: ToastType.error);
+    } catch (_) {
+      AppToast.show(
+        context,
+        message: 'Something went wrong. Try again later.',
+        type: ToastType.error,
+      );
+    }
+  }
+  // ---------------- UI ----------------
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
-        child: GestureDetector(
-          onTap: () => FocusScope.of(context).unfocus(),
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 6.w),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SizedBox(height: 4.h),
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: EdgeInsets.symmetric(horizontal: 6.w),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(height: 4.h),
+              const AppLogoSection(),
+              SizedBox(height: 4.h),
 
-                    // App Logo Section
-                    const AppLogoSection(),
-
-                    SizedBox(height: 4.h),
-
-                    // Welcome Text
-                    Text(
-                      'Welcome Back',
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        color: theme.colorScheme.onSurface,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 1.h),
-                    Text(
-                      'Sign in to continue to your account',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.7,
-                        ),
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-
-                    SizedBox(height: 4.h),
-
-                    // Email Field
-                    LoginFormField(
-                      controller: _emailController,
-                      label: 'Email',
-                      hint: 'Enter your email',
-                      iconName: 'email',
-                      keyboardType: TextInputType.emailAddress,
-                      showError: _showEmailError,
-                      errorText: _emailErrorText,
-                      onChanged: () {
-                        if (_showEmailError) {
-                          setState(() {
-                            _showEmailError = false;
-                            _emailErrorText = null;
-                          });
-                        }
-                      },
-                    ),
-
-                    SizedBox(height: 2.h),
-
-                    // Password Field
-                    LoginFormField(
-                      controller: _passwordController,
-                      label: 'Password',
-                      hint: 'Enter your password',
-                      iconName: 'lock',
-                      isPassword: true,
-                      showError: _showPasswordError,
-                      errorText: _passwordErrorText,
-                      onChanged: () {
-                        if (_showPasswordError) {
-                          setState(() {
-                            _showPasswordError = false;
-                            _passwordErrorText = null;
-                          });
-                        }
-                      },
-                    ),
-
-                    SizedBox(height: 1.h),
-
-                    // Forgot Password Link
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: _handleForgotPassword,
-                        child: Text(
-                          'Forgot Password?',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    SizedBox(height: 2.h),
-
-                    // Login Button
-                    SizedBox(
-                      height: 6.h,
-                      child: ElevatedButton(
-                        onPressed:
-                            _isLoading || !_isFormValid() ? null : _handleLogin,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: theme.colorScheme.primary,
-                          foregroundColor: theme.colorScheme.onPrimary,
-                          disabledBackgroundColor: theme.colorScheme.primary
-                              .withValues(alpha: 0.5),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                        child:
-                            _isLoading
-                                ? SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      theme.colorScheme.onPrimary,
-                                    ),
-                                  ),
-                                )
-                                : Text(
-                                  'Login',
-                                  style: theme.textTheme.labelLarge?.copyWith(
-                                    color: theme.colorScheme.onPrimary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                      ),
-                    ),
-
-                    SizedBox(height: 3.h),
-
-                    // Divider with text
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Divider(
-                            color: theme.colorScheme.outline.withValues(
-                              alpha: 0.3,
-                            ),
-                            thickness: 1,
-                          ),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 4.w),
-                          child: Text(
-                            'Or continue with',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurface.withValues(
-                                alpha: 0.6,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Divider(
-                            color: theme.colorScheme.outline.withValues(
-                              alpha: 0.3,
-                            ),
-                            thickness: 1,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    SizedBox(height: 3.h),
-
-                    // Social Login Buttons
- Row(
-  children: [
-    Expanded(
-      child: SocialLoginButton(
-        provider: 'Google',
-        icon: FontAwesomeIcons.google,
-        iconColor: Colors.redAccent,
-        onTap: _handleGoogleSignIn,
-        isLoading: _isGoogleLoading,
-      ),
-    ),
-    SizedBox(width: 3.w),
-    Expanded(
-      child: SocialLoginButton(
-        provider: 'Apple',
-        icon: FontAwesomeIcons.apple,
-        iconColor: Colors.black,
-        onTap: _handleAppleSignIn,
-        isLoading: _isAppleLoading,
-      ),
-    ),
-  ],
-),
-
-                
-
-                    SizedBox(height: 3.h),
-
-                    // Sign Up Link
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'New user? ',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface.withValues(
-                              alpha: 0.7,
-                            ),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: _navigateToRegistration,
-                          style: TextButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            minimumSize: Size(0, 0),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: Text(
-                            'Sign Up',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    SizedBox(height: 2.h),
-                  ],
+              Text(
+                'Welcome Back',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ),
+              SizedBox(height: 1.h),
+
+              Text(
+                'Sign in to continue',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+
+              SizedBox(height: 4.h),
+
+              // Email Field
+              LoginFormField(
+                controller: _emailController,
+                label: 'Email',
+                hint: 'Enter your email',
+                iconName: 'email',
+                showError: _showEmailError,
+                errorText: _emailErrorText,
+                onChanged: () {
+                  _showEmailError = false;
+                  setState(() {});
+                },
+              ),
+
+              SizedBox(height: 2.h),
+
+              // Password Field with Forgot Password
+              LoginFormField(
+                controller: _passwordController,
+                label: 'Password',
+                hint: 'Enter your password',
+                iconName: 'lock',
+                isPassword: true,
+                showError: _showPasswordError,
+                errorText: _passwordErrorText,
+                onChanged: () {
+                  _showPasswordError = false;
+                  setState(() {});
+                },
+                onForgotPassword: _handleForgotPassword, // ✅ Correctly placed
+              ),
+
+              SizedBox(height: 2.h),
+
+              SizedBox(
+                height: 6.h, // responsive height
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _handleLogin,
+                  style: ElevatedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        50,
+                      ), // circular/pill shape
+                    ),
+                    padding: EdgeInsets.symmetric(horizontal: 8.w),
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    elevation: 6,
+                    shadowColor: Theme.of(context).shadowColor.withOpacity(0.3),
+                  ),
+                  child: _isLoading
+                      ? SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            strokeWidth: 2.5,
+                          ),
+                        )
+                      : Text(
+                          'Login',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                color: Theme.of(context).colorScheme.onPrimary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                ),
+              ),
+
+              SizedBox(height: 3.h),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: SocialLoginButton(
+                      provider: 'Google',
+                      icon: FontAwesomeIcons.google,
+                      iconColor: Colors.redAccent,
+                      onTap: _handleGoogleSignIn,
+                      isLoading: _isGoogleLoading,
+                    ),
+                  ),
+                ],
+              ),
+
+              SizedBox(height: 3.h),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('New user? '),
+                  TextButton(
+                    onPressed: _navigateToRegistration,
+                    child: const Text('Sign Up'),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

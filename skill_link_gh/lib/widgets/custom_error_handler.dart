@@ -1,9 +1,8 @@
-// lib/widgets/custom_error_handler.dart
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
-import 'package:sizer/sizer.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:skill_link_gh/widgets/custom_app_toast.dart';
+
 
 class ErrorHandler {
   static Future<void> runWithLoader({
@@ -19,65 +18,72 @@ class ErrorHandler {
 
     try {
       await action();
-      Navigator.of(context).pop();
+      _safePop(context);
 
       if (successMessage != null) {
-        Fluttertoast.showToast(
-          msg: successMessage,
-          toastLength: Toast.LENGTH_SHORT,
-          gravity: ToastGravity.TOP_RIGHT,
-          backgroundColor: Colors.green,
-          textColor: Colors.white,
-          fontSize: 14.sp,
+        AppToast.show(
+          context,
+          message: successMessage,
+          type: ToastType.success,
         );
       }
     } catch (e) {
-      Navigator.of(context).pop();
+      _safePop(context);
 
-      String message = _parseError(e);
+      final message = _parseError(e);
 
-      Fluttertoast.showToast(
-        msg: message,
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.TOP_RIGHT,
-        backgroundColor: Colors.red,
-        textColor: Colors.white,
-        fontSize: 14.sp,
+      AppToast.show(
+        context,
+        message: message,
+        type: ToastType.error,
       );
     }
   }
 
+  /// Prevents "Navigator.pop called on root" errors
+  static void _safePop(BuildContext context) {
+    if (Navigator.of(context, rootNavigator: true).canPop()) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+  }
+
   static String _parseError(dynamic e) {
+    // 🔹 Cloud Functions
     if (e is FirebaseFunctionsException) {
       switch (e.code) {
         case 'already-exists':
-          return 'Email is already registered';
+          return 'This email is already registered. Please log in instead.';
         case 'invalid-argument':
-          return e.message ?? 'Invalid data provided';
+          return e.message ?? 'Invalid information provided.';
         case 'permission-denied':
-          return 'You do not have permission';
+          return 'You do not have permission to perform this action.';
+        case 'unavailable':
+          return 'Service unavailable. Please check your internet connection.';
         default:
-          return e.message ?? 'Something went wrong';
+          return e.message ?? 'Something went wrong. Please try again.';
       }
     }
 
+    // 🔹 Firebase Auth
     if (e is FirebaseAuthException) {
       switch (e.code) {
         case 'email-already-in-use':
-          return 'Email is already registered';
+          return 'This email is already registered.';
         case 'invalid-email':
-          return 'Invalid email address';
+          return 'Please enter a valid email address.';
         case 'weak-password':
-          return 'Password is too weak';
+          return 'Password is too weak. Use at least 8 characters.';
         case 'user-not-found':
-          return 'No user found with this email';
+          return 'No account found with this email.';
         case 'wrong-password':
-          return 'Incorrect password';
+          return 'Incorrect password.';
         default:
-          return e.message ?? 'Authentication failed';
+          return e.message ?? 'Authentication failed.';
       }
     }
 
-    return e.toString();
+    // 🔹 Fallback
+    final msg = e.toString().replaceFirst('Exception: ', '');
+    return msg.isEmpty ? 'Something went wrong.' : msg;
   }
 }

@@ -1,11 +1,12 @@
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import 'package:skill_link_gh/domain/models/post_model.dart';
 
 import '../../../core/app_export.dart';
 
 class PostCardWidget extends StatefulWidget {
-  final Map<String, dynamic> post;
+  final PostModel post;
   final VoidCallback onLike;
   final VoidCallback onComment;
   final VoidCallback onBookNow;
@@ -57,7 +58,7 @@ class _PostCardWidgetState extends State<PostCardWidget>
   }
 
   void _handleDoubleTap() {
-    if (!(widget.post["isLiked"] as bool)) {
+    if (!widget.post.isLiked) {
       widget.onLike();
       setState(() {
         _showLikeAnimation = true;
@@ -93,7 +94,7 @@ class _PostCardWidgetState extends State<PostCardWidget>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final postImages = widget.post["postImages"] as List<dynamic>;
+    final postImages = widget.post.postImages;
     final hasMultipleImages = postImages.length > 1;
 
     return GestureDetector(
@@ -104,7 +105,7 @@ class _PostCardWidgetState extends State<PostCardWidget>
           color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: theme.colorScheme.outline.withValues(alpha: 0.2),
+            color: theme.colorScheme.outline.withOpacity(0.2),
           ),
         ),
         child: Column(
@@ -129,11 +130,11 @@ class _PostCardWidgetState extends State<PostCardWidget>
           children: [
             ClipOval(
               child: CustomImageWidget(
-                imageUrl: widget.post["artisanImage"] as String,
+                imageUrl: widget.post.artisanImage,
                 width: 40,
                 height: 40,
                 fit: BoxFit.cover,
-                semanticLabel: widget.post["artisanImageLabel"] as String,
+                semanticLabel: widget.post.artisanName,
               ),
             ),
             SizedBox(width: 3.w),
@@ -142,7 +143,7 @@ class _PostCardWidgetState extends State<PostCardWidget>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.post["artisanName"] as String,
+                    widget.post.artisanName,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -162,7 +163,7 @@ class _PostCardWidgetState extends State<PostCardWidget>
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          widget.post["serviceCategory"] as String,
+                          widget.post.serviceCategory,
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: theme.colorScheme.primary,
                             fontWeight: FontWeight.w600,
@@ -171,7 +172,7 @@ class _PostCardWidgetState extends State<PostCardWidget>
                       ),
                       SizedBox(width: 2.w),
                       Text(
-                        _getTimeAgo(widget.post["postedTime"] as DateTime),
+                        _getTimeAgo(widget.post.createdAt),
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -196,10 +197,7 @@ class _PostCardWidgetState extends State<PostCardWidget>
   }
 
   Widget _buildImageCarousel(
-    ThemeData theme,
-    List<dynamic> postImages,
-    bool hasMultipleImages,
-  ) {
+      ThemeData theme, List<PostImage> postImages, bool hasMultipleImages) {
     return GestureDetector(
       onDoubleTap: _handleDoubleTap,
       onTap: widget.onPostTap,
@@ -219,24 +217,21 @@ class _PostCardWidgetState extends State<PostCardWidget>
                     },
                   ),
                   items: postImages.map((image) {
-                    final imageMap = image as Map<String, dynamic>;
                     return CustomImageWidget(
-                      imageUrl: imageMap["url"] as String,
+                      imageUrl: image.url,
                       width: double.infinity,
                       height: 250,
                       fit: BoxFit.cover,
-                      semanticLabel: imageMap["label"] as String,
+                      semanticLabel: image.label,
                     );
                   }).toList(),
                 )
               : CustomImageWidget(
-                  imageUrl:
-                      (postImages[0] as Map<String, dynamic>)["url"] as String,
+                  imageUrl: postImages[0].url,
                   width: double.infinity,
                   height: 250,
                   fit: BoxFit.cover,
-                  semanticLabel: (postImages[0]
-                      as Map<String, dynamic>)["label"] as String,
+                  semanticLabel: postImages[0].label,
                 ),
           if (hasMultipleImages)
             Positioned(
@@ -253,7 +248,7 @@ class _PostCardWidgetState extends State<PostCardWidget>
                       shape: BoxShape.circle,
                       color: _currentImageIndex == index
                           ? Colors.white
-                          : Colors.white.withValues(alpha: 0.5),
+                          : Colors.white.withOpacity(0.5),
                     ),
                   ),
                 ),
@@ -280,7 +275,7 @@ class _PostCardWidgetState extends State<PostCardWidget>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            widget.post["description"] as String,
+            widget.post.description,
             style: theme.textTheme.bodyMedium,
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
@@ -295,7 +290,7 @@ class _PostCardWidgetState extends State<PostCardWidget>
               ),
               SizedBox(width: 1.w),
               Text(
-                widget.post["pricing"] as String,
+                widget.post.pricing,
                 style: theme.textTheme.titleSmall?.copyWith(
                   color: theme.colorScheme.secondary,
                   fontWeight: FontWeight.w600,
@@ -309,9 +304,9 @@ class _PostCardWidgetState extends State<PostCardWidget>
   }
 
   Widget _buildActions(ThemeData theme) {
-    final isLiked = widget.post["isLiked"] as bool;
-    final likes = widget.post["likes"] as int;
-    final comments = widget.post["comments"] as int;
+    final isLiked = widget.post.isLiked;
+    final likes = widget.post.likes;
+    final comments = widget.post.comments;
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
