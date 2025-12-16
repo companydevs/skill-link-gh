@@ -130,12 +130,15 @@ class _PostCardWidgetState extends State<PostCardWidget>
           children: [
             ClipOval(
               child: CustomImageWidget(
-                imageUrl: widget.post.artisanImage,
-                width: 40,
-                height: 40,
-                fit: BoxFit.cover,
-                semanticLabel: widget.post.artisanName,
-              ),
+  imageUrl: (widget.post.artisanImage.isNotEmpty)
+      ? widget.post.artisanImage
+      : 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
+  width: 40,
+  height: 40,
+  fit: BoxFit.cover,
+  semanticLabel: widget.post.artisanName,
+),
+
             ),
             SizedBox(width: 3.w),
             Expanded(
