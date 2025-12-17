@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -22,6 +24,22 @@ class PostsNotifier extends StateNotifier<List<PostModel>> {
 
   bool get hasMore => _hasMore;
   bool get isLoading => _isLoading;
+
+   bool _likeInProgress = false;
+
+  Future<void> toggleLikeSafe(String postId) async {
+    if (_likeInProgress) return; // already processing
+    _likeInProgress = true;
+
+    try {
+      await toggleLike(postId); // your existing repo call
+    } catch (e) {
+      log('Toggle like failed: $e');
+    } finally {
+      _likeInProgress = false;
+    }
+  }
+
 
   /// Load initial posts
   Future<void> loadInitialPosts() async {
@@ -58,7 +76,7 @@ class PostsNotifier extends StateNotifier<List<PostModel>> {
     if (index == -1) return;
 
     final post = state[index];
-    await repository.toggleLike(postId, post.isLiked);
+    await repository.toggleLike(postId);
 
     state = [
       ...state.sublist(0, index),

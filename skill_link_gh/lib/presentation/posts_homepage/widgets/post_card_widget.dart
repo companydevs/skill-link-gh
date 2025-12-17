@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
@@ -8,20 +9,16 @@ import '../../../core/app_export.dart';
 class PostCardWidget extends StatefulWidget {
   final PostModel post;
   final VoidCallback onLike;
-  final VoidCallback onComment;
   final VoidCallback onBookNow;
   final VoidCallback onArtisanTap;
-  final VoidCallback onPostTap;
   final VoidCallback onLongPress;
 
   const PostCardWidget({
     super.key,
     required this.post,
     required this.onLike,
-    required this.onComment,
     required this.onBookNow,
     required this.onArtisanTap,
-    required this.onPostTap,
     required this.onLongPress,
   });
 
@@ -30,19 +27,32 @@ class PostCardWidget extends StatefulWidget {
 }
 
 class _PostCardWidgetState extends State<PostCardWidget>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   int _currentImageIndex = 0;
+  late int _likes;
+  late bool _isLiked;
+  late int _commentsCount;
+
+  // Heart animation
   late AnimationController _likeAnimationController;
   late Animation<double> _likeAnimation;
   bool _showLikeAnimation = false;
 
+  // Floating hearts
+  final List<_FloatingHeart> _hearts = [];
+
   @override
   void initState() {
     super.initState();
+    _isLiked = widget.post.isLiked;
+    _likes = widget.post.likes;
+    _commentsCount = widget.post.commentsCount;
+
     _likeAnimationController = AnimationController(
       duration: const Duration(milliseconds: 400),
       vsync: this,
     );
+
     _likeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _likeAnimationController,
@@ -54,25 +64,67 @@ class _PostCardWidgetState extends State<PostCardWidget>
   @override
   void dispose() {
     _likeAnimationController.dispose();
+    for (var heart in _hearts) {
+      heart.controller.dispose();
+    }
     super.dispose();
   }
 
+  void _handleLike() {
+    setState(() {
+      _isLiked = !_isLiked;
+      _likes += _isLiked ? 1 : -1;
+      _showLikeAnimation = _isLiked;
+
+      if (_isLiked) _addFloatingHearts();
+    });
+
+    _likeAnimationController.forward(from: 0).then((_) {
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          _likeAnimationController.reverse();
+          setState(() {
+            _showLikeAnimation = false;
+          });
+        }
+      });
+    });
+
+    // Firestore update
+    widget.onLike();
+  }
+
   void _handleDoubleTap() {
-    if (!widget.post.isLiked) {
-      widget.onLike();
-      setState(() {
-        _showLikeAnimation = true;
+    if (!_isLiked) _handleLike();
+  }
+
+  void _addFloatingHearts() {
+    final heartCount = 6;
+    for (int i = 0; i < heartCount; i++) {
+      final controller = AnimationController(
+        vsync: this,
+        duration: Duration(milliseconds: 800 + Random().nextInt(400)),
+      );
+      final animation = CurvedAnimation(parent: controller, curve: Curves.easeOut);
+      final heart = _FloatingHeart(
+        animation: animation,
+        controller: controller,
+        startPosition: Offset(
+          0.5 + (Random().nextDouble() - 0.5) * 0.4,
+          0.8 + (Random().nextDouble() - 0.4) * 0.2,
+        ),
+        endPosition: Offset(0.5 + (Random().nextDouble() - 0.5) * 0.6, 0.2),
+      );
+      controller.forward();
+      controller.addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          controller.dispose();
+          setState(() {
+            _hearts.remove(heart);
+          });
+        }
       });
-      _likeAnimationController.forward().then((_) {
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (mounted) {
-            _likeAnimationController.reverse();
-            setState(() {
-              _showLikeAnimation = false;
-            });
-          }
-        });
-      });
+      _hearts.add(heart);
     }
   }
 
@@ -80,14 +132,23 @@ class _PostCardWidgetState extends State<PostCardWidget>
     final now = DateTime.now();
     final difference = now.difference(dateTime);
 
-    if (difference.inDays > 0) {
-      return '${difference.inDays}d ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
-    } else {
-      return 'Just now';
+    if (difference.inDays > 0) return '${difference.inDays}d ago';
+    if (difference.inHours > 0) return '${difference.inHours}h ago';
+    if (difference.inMinutes > 0) return '${difference.inMinutes}m ago';
+    return 'Just now';
+  }
+
+  void _navigateToPostDetail() async {
+    final updatedCount = await Navigator.pushNamed(
+      context,
+      '/post-comment-screen',
+      arguments: widget.post,
+    ) as int?;
+
+    if (updatedCount != null && mounted) {
+      setState(() {
+        _commentsCount = updatedCount; // update badge dynamically
+      });
     }
   }
 
@@ -104,9 +165,7 @@ class _PostCardWidgetState extends State<PostCardWidget>
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: theme.colorScheme.outline.withOpacity(0.2),
-          ),
+          border: Border.all(color: theme.colorScheme.outline.withOpacity(0.2)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -130,15 +189,14 @@ class _PostCardWidgetState extends State<PostCardWidget>
           children: [
             ClipOval(
               child: CustomImageWidget(
-  imageUrl: (widget.post.artisanImage.isNotEmpty)
-      ? widget.post.artisanImage
-      : 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
-  width: 40,
-  height: 40,
-  fit: BoxFit.cover,
-  semanticLabel: widget.post.artisanName,
-),
-
+                imageUrl: widget.post.artisanImage.isNotEmpty
+                    ? widget.post.artisanImage
+                    : 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
+                width: 40,
+                height: 40,
+                fit: BoxFit.cover,
+                semanticLabel: widget.post.artisanName,
+              ),
             ),
             SizedBox(width: 3.w),
             Expanded(
@@ -200,10 +258,13 @@ class _PostCardWidgetState extends State<PostCardWidget>
   }
 
   Widget _buildImageCarousel(
-      ThemeData theme, List<PostImage> postImages, bool hasMultipleImages) {
+    ThemeData theme,
+    List<PostImage> postImages,
+    bool hasMultipleImages,
+  ) {
     return GestureDetector(
       onDoubleTap: _handleDoubleTap,
-      onTap: widget.onPostTap,
+      onTap: _navigateToPostDetail,
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -266,6 +327,23 @@ class _PostCardWidgetState extends State<PostCardWidget>
                 size: 80,
               ),
             ),
+          ..._hearts.map((heart) {
+            return Positioned(
+              left: MediaQuery.of(context).size.width * heart.startPosition.dx,
+              top: MediaQuery.of(context).size.height * heart.startPosition.dy,
+              child: FadeTransition(
+                opacity: heart.animation,
+                child: Transform.translate(
+                  offset: Offset(0, -150 * heart.animation.value),
+                  child: CustomIconWidget(
+                    iconName: 'favorite',
+                    color: Colors.pinkAccent,
+                    size: 24,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
         ],
       ),
     );
@@ -307,31 +385,27 @@ class _PostCardWidgetState extends State<PostCardWidget>
   }
 
   Widget _buildActions(ThemeData theme) {
-    final isLiked = widget.post.isLiked;
-    final likes = widget.post.likes;
-    final comments = widget.post.comments;
-
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
       child: Row(
         children: [
           InkWell(
-            onTap: widget.onLike,
+            onTap: _handleLike,
             borderRadius: BorderRadius.circular(20),
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.h),
               child: Row(
                 children: [
                   CustomIconWidget(
-                    iconName: isLiked ? 'favorite' : 'favorite_border',
-                    color: isLiked
+                    iconName: _isLiked ? 'favorite' : 'favorite_border',
+                    color: _isLiked
                         ? theme.colorScheme.error
                         : theme.colorScheme.onSurfaceVariant,
                     size: 20,
                   ),
                   SizedBox(width: 1.w),
                   Text(
-                    likes.toString(),
+                    _likes.toString(),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w500,
@@ -343,25 +417,53 @@ class _PostCardWidgetState extends State<PostCardWidget>
           ),
           SizedBox(width: 4.w),
           InkWell(
-            onTap: widget.onComment,
+            onTap: _navigateToPostDetail,
             borderRadius: BorderRadius.circular(20),
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.h),
-              child: Row(
+              child: Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  CustomIconWidget(
-                    iconName: 'chat_bubble_outline',
-                    color: theme.colorScheme.onSurfaceVariant,
-                    size: 20,
+                  Row(
+                    children: [
+                      CustomIconWidget(
+                        iconName: 'chat_bubble_outline',
+                        color: theme.colorScheme.onSurfaceVariant,
+                        size: 20,
+                      ),
+                      SizedBox(width: 1.w),
+                      Text(
+                        _commentsCount.toString(),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
-                  SizedBox(width: 1.w),
-                  Text(
-                    comments.toString(),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w500,
+                  if (_commentsCount > 0)
+                    Positioned(
+                      right: -6,
+                      top: -6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _commentsCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -375,13 +477,26 @@ class _PostCardWidgetState extends State<PostCardWidget>
             ),
             child: Text(
               'Book Now',
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: Colors.white,
-              ),
+              style: theme.textTheme.labelLarge?.copyWith(color: Colors.white),
             ),
           ),
         ],
       ),
     );
   }
+}
+
+// Floating heart model
+class _FloatingHeart {
+  final Animation<double> animation;
+  final AnimationController controller;
+  final Offset startPosition;
+  final Offset endPosition;
+
+  _FloatingHeart({
+    required this.animation,
+    required this.controller,
+    required this.startPosition,
+    required this.endPosition,
+  });
 }

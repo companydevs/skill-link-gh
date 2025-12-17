@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
 import 'package:skill_link_gh/domain/models/post_model.dart';
+import 'package:skill_link_gh/presentation/posts_homepage/widgets/filter_bottom_sheet_widget.dart';
 import 'package:skill_link_gh/provider/post_provider.dart';
 
 import '../../core/app_export.dart';
 import '../../widgets/custom_bottom_bar.dart';
 import '../../widgets/custom_icon_widget.dart';
-import './widgets/filter_bottom_sheet_widget.dart';
 import './widgets/post_card_widget.dart';
 
 class PostsHomepage extends ConsumerStatefulWidget {
@@ -78,14 +78,10 @@ class _PostsHomepageState extends ConsumerState<PostsHomepage> {
     notifier.refreshPosts();
   }
 
-  // ✅ Change parameter types to PostModel
-  void _navigateToPostDetail(PostModel post) {
-    Navigator.pushNamed(
-      context,
-      '/post-detail-screen',
-      arguments: post.toJson(),
-    );
-  }
+
+
+
+
 
   void _navigateToArtisanProfile(PostModel post) {
     Navigator.pushNamed(
@@ -248,11 +244,11 @@ class _PostsHomepageState extends ConsumerState<PostsHomepage> {
                       final post = posts[index];
                       return PostCardWidget(
                         post: post,
-                        onLike: () => notifier.toggleLike(post.id),
-                        onComment: () => _navigateToPostDetail(post),
+                        onLike: () => notifier.toggleLikeSafe(post.id),
+                        // onComment: () => _navigateToPostDetail(post),
                         onBookNow: () => _navigateToBooking(post),
                         onArtisanTap: () => _navigateToArtisanProfile(post),
-                        onPostTap: () => _navigateToPostDetail(post),
+                        // onPostTap: () => _navigateToPostDetail(post),
                         onLongPress: () => _showPostOptions(post),
                       );
                     },

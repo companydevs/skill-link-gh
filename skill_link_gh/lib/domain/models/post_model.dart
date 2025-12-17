@@ -13,6 +13,8 @@ class PostModel {
   final int comments;
   final bool isLiked;
   final bool isSaved;
+  final int commentsCount; // Add this
+
   final DateTime createdAt;
 
   PostModel({
@@ -28,6 +30,8 @@ class PostModel {
     required this.comments,
     this.isLiked = false,
     this.isSaved = false,
+    this.commentsCount = 0, // default 0
+
     required this.createdAt,
   });
 
@@ -42,14 +46,16 @@ class PostModel {
       serviceCategory: data['serviceCategory'] ?? '',
       description: data['description'] ?? '',
       pricing: data['pricing'] ?? '',
-      postImages: (data['postImages'] as List<dynamic>?)
+      postImages:
+          (data['postImages'] as List<dynamic>?)
               ?.map((e) => PostImage.fromMap(e as Map<String, dynamic>))
               .toList() ??
           [],
       likes: data['likes'] ?? 0,
       comments: data['comments'] ?? 0,
-      isLiked: data['isLiked'] ?? false,
-      isSaved: data['isSaved'] ?? false,
+     commentsCount: (data['commentsCount'] ?? 0).toInt(),
+
+
       createdAt: (data['createdAt'] as Timestamp).toDate(),
     );
   }
@@ -69,6 +75,7 @@ class PostModel {
       'comments': comments,
       'isLiked': isLiked,
       'isSaved': isSaved,
+      'commentsCount': commentsCount, // include in JSON
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -87,6 +94,7 @@ class PostModel {
     int? comments,
     bool? isLiked,
     bool? isSaved,
+    int? commentsCount,
     DateTime? createdAt,
   }) {
     return PostModel(
@@ -102,6 +110,7 @@ class PostModel {
       comments: comments ?? this.comments,
       isLiked: isLiked ?? this.isLiked,
       isSaved: isSaved ?? this.isSaved,
+      commentsCount: commentsCount ?? this.commentsCount,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -115,17 +124,11 @@ class PostImage {
 
   /// Create PostImage from Map
   factory PostImage.fromMap(Map<String, dynamic> map) {
-    return PostImage(
-      url: map['url'] ?? '',
-      label: map['label'] ?? '',
-    );
+    return PostImage(url: map['url'] ?? '', label: map['label'] ?? '');
   }
 
   /// Convert PostImage to JSON
   Map<String, dynamic> toJson() {
-    return {
-      'url': url,
-      'label': label,
-    };
+    return {'url': url, 'label': label};
   }
 }

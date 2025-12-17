@@ -9,7 +9,7 @@ import '../widgets/custom_error_widget.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  Firebase.initializeApp();
+  await Firebase.initializeApp(); // Wait for Firebase to finish initializing
 
   bool _hasShownError = false;
 
