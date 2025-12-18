@@ -7,6 +7,7 @@ Built for speed, scalability, and modern mobile UX.
 
 ## ✨ Features
 
+
 - 🔍 **Artisan Search & Discovery**
 - 💬 **In-App Messaging**
 - 🎥 **Reels / Short Videos**
