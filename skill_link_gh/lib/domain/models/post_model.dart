@@ -53,8 +53,7 @@ class PostModel {
           [],
       likes: data['likes'] ?? 0,
       comments: data['comments'] ?? 0,
-     commentsCount: (data['commentsCount'] ?? 0).toInt(),
-
+      commentsCount: (data['commentsCount'] ?? 0).toInt(),
 
       createdAt: (data['createdAt'] as Timestamp).toDate(),
     );

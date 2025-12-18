@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:skill_link_gh/domain/models/post_model.dart';
 
 import '../../../core/app_export.dart';
@@ -31,7 +32,6 @@ class _PostCardWidgetState extends State<PostCardWidget>
   int _currentImageIndex = 0;
   late int _likes;
   late bool _isLiked;
-  late int _commentsCount;
 
   // Heart animation
   late AnimationController _likeAnimationController;
@@ -41,12 +41,19 @@ class _PostCardWidgetState extends State<PostCardWidget>
   // Floating hearts
   final List<_FloatingHeart> _hearts = [];
 
+  // Firestore comment count stream
+  Stream<int> get _commentsCountStream => FirebaseFirestore.instance
+      .collection('posts')
+      .doc(widget.post.id)
+      .collection('comments')
+      .snapshots()
+      .map((snapshot) => snapshot.docs.length);
+
   @override
   void initState() {
     super.initState();
     _isLiked = widget.post.isLiked;
     _likes = widget.post.likes;
-    _commentsCount = widget.post.commentsCount;
 
     _likeAnimationController = AnimationController(
       duration: const Duration(milliseconds: 400),
@@ -136,20 +143,6 @@ class _PostCardWidgetState extends State<PostCardWidget>
     if (difference.inHours > 0) return '${difference.inHours}h ago';
     if (difference.inMinutes > 0) return '${difference.inMinutes}m ago';
     return 'Just now';
-  }
-
-  void _navigateToPostDetail() async {
-    final updatedCount = await Navigator.pushNamed(
-      context,
-      '/post-comment-screen',
-      arguments: widget.post,
-    ) as int?;
-
-    if (updatedCount != null && mounted) {
-      setState(() {
-        _commentsCount = updatedCount; // update badge dynamically
-      });
-    }
   }
 
   @override
@@ -258,13 +251,9 @@ class _PostCardWidgetState extends State<PostCardWidget>
   }
 
   Widget _buildImageCarousel(
-    ThemeData theme,
-    List<PostImage> postImages,
-    bool hasMultipleImages,
-  ) {
+      ThemeData theme, List<PostImage> postImages, bool hasMultipleImages) {
     return GestureDetector(
       onDoubleTap: _handleDoubleTap,
-      onTap: _navigateToPostDetail,
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -389,6 +378,7 @@ class _PostCardWidgetState extends State<PostCardWidget>
       padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
       child: Row(
         children: [
+          // Likes
           InkWell(
             onTap: _handleLike,
             borderRadius: BorderRadius.circular(20),
@@ -415,60 +405,68 @@ class _PostCardWidgetState extends State<PostCardWidget>
               ),
             ),
           ),
+
           SizedBox(width: 4.w),
-          InkWell(
-            onTap: _navigateToPostDetail,
-            borderRadius: BorderRadius.circular(20),
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.h),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Row(
+
+          // Comments - Real-time count
+          StreamBuilder<int>(
+            stream: _commentsCountStream,
+            builder: (context, snapshot) {
+              final count = snapshot.data ?? 0;
+              return InkWell(
+                onTap: () => Navigator.pushNamed(
+                  context,
+                  '/post-comment-screen',
+                  arguments: widget.post,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.h),
+                  child: Stack(
+                    clipBehavior: Clip.none,
                     children: [
-                      CustomIconWidget(
-                        iconName: 'chat_bubble_outline',
-                        color: theme.colorScheme.onSurfaceVariant,
-                        size: 20,
+                      Row(
+                        children: [
+                          CustomIconWidget(
+                            iconName: 'chat_bubble_outline',
+                            color: theme.colorScheme.onSurfaceVariant,
+                            size: 20,
+                          ),
+                        
+                        ],
                       ),
-                      SizedBox(width: 1.w),
-                      Text(
-                        _commentsCount.toString(),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_commentsCount > 0)
-                    Positioned(
-                      right: -6,
-                      top: -6,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          _commentsCount.toString(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+                      if (count > 0)
+                        Positioned(
+                          right: -6,
+                          top: -6,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              count.toString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
+
           const Spacer(),
+
           ElevatedButton(
             onPressed: widget.onBookNow,
             style: ElevatedButton.styleFrom(

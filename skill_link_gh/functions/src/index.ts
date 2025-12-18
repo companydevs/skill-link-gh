@@ -24,6 +24,7 @@ export {verifyEmailCode} from "./authentication/verifyEmailCode";
 export {resetPassword} from "./authentication/resetPassword";
 export {checkUserStatus} from "./authentication/checkUserStatus";
 export {deleteUserAccount} from "./authentication/deleteUserAccount";
+export {deleteComment} from "./posts/deleteComment";
 
 
 export {createPost} from "./posts/createPost";
