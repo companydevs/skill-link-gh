@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -197,12 +199,21 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
   }
 
   // ===================== POST COMMENT =====================
-  Future<void> _onPostComment(String text) async {
-    if (text.trim().isEmpty) return;
+bool _isPosting = false; // Add this to your state
 
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+Future<void> _onPostComment(String text) async {
+  if (text.trim().isEmpty) return;
 
+  if (_isPosting) return; // prevent multiple clicks
+  _isPosting = true;       // mark as posting
+
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) {
+    _isPosting = false;
+    return;
+  }
+
+  try {
     final ref = _firestore
         .collection('posts')
         .doc(widget.post.id)
@@ -243,7 +254,13 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
 
     _commentController.clear();
     _loadComments(refresh: true);
+  } catch (e) {
+    // optionally show error to user
+    log("Error posting comment: $e");
+  } finally {
+    _isPosting = false; // reset flag
   }
+}
 
 Future<void> _deleteComment(String commentId) async {
   final functions = FirebaseFunctions.instance;

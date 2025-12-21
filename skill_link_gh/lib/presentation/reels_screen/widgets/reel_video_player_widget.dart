@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
 
-/// Video player widget for reels
-/// Displays full-screen video with auto-play functionality
 class ReelVideoPlayerWidget extends StatefulWidget {
   final String videoUrl;
   final bool isActive;
@@ -15,84 +14,118 @@ class ReelVideoPlayerWidget extends StatefulWidget {
   });
 
   @override
-  State<ReelVideoPlayerWidget> createState() => _ReelVideoPlayerWidgetState();
+  State<ReelVideoPlayerWidget> createState() =>
+      _ReelVideoPlayerWidgetState();
 }
 
-class _ReelVideoPlayerWidgetState extends State<ReelVideoPlayerWidget> {
-  bool _isLoading = true;
+class _ReelVideoPlayerWidgetState
+    extends State<ReelVideoPlayerWidget> {
+  late VideoPlayerController _controller;
+  bool _showMuteIcon = false;
 
   @override
   void initState() {
     super.initState();
-    _simulateVideoLoad();
+    _initVideo();
+  }
+
+  void _initVideo() {
+    _controller = VideoPlayerController.network(widget.videoUrl)
+      ..initialize().then((_) {
+        _controller
+          ..setLooping(true)
+          ..setVolume(widget.isMuted ? 0 : 1);
+
+        if (widget.isActive) {
+          _controller.play();
+        }
+
+        if (mounted) setState(() {});
+      });
   }
 
   @override
-  void didUpdateWidget(ReelVideoPlayerWidget oldWidget) {
+  void didUpdateWidget(covariant ReelVideoPlayerWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
+
     if (oldWidget.videoUrl != widget.videoUrl) {
-      setState(() {
-        _isLoading = true;
-      });
-      _simulateVideoLoad();
+      _controller.dispose();
+      _initVideo();
+      return;
     }
+
+    if (widget.isActive) {
+      _controller.play();
+    } else {
+      _controller.pause();
+    }
+
+    _controller.setVolume(widget.isMuted ? 0 : 1);
   }
 
-  Future<void> _simulateVideoLoad() async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-    }
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _toggleMute() {
+    final muted = _controller.value.volume == 0;
+    _controller.setVolume(muted ? 1 : 0);
+
+    setState(() => _showMuteIcon = true);
+
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (mounted) setState(() => _showMuteIcon = false);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.black,
+    if (!_controller.value.isInitialized) {
+      return const Center(
+        child: CircularProgressIndicator(color: Colors.white),
+      );
+    }
+
+    return GestureDetector(
+      onTap: _toggleMute,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          _isLoading
-              ? const Center(
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                  ),
-                )
-              : Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.3),
-                        Colors.transparent,
-                        Colors.black.withValues(alpha: 0.7),
-                      ],
-                      stops: const [0.0, 0.5, 1.0],
-                    ),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      widget.isActive
-                          ? Icons.play_circle_outline
-                          : Icons.pause_circle_outline,
-                      size: 80,
-                      color: Colors.white.withValues(alpha: 0.7),
-                    ),
-                  ),
-                ),
-          if (!_isLoading)
-            Positioned(
-              bottom: 8,
-              left: 16,
-              right: 16,
-              child: LinearProgressIndicator(
-                value: widget.isActive ? 0.6 : 0.0,
-                backgroundColor: Colors.white.withValues(alpha: 0.3),
-                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                minHeight: 2,
+          FittedBox(
+            fit: BoxFit.cover,
+            child: SizedBox(
+              width: _controller.value.size.width,
+              height: _controller.value.size.height,
+              child: VideoPlayer(_controller),
+            ),
+          ),
+
+          // Gradient overlay
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black26,
+                  Colors.transparent,
+                  Colors.black54,
+                ],
+              ),
+            ),
+          ),
+
+          // Mute icon
+          if (_showMuteIcon)
+            Center(
+              child: Icon(
+                _controller.value.volume == 0
+                    ? Icons.volume_off
+                    : Icons.volume_up,
+                size: 80,
+                color: Colors.white70,
               ),
             ),
         ],
