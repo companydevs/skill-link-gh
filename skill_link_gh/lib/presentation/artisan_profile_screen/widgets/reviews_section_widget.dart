@@ -102,10 +102,7 @@ class ReviewsSectionWidget extends StatelessWidget {
       padding: EdgeInsets.symmetric(vertical: 0.5.h),
       child: Row(
         children: [
-          Text(
-            '$stars',
-            style: theme.textTheme.bodySmall,
-          ),
+          Text('$stars', style: theme.textTheme.bodySmall),
           SizedBox(width: 2.w),
           CustomIconWidget(
             iconName: 'star',
@@ -118,8 +115,9 @@ class ReviewsSectionWidget extends StatelessWidget {
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
                 value: percentage / 100,
-                backgroundColor:
-                    theme.colorScheme.outline.withValues(alpha: 0.2),
+                backgroundColor: theme.colorScheme.outline.withValues(
+                  alpha: 0.2,
+                ),
                 valueColor: AlwaysStoppedAnimation<Color>(
                   theme.colorScheme.secondary,
                 ),
@@ -128,10 +126,7 @@ class ReviewsSectionWidget extends StatelessWidget {
             ),
           ),
           SizedBox(width: 2.w),
-          Text(
-            '$percentage%',
-            style: theme.textTheme.bodySmall,
-          ),
+          Text('$percentage%', style: theme.textTheme.bodySmall),
         ],
       ),
     );
@@ -178,7 +173,10 @@ class ReviewsSectionWidget extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      _formatDate(review["date"] as String),
+                      _formatDate(
+                        review["date"] as String? ??
+                            DateTime.now().toIso8601String(),
+                      ),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -222,9 +220,7 @@ class ReviewsSectionWidget extends StatelessWidget {
           SizedBox(height: 2.h),
           Text(
             review["review"] as String,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              height: 1.5,
-            ),
+            style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
           ),
           if (review["images"] != null) ...[
             SizedBox(height: 2.h),
@@ -291,7 +287,7 @@ class ReviewsSectionWidget extends StatelessWidget {
         'Sep',
         'Oct',
         'Nov',
-        'Dec'
+        'Dec',
       ];
       return '${months[date.month - 1]} ${date.day}, ${date.year}';
     }

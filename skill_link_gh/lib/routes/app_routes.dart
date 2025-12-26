@@ -7,6 +7,7 @@ import 'package:skill_link_gh/presentation/otp_verification_screen/otp_verificat
 import 'package:skill_link_gh/presentation/posts_comments_detail_screen/post_comments_detail_screen.dart';
 import 'package:skill_link_gh/presentation/splash_screen/splash_screen.dart';
 import 'package:skill_link_gh/presentation/user_type_selection_screen/user_type_selection_screen.dart';
+import 'package:skill_link_gh/test_reels_screen.dart';
 import '../presentation/artisan_profile_screen/artisan_profile_screen.dart';
 import '../presentation/reels_screen/reels_screen.dart';
 import '../presentation/service_booking_screen/service_booking_screen.dart';
@@ -30,6 +31,7 @@ class AppRoutes {
   static const String postsHomepage = '/posts-homepage';
   static const String postCommentScreen = '/post-comment-screen';
   static const String inAppMessagingScreen = '/in-app-messaging-screen';
+  static const String testReels = '/test-reels';
 
   static Map<String, WidgetBuilder> routes = {
     initial: (context) => const SplashScreen(),
@@ -48,7 +50,7 @@ class AppRoutes {
     },
 
     artisanProfile: (context) => const ArtisanProfileScreen(),
-    reels: (context) => const ReelsScreen(),
+    reels: (context) => ReelsScreen(),
     serviceBooking: (context) => const ServiceBookingScreen(),
     registration: (context) => const RegistrationScreen(),
     searchAndDiscovery: (context) => const SearchAndDiscoveryScreen(),
@@ -62,6 +64,7 @@ class AppRoutes {
     },
 
     inAppMessagingScreen: (context) => const InAppMessaging(),
+    testReels: (context) => const TestReelsScreen(),
     // TODO: Add your other routes here
   };
 }

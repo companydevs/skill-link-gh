@@ -7,10 +7,7 @@ import '../../../core/app_export.dart';
 class ProfileHeaderWidget extends StatelessWidget {
   final Map<String, dynamic> artisanData;
 
-  const ProfileHeaderWidget({
-    super.key,
-    required this.artisanData,
-  });
+  const ProfileHeaderWidget({super.key, required this.artisanData});
 
   @override
   Widget build(BuildContext context) {
@@ -21,11 +18,15 @@ class ProfileHeaderWidget extends StatelessWidget {
       children: [
         // Cover Photo
         CustomImageWidget(
-          imageUrl: artisanData["coverPhoto"] as String,
+          imageUrl:
+              artisanData["coverPhoto"] as String? ??
+              'https://images.unsplash.com/photo-1557804506-669a67965ba0?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
           width: 100.w,
           height: 30.h,
           fit: BoxFit.cover,
-          semanticLabel: artisanData["coverPhotoSemanticLabel"] as String,
+          semanticLabel:
+              artisanData["coverPhotoSemanticLabel"] as String? ??
+              'Cover photo',
         ),
         // Gradient Overlay
         Container(
@@ -35,10 +36,7 @@ class ProfileHeaderWidget extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
-                Colors.transparent,
-                Colors.black.withValues(alpha: 0.7),
-              ],
+              colors: [Colors.transparent, Colors.black.withValues(alpha: 0.7)],
             ),
           ),
         ),
@@ -68,12 +66,13 @@ class ProfileHeaderWidget extends StatelessWidget {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(60),
                   child: CustomImageWidget(
-                    imageUrl: artisanData["profileImage"] as String,
+                    imageUrl: artisanData["profileImage"] as String?,
                     width: 120,
                     height: 120,
                     fit: BoxFit.cover,
                     semanticLabel:
-                        artisanData["profileImageSemanticLabel"] as String,
+                        artisanData["profileImageSemanticLabel"] as String? ??
+                        'Profile picture',
                   ),
                 ),
               ),
@@ -84,7 +83,9 @@ class ProfileHeaderWidget extends StatelessWidget {
                 child: Column(
                   children: [
                     Text(
-                      artisanData["name"] as String,
+                      artisanData["name"] as String? ??
+                          artisanData["fullName"] as String? ??
+                          'Unknown User',
                       style: theme.textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -95,25 +96,28 @@ class ProfileHeaderWidget extends StatelessWidget {
                       spacing: 2.w,
                       runSpacing: 1.h,
                       alignment: WrapAlignment.center,
-                      children: (artisanData["serviceCategories"] as List)
-                          .map((category) => Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 3.w,
-                                  vertical: 0.5.h,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.primaryContainer,
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Text(
-                                  category as String,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.primary,
-                                    fontWeight: FontWeight.w500,
+                      children:
+                          ((artisanData["serviceCategories"] as List?) ?? [])
+                              .map(
+                                (category) => Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 3.w,
+                                    vertical: 0.5.h,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primaryContainer,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Text(
+                                    category as String? ?? 'Service',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.primary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
-                              ))
-                          .toList(),
+                              )
+                              .toList(),
                     ),
                     SizedBox(height: 1.5.h),
                     // Rating and Verification
@@ -127,13 +131,14 @@ class ProfileHeaderWidget extends StatelessWidget {
                         ),
                         SizedBox(width: 1.w),
                         Text(
-                          '${artisanData["rating"]} (${artisanData["totalReviews"]} reviews)',
+                          '${artisanData["rating"] ?? 0.0} (${artisanData["totalReviews"] ?? 0} reviews)',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                        if ((artisanData["verificationBadges"]
-                                as Map)["identityVerified"] ==
+                        if (((artisanData["verificationBadges"]
+                                    as Map?)?["identityVerified"]
+                                as bool?) ==
                             true) ...[
                           SizedBox(width: 2.w),
                           Container(

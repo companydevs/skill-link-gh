@@ -29,6 +29,7 @@ class Reel {
     required this.timestamp,
   });
 
+  /// Safe copyWith
   Reel copyWith({
     String? id,
     String? videoUrl,
@@ -59,24 +60,55 @@ class Reel {
     );
   }
 
+  /// Updated factory to handle both 'createdAt' and 'timestamp' fields
+  /// Makes it robust when collection is empty or fields are missing
   factory Reel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>?;
+
+    // If document has no data (shouldn't happen, but safe guard)
+    if (data == null) {
+      return Reel(
+        id: doc.id,
+        videoUrl: '',
+        artisanName: 'Unknown Artisan',
+        artisanAvatar: '',
+        artisanCategory: 'General',
+        artisanSemanticLabel: '',
+        description: 'No description available',
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        isLiked: false,
+        timestamp: DateTime.now(),
+      );
+    }
+
+    // Safely extract timestamp (supports both field names from your code evolution)
+    DateTime parsedTimestamp;
+    final timestampField = data['createdAt'] ?? data['timestamp'];
+    if (timestampField is Timestamp) {
+      parsedTimestamp = timestampField.toDate();
+    } else {
+      parsedTimestamp = DateTime.now(); // fallback
+    }
+
     return Reel(
       id: doc.id,
-      videoUrl: data['videoUrl'] ?? '',
-      artisanName: data['artisanName'] ?? '',
-      artisanAvatar: data['artisanAvatar'] ?? '',
-      artisanCategory: data['artisanCategory'] ?? '',
-      artisanSemanticLabel: data['artisanSemanticLabel'] ?? '',
-      description: data['description'] ?? '',
-      likes: data['likes'] ?? 0,
-      comments: data['comments'] ?? 0,
-      shares: data['shares'] ?? 0,
-      isLiked: false,
-      timestamp: (data['timestamp'] as Timestamp).toDate(),
+      videoUrl: data['videoUrl'] as String? ?? '',
+      artisanName: data['artisanName'] as String? ?? 'Unknown Artisan',
+      artisanAvatar: data['artisanAvatar'] as String? ?? '',
+      artisanCategory: data['artisanCategory'] as String? ?? 'General',
+      artisanSemanticLabel: data['artisanSemanticLabel'] as String? ?? '',
+      description: data['description'] as String? ?? 'Check out this amazing work!',
+      likes: (data['likes'] as num?)?.toInt() ?? 0,
+      comments: (data['comments'] as num?)?.toInt() ?? 0,
+      shares: (data['shares'] as num?)?.toInt() ?? 0,
+      isLiked: false, // This will be set correctly in repository fetch
+      timestamp: parsedTimestamp,
     );
   }
 
+  /// For future use if needed (e.g., caching)
   Map<String, dynamic> toFirestore() {
     return {
       'videoUrl': videoUrl,
@@ -88,7 +120,12 @@ class Reel {
       'likes': likes,
       'comments': comments,
       'shares': shares,
-      'timestamp': timestamp,
+      'createdAt': Timestamp.fromDate(timestamp), // Use consistent field name
     };
+  }
+
+  @override
+  String toString() {
+    return 'Reel(id: $id, artisan: $artisanName, likes: $likes, description: $description)';
   }
 }

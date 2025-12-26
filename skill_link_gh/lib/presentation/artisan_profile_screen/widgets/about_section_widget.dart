@@ -8,10 +8,7 @@ import '../../../widgets/custom_icon_widget.dart';
 class AboutSectionWidget extends StatelessWidget {
   final Map<String, dynamic> artisanData;
 
-  const AboutSectionWidget({
-    super.key,
-    required this.artisanData,
-  });
+  const AboutSectionWidget({super.key, required this.artisanData});
 
   @override
   Widget build(BuildContext context) {
@@ -31,10 +28,8 @@ class AboutSectionWidget extends StatelessWidget {
           ),
           SizedBox(height: 2.h),
           Text(
-            artisanData["bio"] as String,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              height: 1.5,
-            ),
+            artisanData["bio"] as String? ?? 'No bio available.',
+            style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
           ),
           SizedBox(height: 3.h),
           // Experience
@@ -42,7 +37,7 @@ class AboutSectionWidget extends StatelessWidget {
             context,
             icon: 'work_history',
             label: 'Experience',
-            value: artisanData["experience"] as String,
+            value: artisanData["experience"] as String? ?? 'Not specified',
           ),
           SizedBox(height: 2.h),
           // Location
@@ -50,7 +45,7 @@ class AboutSectionWidget extends StatelessWidget {
             context,
             icon: 'location_on',
             label: 'Location',
-            value: artisanData["location"] as String,
+            value: artisanData["location"] as String? ?? 'Not specified',
           ),
           SizedBox(height: 2.h),
           // Member Since
@@ -58,7 +53,10 @@ class AboutSectionWidget extends StatelessWidget {
             context,
             icon: 'calendar_today',
             label: 'Member Since',
-            value: _formatDate(artisanData["memberSince"] as String),
+            value: _formatDate(
+              artisanData["memberSince"] as String? ??
+                  DateTime.now().toIso8601String(),
+            ),
           ),
           SizedBox(height: 2.h),
           // Languages
@@ -66,7 +64,9 @@ class AboutSectionWidget extends StatelessWidget {
             context,
             icon: 'language',
             label: 'Languages',
-            value: (artisanData["languages"] as List).join(', '),
+            value: ((artisanData["languages"] as List?) ?? ['English']).join(
+              ', ',
+            ),
           ),
           SizedBox(height: 3.h),
           // Certifications
@@ -77,34 +77,36 @@ class AboutSectionWidget extends StatelessWidget {
             ),
           ),
           SizedBox(height: 2.h),
-          ...(artisanData["certifications"] as List).map((cert) => Padding(
-                padding: EdgeInsets.only(bottom: 1.5.h),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      margin: EdgeInsets.only(top: 0.5.h),
-                      padding: EdgeInsets.all(1.w),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer,
-                        shape: BoxShape.circle,
-                      ),
-                      child: CustomIconWidget(
-                        iconName: 'verified',
-                        size: 16,
-                        color: theme.colorScheme.primary,
-                      ),
+          ...((artisanData["certifications"] as List?) ?? []).map(
+            (cert) => Padding(
+              padding: EdgeInsets.only(bottom: 1.5.h),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    margin: EdgeInsets.only(top: 0.5.h),
+                    padding: EdgeInsets.all(1.w),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      shape: BoxShape.circle,
                     ),
-                    SizedBox(width: 3.w),
-                    Expanded(
-                      child: Text(
-                        cert as String,
-                        style: theme.textTheme.bodyMedium,
-                      ),
+                    child: CustomIconWidget(
+                      iconName: 'verified',
+                      size: 16,
+                      color: theme.colorScheme.primary,
                     ),
-                  ],
-                ),
-              )),
+                  ),
+                  SizedBox(width: 3.w),
+                  Expanded(
+                    child: Text(
+                      cert as String? ?? 'Certification',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           SizedBox(height: 3.h),
           // Verification Badges
           Text(
@@ -118,24 +120,32 @@ class AboutSectionWidget extends StatelessWidget {
             context,
             icon: 'badge',
             label: 'Identity Verified',
-            verified: (artisanData["verificationBadges"]
-                as Map)["identityVerified"] as bool,
+            verified:
+                ((artisanData["verificationBadges"]
+                        as Map?)?["identityVerified"]
+                    as bool?) ??
+                false,
           ),
           SizedBox(height: 1.5.h),
           _buildVerificationBadge(
             context,
             icon: 'workspace_premium',
             label: 'Skill Certified',
-            verified: (artisanData["verificationBadges"]
-                as Map)["skillCertified"] as bool,
+            verified:
+                ((artisanData["verificationBadges"] as Map?)?["skillCertified"]
+                    as bool?) ??
+                false,
           ),
           SizedBox(height: 1.5.h),
           _buildVerificationBadge(
             context,
             icon: 'security',
             label: 'Background Checked',
-            verified: (artisanData["verificationBadges"]
-                as Map)["backgroundChecked"] as bool,
+            verified:
+                ((artisanData["verificationBadges"]
+                        as Map?)?["backgroundChecked"]
+                    as bool?) ??
+                false,
           ),
           SizedBox(height: 10.h),
         ],
@@ -252,7 +262,7 @@ class AboutSectionWidget extends StatelessWidget {
       'Sep',
       'Oct',
       'Nov',
-      'Dec'
+      'Dec',
     ];
     return '${months[date.month - 1]} ${date.year}';
   }

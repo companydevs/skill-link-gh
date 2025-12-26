@@ -78,10 +78,7 @@ class CustomImageWidget extends StatelessWidget {
   Widget _buildWidget() {
     return Padding(
       padding: margin ?? EdgeInsets.zero,
-      child: InkWell(
-        onTap: onTap,
-        child: _buildCircleImage(),
-      ),
+      child: InkWell(onTap: onTap, child: _buildCircleImage()),
     );
   }
 
@@ -101,10 +98,7 @@ class CustomImageWidget extends StatelessWidget {
   _buildImageWithBorder() {
     if (border != null) {
       return Container(
-        decoration: BoxDecoration(
-          border: border,
-          borderRadius: radius,
-        ),
+        decoration: BoxDecoration(border: border, borderRadius: radius),
         child: _buildImageView(),
       );
     } else {
@@ -113,70 +107,85 @@ class CustomImageWidget extends StatelessWidget {
   }
 
   Widget _buildImageView() {
-    if (imageUrl != null) {
-      switch (imageUrl!.imageType) {
-        case ImageType.svg:
-          return Container(
-            height: height,
-            width: width,
-            child: SvgPicture.asset(
-              imageUrl!,
-              height: height,
-              width: width,
-              fit: fit ?? BoxFit.contain,
-              colorFilter: this.color != null
-                  ? ColorFilter.mode(
-                      this.color ?? Colors.transparent, BlendMode.srcIn)
-                  : null,
-              semanticsLabel: semanticLabel,
-            ),
-          );
-        case ImageType.file:
-          return Image.file(
-            File(imageUrl!),
-            height: height,
-            width: width,
-            fit: fit ?? BoxFit.cover,
-            color: color,
-            semanticLabel: semanticLabel,
-          );
-        case ImageType.network:
-          return CachedNetworkImage(
-            height: height,
-            width: width,
-            fit: fit,
-            imageUrl: imageUrl!,
-            color: color,
-            placeholder: (context, url) => Container(
-              height: 30,
-              width: 30,
-              child: LinearProgressIndicator(
-                color: Colors.grey.shade200,
-                backgroundColor: Colors.grey.shade100,
-              ),
-            ),
-            errorWidget: (context, url, error) =>
-                errorWidget ??
-                Image.asset(
-                  placeHolder,
-                  height: height,
-                  width: width,
-                  fit: fit ?? BoxFit.cover,
-                  semanticLabel: semanticLabel,
-                ),
-          );
-        case ImageType.png:
-        default:
-          return Image.asset(
+    // Handle empty or null imageUrl
+    if (imageUrl == null || imageUrl!.isEmpty) {
+      return _buildPlaceholderImage();
+    }
+
+    switch (imageUrl!.imageType) {
+      case ImageType.svg:
+        return Container(
+          height: height,
+          width: width,
+          child: SvgPicture.asset(
             imageUrl!,
             height: height,
             width: width,
-            fit: fit ?? BoxFit.cover,
-            color: color,
-            semanticLabel: semanticLabel,
-          );
-      }
+            fit: fit ?? BoxFit.contain,
+            colorFilter: this.color != null
+                ? ColorFilter.mode(
+                    this.color ?? Colors.transparent,
+                    BlendMode.srcIn,
+                  )
+                : null,
+            semanticsLabel: semanticLabel,
+          ),
+        );
+      case ImageType.file:
+        return Image.file(
+          File(imageUrl!),
+          height: height,
+          width: width,
+          fit: fit ?? BoxFit.cover,
+          color: color,
+          semanticLabel: semanticLabel,
+        );
+      case ImageType.network:
+        return CachedNetworkImage(
+          height: height,
+          width: width,
+          fit: fit,
+          imageUrl: imageUrl!,
+          color: color,
+          placeholder: (context, url) => Container(
+            height: 30,
+            width: 30,
+            child: LinearProgressIndicator(
+              color: Colors.grey.shade200,
+              backgroundColor: Colors.grey.shade100,
+            ),
+          ),
+          errorWidget: (context, url, error) =>
+              errorWidget ??
+              Image.asset(
+                placeHolder,
+                height: height,
+                width: width,
+                fit: fit ?? BoxFit.cover,
+                semanticLabel: semanticLabel,
+              ),
+        );
+      case ImageType.png:
+      default:
+        return Image.asset(
+          imageUrl!,
+          height: height,
+          width: width,
+          fit: fit ?? BoxFit.cover,
+          color: color,
+          semanticLabel: semanticLabel,
+        );
     }
-    return SizedBox();
+  }
+
+  Widget _buildPlaceholderImage() {
+    return errorWidget ??
+        Image.asset(
+          placeHolder,
+          height: height,
+          width: width,
+          fit: fit ?? BoxFit.cover,
+          semanticLabel: semanticLabel ?? 'Placeholder image',
+        );
   }
 }

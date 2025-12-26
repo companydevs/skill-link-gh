@@ -8,10 +8,7 @@ import '../../../widgets/custom_icon_widget.dart';
 class ProfileStatsWidget extends StatelessWidget {
   final Map<String, dynamic> artisanData;
 
-  const ProfileStatsWidget({
-    super.key,
-    required this.artisanData,
-  });
+  const ProfileStatsWidget({super.key, required this.artisanData});
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +34,7 @@ class ProfileStatsWidget extends StatelessWidget {
           _buildStatItem(
             context,
             icon: 'work',
-            value: '${artisanData["totalJobs"]}',
+            value: '${artisanData["totalJobs"] ?? 0}',
             label: 'Jobs Done',
           ),
           Container(
@@ -48,7 +45,7 @@ class ProfileStatsWidget extends StatelessWidget {
           _buildStatItem(
             context,
             icon: 'schedule',
-            value: artisanData["responseTime"] as String,
+            value: artisanData["responseTime"] as String? ?? 'N/A',
             label: 'Response',
           ),
           Container(
@@ -59,7 +56,9 @@ class ProfileStatsWidget extends StatelessWidget {
           _buildStatItem(
             context,
             icon: 'location_on',
-            value: (artisanData["location"] as String).split(',')[0],
+            value: ((artisanData["location"] as String?) ?? 'Unknown').split(
+              ',',
+            )[0],
             label: 'Location',
           ),
         ],
