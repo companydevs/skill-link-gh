@@ -135,13 +135,59 @@ class PostsNotifier extends StateNotifier<PostsState> {
 
     if (wasLiked) {
       // Remove current user from likedBy when unliking
+      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUserId != null) {
+        newLikedBy.removeWhere((user) => user.userId == currentUserId);
+      }
+
       // If likes become 0, clear the entire list
       if (newLikeCount == 0) {
         newLikedBy = [];
       }
     } else {
-      // When liking, we'll fetch updated likedBy from server after the operation
-      // For now, just keep the existing list (it will be updated on next fetch)
+      // When liking, add current user to the beginning of likedBy list
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        // Fetch current user data from Firestore
+        try {
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUser.uid)
+              .get();
+
+          if (userDoc.exists) {
+            final userData = userDoc.data();
+            final userName =
+                userData?['name'] ??
+                userData?['username'] ??
+                userData?['displayName'] ??
+                currentUser.displayName ??
+                'You';
+            final userImage =
+                userData?['profileImage'] ??
+                userData?['photoUrl'] ??
+                currentUser.photoURL ??
+                '';
+
+            // Add current user at the beginning
+            newLikedBy.insert(
+              0,
+              LikedByUser(
+                userId: currentUser.uid,
+                userName: userName,
+                userImage: userImage,
+              ),
+            );
+
+            // Keep only the first 3 users
+            if (newLikedBy.length > 3) {
+              newLikedBy = newLikedBy.sublist(0, 3);
+            }
+          }
+        } catch (e) {
+          log('Error fetching user data: $e');
+        }
+      }
     }
 
     // Optimistic update
