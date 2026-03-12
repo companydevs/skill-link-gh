@@ -49,12 +49,58 @@ class PostsNotifier extends StateNotifier<PostsState> {
   final PostRepository repository;
   DocumentSnapshot? _lastDoc;
 
-  PostsNotifier(this.repository) : super(const PostsState());
+  // Cache current user data for instant likes
+  LikedByUser? _currentUserCache;
+  bool _userCacheInitialized = false;
+
+  PostsNotifier(this.repository) : super(const PostsState()) {
+    _initializeCurrentUser();
+  }
 
   bool get hasMore => state.hasMore;
   bool get isLoading => state.isLoading;
 
   bool _likeInProgress = false;
+
+  // Initialize current user data once
+  Future<void> _initializeCurrentUser() async {
+    if (_userCacheInitialized) return;
+
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      if (userDoc.exists) {
+        final userData = userDoc.data();
+        final userName =
+            userData?['name'] ??
+            userData?['username'] ??
+            userData?['displayName'] ??
+            currentUser.displayName ??
+            'You';
+        final userImage =
+            userData?['profileImage'] ??
+            userData?['photoUrl'] ??
+            currentUser.photoURL ??
+            '';
+
+        _currentUserCache = LikedByUser(
+          userId: currentUser.uid,
+          userName: userName,
+          userImage: userImage,
+        );
+      }
+    } catch (e) {
+      log('Error initializing user cache: $e');
+    } finally {
+      _userCacheInitialized = true;
+    }
+  }
 
   Future<void> toggleLikeSafe(String postId) async {
     if (_likeInProgress) return; // already processing
@@ -121,76 +167,50 @@ class PostsNotifier extends StateNotifier<PostsState> {
     await loadInitialPosts();
   }
 
-  /// Toggle Like
+  /// Toggle Like - INSTANT with cached user data
   Future<void> toggleLike(String postId) async {
     final index = state.posts.indexWhere((post) => post.id == postId);
     if (index == -1) return;
+
+    // Ensure user cache is ready
+    if (!_userCacheInitialized) {
+      await _initializeCurrentUser();
+    }
 
     final post = state.posts[index];
     final wasLiked = post.isLiked;
     final newLikeCount = wasLiked ? post.likes - 1 : post.likes + 1;
 
-    // Update likedBy list
-    List<LikedByUser> newLikedBy = List.from(post.likedBy);
+    // Update likedBy list INSTANTLY using cached data
+    List<LikedByUser> newLikedBy;
 
     if (wasLiked) {
-      // Remove current user from likedBy when unliking
-      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-      if (currentUserId != null) {
-        newLikedBy.removeWhere((user) => user.userId == currentUserId);
-      }
-
-      // If likes become 0, clear the entire list
+      // UNLIKING: Clear likedBy if no more likes, otherwise remove current user
       if (newLikeCount == 0) {
         newLikedBy = [];
+      } else {
+        newLikedBy = List.from(post.likedBy);
+        final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+        if (currentUserId != null) {
+          newLikedBy.removeWhere((user) => user.userId == currentUserId);
+        }
       }
     } else {
-      // When liking, add current user to the beginning of likedBy list
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser != null) {
-        // Fetch current user data from Firestore
-        try {
-          final userDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(currentUser.uid)
-              .get();
+      // LIKING: Add current user from cache INSTANTLY
+      newLikedBy = List.from(post.likedBy);
 
-          if (userDoc.exists) {
-            final userData = userDoc.data();
-            final userName =
-                userData?['name'] ??
-                userData?['username'] ??
-                userData?['displayName'] ??
-                currentUser.displayName ??
-                'You';
-            final userImage =
-                userData?['profileImage'] ??
-                userData?['photoUrl'] ??
-                currentUser.photoURL ??
-                '';
+      if (_currentUserCache != null) {
+        // Add current user at the beginning
+        newLikedBy.insert(0, _currentUserCache!);
 
-            // Add current user at the beginning
-            newLikedBy.insert(
-              0,
-              LikedByUser(
-                userId: currentUser.uid,
-                userName: userName,
-                userImage: userImage,
-              ),
-            );
-
-            // Keep only the first 3 users
-            if (newLikedBy.length > 3) {
-              newLikedBy = newLikedBy.sublist(0, 3);
-            }
-          }
-        } catch (e) {
-          log('Error fetching user data: $e');
+        // Keep only the first 3 users
+        if (newLikedBy.length > 3) {
+          newLikedBy = newLikedBy.sublist(0, 3);
         }
       }
     }
 
-    // Optimistic update
+    // INSTANT optimistic update
     final updatedPosts = [
       ...state.posts.sublist(0, index),
       post.copyWith(
@@ -203,8 +223,8 @@ class PostsNotifier extends StateNotifier<PostsState> {
 
     state = state.copyWith(posts: updatedPosts);
 
-    // Perform actual like toggle
-    await repository.toggleLike(postId);
+    // Perform actual like toggle in background
+    repository.toggleLike(postId);
   }
 
   /// Toggle Save
