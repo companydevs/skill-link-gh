@@ -26,6 +26,9 @@ class PostRepository {
     return Future.wait(
       snapshot.docs.map((doc) async {
         bool isLiked = false;
+
+        // Don't fetch likedBy during initial load to avoid any index issues
+        // It will be populated when user likes/unlikes
         List<LikedByUser> likedBy = [];
 
         if (uid != null) {
@@ -34,60 +37,6 @@ class PostRepository {
               .doc(uid)
               .get();
           isLiked = likeDoc.exists;
-        }
-
-        // Fetch recent likers (up to 3) - without ordering to avoid index requirement
-        // Note: This gets any 3 likers, not necessarily the most recent
-        final likesSnapshot = await doc.reference
-            .collection('likes')
-            .limit(3)
-            .get();
-
-        // Get user details from the likes documents (already stored there)
-        for (var likeDoc in likesSnapshot.docs) {
-          try {
-            final likeData = likeDoc.data() as Map<String, dynamic>?;
-
-            // Use stored data from like document if available
-            if (likeData != null &&
-                likeData['userName'] != null &&
-                likeData['userName'].toString().isNotEmpty) {
-              likedBy.add(
-                LikedByUser(
-                  userId: likeDoc.id,
-                  userName: likeData['userName'] ?? '',
-                  userImage: likeData['userImage'] ?? '',
-                ),
-              );
-            } else {
-              // Fallback: fetch from users collection if not stored in like doc
-              final userDoc = await _firestore
-                  .collection('users')
-                  .doc(likeDoc.id)
-                  .get();
-
-              if (userDoc.exists) {
-                final userData = userDoc.data() as Map<String, dynamic>;
-                final userName = userData['name'] ?? userData['username'] ?? '';
-
-                if (userName.isNotEmpty) {
-                  likedBy.add(
-                    LikedByUser(
-                      userId: likeDoc.id,
-                      userName: userName,
-                      userImage:
-                          userData['profileImage'] ??
-                          userData['photoUrl'] ??
-                          '',
-                    ),
-                  );
-                }
-              }
-            }
-          } catch (e) {
-            // Skip if user not found
-            continue;
-          }
         }
 
         final post = PostModel.fromFirestore(doc);
