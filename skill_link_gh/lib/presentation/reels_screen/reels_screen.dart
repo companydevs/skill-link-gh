@@ -5,11 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
-import 'package:skill_link_gh/provider/reels_provider.dart'; // Your notifier/provider file
+import 'package:skill_link_gh/provider/reels_provider.dart';
 import 'package:skill_link_gh/widgets/custom_bottom_bar.dart';
+import 'package:skill_link_gh/utils/fix_negative_likes.dart';
 import './widgets/reel_info_overlay_widget.dart';
 import './widgets/reel_interaction_overlay_widget.dart';
-import './widgets/reel_video_player_widget.dart';
+import './widgets/optimized_reel_video_player_widget.dart';
 import './widgets/comments_bottom_sheet.dart';
 
 class ReelsScreen extends ConsumerStatefulWidget {
@@ -26,11 +27,20 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
 
   final TextEditingController _captionController = TextEditingController();
 
+  // Debouncing: prevent multiple rapid likes
+  final Set<String> _likingReels = {};
+
+  // Like animation state
+  bool _showLikeAnimation = false;
+  String? _animatingReelId;
+
   @override
   void initState() {
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    // Load initial reels after the widget tree is built
+    // Fix negative likes on first load
+    FixNegativeLikes.fixAll();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(reelsNotifierProvider.notifier).loadInitialReels();
     });
@@ -41,7 +51,46 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _pageController.dispose();
     _captionController.dispose();
+    // Clear video cache when leaving reels screen
+    VideoControllerCache().clear();
     super.dispose();
+  }
+
+  /// Instant like function with animation
+  void _handleLike(String reelId) {
+    // Prevent multiple likes on the same reel
+    if (_likingReels.contains(reelId)) {
+      return;
+    }
+
+    _likingReels.add(reelId);
+
+    // Show animation
+    setState(() {
+      _showLikeAnimation = true;
+      _animatingReelId = reelId;
+    });
+
+    // Hide animation after delay
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) {
+        setState(() {
+          _showLikeAnimation = false;
+          _animatingReelId = null;
+        });
+      }
+    });
+
+    // Perform the like instantly
+    ref
+        .read(reelsNotifierProvider.notifier)
+        .toggleLike(reelId)
+        .then((_) {
+          _likingReels.remove(reelId);
+        })
+        .catchError((e) {
+          _likingReels.remove(reelId);
+        });
   }
 
   Future<void> _pickAndUploadVideo() async {
@@ -95,28 +144,19 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
     try {
       final repository = ref.read(reelsRepositoryProvider);
 
-      print("Starting video upload for file: ${file.path}");
-
       final videoUrl = await repository.uploadVideo(file, (progress) {
         if (mounted) {
-          // Update progress in dialog
           uploadProgress = progress;
         }
       });
-
-      print("Video uploaded successfully. URL: $videoUrl");
 
       final description = _captionController.text.trim().isEmpty
           ? "Check out my latest work! ✨"
           : _captionController.text.trim();
 
-      print("Creating reel with description: $description");
-
       await repository.createReel(videoUrl: videoUrl, description: description);
 
-      print("Reel created successfully");
-
-      // Refresh reels list after a small delay to ensure widget tree is stable
+      // Refresh reels list
       if (mounted) {
         Future.delayed(const Duration(milliseconds: 100), () {
           if (mounted) {
@@ -126,14 +166,13 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
       }
 
       if (mounted) {
-        Navigator.pop(context); // Close dialog
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Reel uploaded successfully! 🎉")),
         );
         _captionController.clear();
       }
     } catch (e) {
-      print("Upload error: $e");
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -216,8 +255,6 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
       });
     }
 
-    print("🎬 ReelsScreen build called, state: ${reelsAsync.runtimeType}");
-
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -225,23 +262,11 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
           // Main content based on AsyncValue state
           reelsAsync.when(
             loading: () {
-              print("⏳ Showing loading state");
               return const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(color: Colors.white),
-                    SizedBox(height: 16),
-                    Text(
-                      'Loading reels...',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ],
-                ),
+                child: CircularProgressIndicator(color: Colors.white),
               );
             },
             error: (error, stack) {
-              print("❌ Showing error state: $error");
               return Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -278,7 +303,6 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
               );
             },
             data: (reels) {
-              print("📊 Showing data state with ${reels.length} reels");
               if (reels.isEmpty) {
                 return Center(
                   child: Column(
@@ -323,9 +347,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                       _currentReelIndex = index;
                     });
 
-                    // Optimized preloading: load more when nearing end with smaller chunks
                     if (index >= reels.length - 2) {
-                      // Reduced threshold for faster loading
                       final notifier = ref.read(reelsNotifierProvider.notifier);
                       if (notifier.hasMoreReels && !notifier.isLoadingMore) {
                         Future.microtask(() {
@@ -338,26 +360,64 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                     final reel = reels[index];
                     final isActive = _currentReelIndex == index;
 
+                    // Preload next 2 videos
+                    final preloadUrls = <String>[];
+                    if (index + 1 < reels.length) {
+                      preloadUrls.add(reels[index + 1].videoUrl);
+                    }
+                    if (index + 2 < reels.length) {
+                      preloadUrls.add(reels[index + 2].videoUrl);
+                    }
+
                     return Stack(
                       fit: StackFit.expand,
                       children: [
-                        ReelVideoPlayerWidget(
+                        OptimizedReelVideoPlayerWidget(
                           videoUrl: reel.videoUrl,
                           isActive: isActive,
                           isMuted: _isMuted,
+                          preloadUrls: preloadUrls,
                         ),
-                        // Double tap to like
+                        // Double tap to like with animation
                         GestureDetector(
                           onDoubleTap: () {
                             HapticFeedback.mediumImpact();
-                            Future.microtask(() {
-                              ref
-                                  .read(reelsNotifierProvider.notifier)
-                                  .toggleLike(reel.id, reel.isLiked);
-                            });
+                            if (!reel.isLiked) {
+                              _handleLike(reel.id);
+                            }
                           },
                           child: Container(color: Colors.transparent),
                         ),
+                        // Like animation overlay
+                        if (_showLikeAnimation && _animatingReelId == reel.id)
+                          Center(
+                            child: TweenAnimationBuilder<double>(
+                              tween: Tween(begin: 0.0, end: 1.0),
+                              duration: const Duration(milliseconds: 400),
+                              curve: Curves.elasticOut,
+                              builder: (context, value, child) {
+                                return Transform.scale(
+                                  scale: value,
+                                  child: Opacity(
+                                    opacity: 1.0 - (value * 0.5),
+                                    child: Icon(
+                                      Icons.favorite,
+                                      color: Colors.white,
+                                      size: 100,
+                                      shadows: [
+                                        Shadow(
+                                          color: Colors.red.withValues(
+                                            alpha: 0.8,
+                                          ),
+                                          blurRadius: 20,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
                         // Info overlay
                         Positioned(
                           left: 16,
@@ -389,18 +449,12 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                             isLiked: reel.isLiked,
                             onLikeTap: () {
                               HapticFeedback.mediumImpact();
-                              Future.microtask(() {
-                                ref
-                                    .read(reelsNotifierProvider.notifier)
-                                    .toggleLike(reel.id, reel.isLiked);
-                              });
+                              _handleLike(reel.id);
                             },
                             onCommentTap: () {
                               _showCommentsBottomSheet(context, reel);
                             },
-                            onShareTap: () {
-                              // TODO: Share reel
-                            },
+                            onShareTap: () {},
                             onBookServiceTap: () {
                               Navigator.pushNamed(
                                 context,
@@ -452,7 +506,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                         color: Colors.black54,
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Row(
+                      child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           SizedBox(
@@ -463,7 +517,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                               color: Colors.white,
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          SizedBox(width: 8),
                           Text(
                             'Loading more...',
                             style: TextStyle(color: Colors.white, fontSize: 12),

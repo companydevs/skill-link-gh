@@ -142,7 +142,8 @@ class _BookingManagementState extends State<BookingManagement>
 
       bool statusMatch = false;
       if (_selectedStatus == 'Upcoming') {
-        statusMatch = status == 'Confirmed' ||
+        statusMatch =
+            status == 'Confirmed' ||
             status == 'Pending' ||
             status == 'In-Progress';
       } else if (_selectedStatus == 'Completed') {
@@ -153,8 +154,10 @@ class _BookingManagementState extends State<BookingManagement>
 
       bool dateMatch = true;
       if (_filterStartDate != null && _filterEndDate != null) {
-        dateMatch = bookingDate
-                .isAfter(_filterStartDate!.subtract(Duration(days: 1))) &&
+        dateMatch =
+            bookingDate.isAfter(
+              _filterStartDate!.subtract(Duration(days: 1)),
+            ) &&
             bookingDate.isBefore(_filterEndDate!.add(Duration(days: 1)));
       }
 
@@ -213,10 +216,7 @@ class _BookingManagementState extends State<BookingManagement>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Reschedule booking ${booking['bookingId']}'),
-        action: SnackBarAction(
-          label: 'OK',
-          onPressed: () {},
-        ),
+        action: SnackBarAction(label: 'OK', onPressed: () {}),
       ),
     );
   }
@@ -227,7 +227,8 @@ class _BookingManagementState extends State<BookingManagement>
       builder: (context) => AlertDialog(
         title: Text('Cancel Booking'),
         content: Text(
-            'Are you sure you want to cancel this booking? This action cannot be undone.'),
+          'Are you sure you want to cancel this booking? This action cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -251,10 +252,7 @@ class _BookingManagementState extends State<BookingManagement>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Review artisan ${booking['artisanName']}'),
-        action: SnackBarAction(
-          label: 'RATE',
-          onPressed: () {},
-        ),
+        action: SnackBarAction(label: 'RATE', onPressed: () {}),
       ),
     );
   }
@@ -268,9 +266,9 @@ class _BookingManagementState extends State<BookingManagement>
   }
 
   void _handleAddToCalendar(Map<String, dynamic> booking) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Added to calendar')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Added to calendar')));
   }
 
   void _handleGetDirections(Map<String, dynamic> booking) {
@@ -295,9 +293,9 @@ class _BookingManagementState extends State<BookingManagement>
         actions: [
           IconButton(
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Notifications')),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('Notifications')));
             },
             icon: CustomIconWidget(
               iconName: 'notifications_outlined',
@@ -349,8 +347,9 @@ class _BookingManagementState extends State<BookingManagement>
                             color: isSelected
                                 ? theme.colorScheme.onPrimary
                                 : theme.colorScheme.onSurface,
-                            fontWeight:
-                                isSelected ? FontWeight.w600 : FontWeight.w400,
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.w400,
                           ),
                         ),
                       ),
@@ -409,13 +408,13 @@ class _BookingManagementState extends State<BookingManagement>
                     title: _selectedStatus == 'Upcoming'
                         ? 'No Upcoming Bookings'
                         : _selectedStatus == 'Completed'
-                            ? 'No Completed Bookings'
-                            : 'No Cancelled Bookings',
+                        ? 'No Completed Bookings'
+                        : 'No Cancelled Bookings',
                     message: _selectedStatus == 'Upcoming'
                         ? 'You don\'t have any upcoming appointments. Book a service to get started!'
                         : _selectedStatus == 'Completed'
-                            ? 'You haven\'t completed any bookings yet.'
-                            : 'You don\'t have any cancelled bookings.',
+                        ? 'You haven\'t completed any bookings yet.'
+                        : 'You don\'t have any cancelled bookings.',
                     buttonText: _selectedStatus == 'Upcoming'
                         ? 'Book a Service'
                         : 'Browse Services',
@@ -483,6 +482,7 @@ class _BookingManagementState extends State<BookingManagement>
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: "booking_create", // Add unique hero tag
         onPressed: _createNewBooking,
         icon: CustomIconWidget(
           iconName: 'add',
@@ -491,12 +491,7 @@ class _BookingManagementState extends State<BookingManagement>
         ),
         label: Text('New Booking'),
       ),
-      bottomNavigationBar: CustomBottomBar(
-        currentIndex: 4,
-        
-  
-        
-      ),
+      bottomNavigationBar: CustomBottomBar(currentIndex: 4),
     );
   }
 }

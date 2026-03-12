@@ -7,6 +7,11 @@ import 'package:skill_link_gh/presentation/otp_verification_screen/otp_verificat
 import 'package:skill_link_gh/presentation/posts_comments_detail_screen/post_comments_detail_screen.dart';
 import 'package:skill_link_gh/presentation/splash_screen/splash_screen.dart';
 import 'package:skill_link_gh/presentation/user_type_selection_screen/user_type_selection_screen.dart';
+import 'package:skill_link_gh/presentation/edit_profile_screen/edit_profile_screen.dart';
+import 'package:skill_link_gh/presentation/verification_screen/verification_screen.dart';
+import 'package:skill_link_gh/presentation/payment_verification_screen/payment_verification_screen.dart';
+import 'package:skill_link_gh/presentation/booking_tracking_screen/booking_tracking_screen.dart';
+import 'package:skill_link_gh/presentation/debug_screen/fix_data_screen.dart';
 import 'package:skill_link_gh/test_reels_screen.dart';
 import '../presentation/artisan_profile_screen/artisan_profile_screen.dart';
 import '../presentation/reels_screen/reels_screen.dart';
@@ -32,6 +37,12 @@ class AppRoutes {
   static const String postCommentScreen = '/post-comment-screen';
   static const String inAppMessagingScreen = '/in-app-messaging-screen';
   static const String testReels = '/test-reels';
+  static const String editProfileScreen = '/edit-profile-screen';
+  static const String verificationScreen = '/verification-screen';
+  static const String paymentVerificationScreen =
+      '/payment-verification-screen';
+  static const String bookingTrackingScreen = '/booking-tracking-screen';
+  static const String fixDataScreen = '/fix-data-screen';
 
   static Map<String, WidgetBuilder> routes = {
     initial: (context) => const SplashScreen(),
@@ -65,6 +76,10 @@ class AppRoutes {
 
     inAppMessagingScreen: (context) => const InAppMessaging(),
     testReels: (context) => const TestReelsScreen(),
-    // TODO: Add your other routes here
+    editProfileScreen: (context) => const EditProfileScreen(),
+    verificationScreen: (context) => const VerificationScreen(),
+    paymentVerificationScreen: (context) => const PaymentVerificationScreen(),
+    bookingTrackingScreen: (context) => const BookingTrackingScreen(),
+    fixDataScreen: (context) => const FixDataScreen(),
   };
 }

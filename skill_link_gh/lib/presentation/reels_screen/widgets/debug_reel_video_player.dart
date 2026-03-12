@@ -285,11 +285,11 @@ class _DebugReelVideoPlayerWidgetState
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-          const SizedBox(height: 16),
-          Text(
-            'Loading video...',
-            style: const TextStyle(color: Colors.white, fontSize: 14),
-          ),
+          // const SizedBox(height: 16),
+          // Text(
+          //   'Loading video...',
+          //   style: const TextStyle(color: Colors.white, fontSize: 14),
+          // ),
         ],
       ),
     );

@@ -14,6 +14,7 @@ class PostModel {
   final bool isLiked;
   final bool isSaved;
   final int commentsCount; // Add this
+  final List<LikedByUser> likedBy; // Users who liked this post
 
   final DateTime createdAt;
 
@@ -31,6 +32,7 @@ class PostModel {
     this.isLiked = false,
     this.isSaved = false,
     this.commentsCount = 0, // default 0
+    this.likedBy = const [], // default empty list
 
     required this.createdAt,
   });
@@ -75,6 +77,7 @@ class PostModel {
       'isLiked': isLiked,
       'isSaved': isSaved,
       'commentsCount': commentsCount, // include in JSON
+      'likedBy': likedBy.map((e) => e.toJson()).toList(),
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -94,6 +97,7 @@ class PostModel {
     bool? isLiked,
     bool? isSaved,
     int? commentsCount,
+    List<LikedByUser>? likedBy,
     DateTime? createdAt,
   }) {
     return PostModel(
@@ -110,6 +114,7 @@ class PostModel {
       isLiked: isLiked ?? this.isLiked,
       isSaved: isSaved ?? this.isSaved,
       commentsCount: commentsCount ?? this.commentsCount,
+      likedBy: likedBy ?? this.likedBy,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -129,5 +134,30 @@ class PostImage {
   /// Convert PostImage to JSON
   Map<String, dynamic> toJson() {
     return {'url': url, 'label': label};
+  }
+}
+
+/// Model for users who liked a post
+class LikedByUser {
+  final String userId;
+  final String userName;
+  final String userImage;
+
+  LikedByUser({
+    required this.userId,
+    required this.userName,
+    required this.userImage,
+  });
+
+  factory LikedByUser.fromMap(Map<String, dynamic> map) {
+    return LikedByUser(
+      userId: map['userId'] ?? '',
+      userName: map['userName'] ?? '',
+      userImage: map['userImage'] ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'userId': userId, 'userName': userName, 'userImage': userImage};
   }
 }

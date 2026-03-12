@@ -29,3 +29,13 @@ export {deleteComment} from "./posts/deleteComment";
 
 export {createPost} from "./posts/createPost";
 export {createReel} from "./reels/createReel";
+
+// Booking functions
+export {
+  createBooking,
+  verifyPayment,
+  updateBookingStatus,
+  getBookingDetails,
+  updateArtisanLocation,
+  getUserBookings,
+} from "./booking";

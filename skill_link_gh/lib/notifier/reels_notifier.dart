@@ -13,6 +13,9 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
   DocumentSnapshot? _lastDocument;
   bool _hasMoreReels = true;
 
+  // Like debouncing: prevent multiple simultaneous likes
+  final Set<String> _likingReels = {};
+
   // Lightweight chunk size for smooth scrolling
   static const int _chunkSize = 3; // Very small chunks for smooth experience
   static const int _initialLoadSize = 5; // Small initial load
@@ -113,7 +116,13 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
     await loadInitialReels();
   }
 
-  Future<void> toggleLike(String reelId, bool currentIsLiked) async {
+  Future<void> toggleLike(String reelId) async {
+    // Prevent multiple simultaneous likes on the same reel
+    if (_likingReels.contains(reelId)) {
+      print('⚠️ Like already in progress for reel: $reelId');
+      return;
+    }
+
     final currentState = state;
     if (!currentState.hasValue) return;
 
@@ -121,32 +130,34 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
     final index = reels.indexWhere((r) => r.id == reelId);
     if (index == -1) return;
 
-    // Optimistic update with microtask to prevent widget tree conflicts
-    Future.microtask(() {
-      if (mounted) {
-        final updatedReel = reels[index].copyWith(
-          isLiked: !currentIsLiked,
-          likes: currentIsLiked
-              ? reels[index].likes - 1
-              : reels[index].likes + 1,
-        );
+    final currentReel = reels[index];
+    final currentIsLiked = currentReel.isLiked;
 
-        final updatedReels = List<Reel>.from(reels);
-        updatedReels[index] = updatedReel;
-        state = AsyncValue.data(updatedReels);
-      }
-    });
+    // Mark this reel as being liked to prevent race conditions
+    _likingReels.add(reelId);
 
     try {
+      // Optimistic update - instant UI response
+      final updatedReel = currentReel.copyWith(
+        isLiked: !currentIsLiked,
+        likes: currentIsLiked ? currentReel.likes - 1 : currentReel.likes + 1,
+      );
+
+      final updatedReels = List<Reel>.from(reels);
+      updatedReels[index] = updatedReel;
+      state = AsyncValue.data(updatedReels);
+
+      // Perform the actual like toggle in background
       await _repository.toggleLike(reelId, currentIsLiked);
+      print('✅ Like toggled successfully for reel: $reelId');
     } catch (e) {
-      // Revert on error with microtask
-      Future.microtask(() {
-        if (mounted) {
-          state = AsyncValue.data(reels);
-        }
-      });
-      print('❌ Like toggle failed: $e');
+      print('❌ Like toggle failed for reel $reelId: $e');
+
+      // Revert on error
+      state = AsyncValue.data(reels);
+    } finally {
+      // Always remove from liking set to allow future likes
+      _likingReels.remove(reelId);
     }
   }
 

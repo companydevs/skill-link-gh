@@ -8,6 +8,7 @@ import 'package:skill_link_gh/provider/profile_provider.dart';
 import 'package:skill_link_gh/widgets/user_avatar_widget.dart';
 import 'package:skill_link_gh/widgets/custom_app_toast.dart';
 import 'package:skill_link_gh/widgets/utils/createPost.dart';
+import 'package:skill_link_gh/routes/app_routes.dart';
 
 import '../../core/app_export.dart';
 import '../../widgets/custom_app_bar.dart';
@@ -19,6 +20,7 @@ import './widgets/profile_header_widget.dart';
 import './widgets/profile_stats_widget.dart';
 import './widgets/reviews_section_widget.dart';
 import './widgets/services_section_widget.dart';
+import './widgets/verification_status_widget.dart';
 
 class ArtisanProfileScreen extends ConsumerStatefulWidget {
   const ArtisanProfileScreen({super.key});
@@ -102,6 +104,16 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
         ],
       ),
     );
+  }
+
+  void _handleVerification() {
+    Navigator.pushNamed(context, AppRoutes.verificationScreen);
+  }
+
+  bool _isVerified(Map<String, dynamic> artisanData) {
+    final verificationBadges =
+        artisanData["verificationBadges"] as Map<String, dynamic>?;
+    return verificationBadges?["identityVerified"] == true;
   }
 
   // Create Post Handler
@@ -206,6 +218,15 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
               actions: [
                 IconButton(
                   icon: CustomIconWidget(
+                    iconName: 'edit',
+                    size: 24,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                  onPressed: () =>
+                      Navigator.pushNamed(context, AppRoutes.editProfileScreen),
+                ),
+                IconButton(
+                  icon: CustomIconWidget(
                     iconName: 'share',
                     size: 24,
                     color: theme.colorScheme.onSurface,
@@ -223,15 +244,33 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
                     if (value == 'report') _handleReport();
                     if (value == 'logout') _handleLogout();
                     if (value == 'delete') _handleDeleteAccount();
+                    if (value == 'verify') _handleVerification();
                   },
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(
+                  itemBuilder: (context) => [
+                    if (!_isVerified(artisanData))
+                      const PopupMenuItem(
+                        value: 'verify',
+                        child: Row(
+                          children: [
+                            Icon(Icons.verified_user, size: 20),
+                            SizedBox(width: 8),
+                            Text('Get Verified'),
+                          ],
+                        ),
+                      ),
+                    const PopupMenuItem(
                       value: 'favorite',
                       child: Text('Save to Favorites'),
                     ),
-                    PopupMenuItem(value: 'report', child: Text('Report User')),
-                    PopupMenuItem(value: 'logout', child: Text('Log out')),
-                    PopupMenuItem(
+                    const PopupMenuItem(
+                      value: 'report',
+                      child: Text('Report User'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'logout',
+                      child: Text('Log out'),
+                    ),
+                    const PopupMenuItem(
                       value: 'delete',
                       child: Text(
                         'Delete Account',
@@ -245,6 +284,15 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
           : CustomAppBar(
               variant: AppBarVariant.transparent,
               actions: [
+                IconButton(
+                  icon: CustomIconWidget(
+                    iconName: 'edit',
+                    size: 24,
+                    color: Colors.white,
+                  ),
+                  onPressed: () =>
+                      Navigator.pushNamed(context, AppRoutes.editProfileScreen),
+                ),
                 IconButton(
                   icon: CustomIconWidget(
                     iconName: 'share',
@@ -264,15 +312,33 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
                     if (value == 'report') _handleReport();
                     if (value == 'logout') _handleLogout();
                     if (value == 'delete') _handleDeleteAccount();
+                    if (value == 'verify') _handleVerification();
                   },
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(
+                  itemBuilder: (context) => [
+                    if (!_isVerified(artisanData))
+                      const PopupMenuItem(
+                        value: 'verify',
+                        child: Row(
+                          children: [
+                            Icon(Icons.verified_user, size: 20),
+                            SizedBox(width: 8),
+                            Text('Get Verified'),
+                          ],
+                        ),
+                      ),
+                    const PopupMenuItem(
                       value: 'favorite',
                       child: Text('Save to Favorites'),
                     ),
-                    PopupMenuItem(value: 'report', child: Text('Report User')),
-                    PopupMenuItem(value: 'logout', child: Text('Log out')),
-                    PopupMenuItem(
+                    const PopupMenuItem(
+                      value: 'report',
+                      child: Text('Report User'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'logout',
+                      child: Text('Log out'),
+                    ),
+                    const PopupMenuItem(
                       value: 'delete',
                       child: Text(
                         'Delete Account',
@@ -293,6 +359,13 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
               ),
               SliverToBoxAdapter(
                 child: ProfileStatsWidget(artisanData: artisanData),
+              ),
+              // Add verification status widget if not fully verified
+              SliverToBoxAdapter(
+                child: VerificationStatusWidget(
+                  artisanData: artisanData,
+                  onVerifyTap: _handleVerification,
+                ),
               ),
               SliverPersistentHeader(
                 pinned: true,
@@ -345,6 +418,7 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
       ),
       // FAB for creating post
       floatingActionButton: FloatingActionButton(
+        heroTag: "profile_create_post", // Add unique hero tag
         onPressed: _handleCreatePost,
         child: const Icon(Icons.post_add),
       ),

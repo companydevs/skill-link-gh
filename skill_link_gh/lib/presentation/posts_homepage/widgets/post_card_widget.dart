@@ -112,7 +112,10 @@ class _PostCardWidgetState extends State<PostCardWidget>
         vsync: this,
         duration: Duration(milliseconds: 800 + Random().nextInt(400)),
       );
-      final animation = CurvedAnimation(parent: controller, curve: Curves.easeOut);
+      final animation = CurvedAnimation(
+        parent: controller,
+        curve: Curves.easeOut,
+      );
       final heart = _FloatingHeart(
         animation: animation,
         controller: controller,
@@ -251,7 +254,10 @@ class _PostCardWidgetState extends State<PostCardWidget>
   }
 
   Widget _buildImageCarousel(
-      ThemeData theme, List<PostImage> postImages, bool hasMultipleImages) {
+    ThemeData theme,
+    List<PostImage> postImages,
+    bool hasMultipleImages,
+  ) {
     return GestureDetector(
       onDoubleTap: _handleDoubleTap,
       child: Stack(
@@ -376,106 +382,198 @@ class _PostCardWidgetState extends State<PostCardWidget>
   Widget _buildActions(ThemeData theme) {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Likes
-          InkWell(
-            onTap: _handleLike,
-            borderRadius: BorderRadius.circular(20),
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.h),
-              child: Row(
-                children: [
-                  CustomIconWidget(
-                    iconName: _isLiked ? 'favorite' : 'favorite_border',
-                    color: _isLiked
-                        ? theme.colorScheme.error
-                        : theme.colorScheme.onSurfaceVariant,
-                    size: 20,
-                  ),
-                  SizedBox(width: 1.w),
-                  Text(
-                    _likes.toString(),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          SizedBox(width: 4.w),
-
-          // Comments - Real-time count
-          StreamBuilder<int>(
-            stream: _commentsCountStream,
-            builder: (context, snapshot) {
-              final count = snapshot.data ?? 0;
-              return InkWell(
-                onTap: () => Navigator.pushNamed(
-                  context,
-                  '/post-comment-screen',
-                  arguments: widget.post,
-                ),
+          Row(
+            children: [
+              // Likes
+              InkWell(
+                onTap: _handleLike,
                 borderRadius: BorderRadius.circular(20),
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.h),
-                  child: Stack(
-                    clipBehavior: Clip.none,
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          CustomIconWidget(
-                            iconName: 'chat_bubble_outline',
-                            color: theme.colorScheme.onSurfaceVariant,
-                            size: 20,
-                          ),
-                        
-                        ],
+                      CustomIconWidget(
+                        iconName: _isLiked ? 'favorite' : 'favorite_border',
+                        color: _isLiked
+                            ? theme.colorScheme.error
+                            : theme.colorScheme.onSurfaceVariant,
+                        size: 20,
                       ),
-                      if (count > 0)
-                        Positioned(
-                          right: -6,
-                          top: -6,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 1,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.red,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              count.toString(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
+                      SizedBox(width: 1.w),
+                      Text(
+                        _likes.toString(),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w500,
                         ),
+                      ),
                     ],
                   ),
                 ),
-              );
-            },
+              ),
+
+              SizedBox(width: 4.w),
+
+              // Comments - Real-time count
+              StreamBuilder<int>(
+                stream: _commentsCountStream,
+                builder: (context, snapshot) {
+                  final count = snapshot.data ?? 0;
+                  return InkWell(
+                    onTap: () => Navigator.pushNamed(
+                      context,
+                      '/post-comment-screen',
+                      arguments: widget.post,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 2.w,
+                        vertical: 1.h,
+                      ),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Row(
+                            children: [
+                              CustomIconWidget(
+                                iconName: 'chat_bubble_outline',
+                                color: theme.colorScheme.onSurfaceVariant,
+                                size: 20,
+                              ),
+                            ],
+                          ),
+                          if (count > 0)
+                            Positioned(
+                              right: -6,
+                              top: -6,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  count.toString(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              const Spacer(),
+
+              ElevatedButton(
+                onPressed: widget.onBookNow,
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 6.w,
+                    vertical: 1.5.h,
+                  ),
+                  minimumSize: Size(0, 5.h),
+                ),
+                child: Text(
+                  'Book Now',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
           ),
 
-          const Spacer(),
+          // Liked by section
+          if (widget.post.likedBy.isNotEmpty) ...[
+            SizedBox(height: 1.h),
+            _buildLikedBySection(theme),
+          ],
+        ],
+      ),
+    );
+  }
 
-          ElevatedButton(
-            onPressed: widget.onBookNow,
-            style: ElevatedButton.styleFrom(
-              padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.5.h),
-              minimumSize: Size(0, 5.h),
+  Widget _buildLikedBySection(ThemeData theme) {
+    final likedBy = widget.post.likedBy;
+    final totalLikes = widget.post.likes;
+    final othersCount = totalLikes - likedBy.length;
+
+    return Padding(
+      padding: EdgeInsets.only(left: 2.w, top: 0.5.h),
+      child: Row(
+        children: [
+          // Profile images stack
+          SizedBox(
+            height: 24,
+            width: likedBy.length > 1 ? 40 : 24,
+            child: Stack(
+              children: List.generate(likedBy.length > 2 ? 2 : likedBy.length, (
+                index,
+              ) {
+                return Positioned(
+                  left: index * 16.0,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: theme.colorScheme.surface,
+                        width: 2,
+                      ),
+                    ),
+                    child: ClipOval(
+                      child: CustomImageWidget(
+                        imageUrl: likedBy[index].userImage.isNotEmpty
+                            ? likedBy[index].userImage
+                            : 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
+                        width: 24,
+                        height: 24,
+                        fit: BoxFit.cover,
+                        semanticLabel: likedBy[index].userName,
+                      ),
+                    ),
+                  ),
+                );
+              }),
             ),
-            child: Text(
-              'Book Now',
-              style: theme.textTheme.labelLarge?.copyWith(color: Colors.white),
+          ),
+          SizedBox(width: likedBy.length > 1 ? 3.w : 2.w),
+
+          // Liked by text
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                children: [
+                  const TextSpan(text: 'Liked by '),
+                  TextSpan(
+                    text: likedBy[0].userName,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  if (othersCount > 0)
+                    TextSpan(
+                      text:
+                          ' and $othersCount ${othersCount == 1 ? 'other' : 'others'}',
+                    ),
+                ],
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

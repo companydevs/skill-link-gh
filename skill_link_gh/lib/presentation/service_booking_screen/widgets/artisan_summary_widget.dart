@@ -6,10 +6,7 @@ import '../../../core/app_export.dart';
 class ArtisanSummaryWidget extends StatelessWidget {
   final Map<String, dynamic> artisanData;
 
-  const ArtisanSummaryWidget({
-    super.key,
-    required this.artisanData,
-  });
+  const ArtisanSummaryWidget({super.key, required this.artisanData});
 
   @override
   Widget build(BuildContext context) {
@@ -29,11 +26,14 @@ class ArtisanSummaryWidget extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: CustomImageWidget(
-              imageUrl: artisanData['profileImage'] as String,
+              imageUrl:
+                  artisanData['profileImage'] as String? ??
+                  'https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png',
               width: 60,
               height: 60,
               fit: BoxFit.cover,
-              semanticLabel: artisanData['semanticLabel'] as String,
+              semanticLabel:
+                  artisanData['semanticLabel'] as String? ?? 'Artisan profile',
             ),
           ),
           const SizedBox(width: 12),
@@ -42,7 +42,7 @@ class ArtisanSummaryWidget extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  artisanData['name'] as String,
+                  artisanData['name'] as String? ?? 'Unknown Artisan',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -51,7 +51,7 @@ class ArtisanSummaryWidget extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  artisanData['serviceType'] as String,
+                  artisanData['serviceType'] as String? ?? 'Service Provider',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -68,7 +68,7 @@ class ArtisanSummaryWidget extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '${artisanData['rating']} (${artisanData['reviews']} reviews)',
+                      '${artisanData['rating'] ?? 0.0} (${artisanData['reviews'] ?? 0} reviews)',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -89,7 +89,7 @@ class ArtisanSummaryWidget extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                artisanData['basePrice'] as String,
+                artisanData['basePrice'] as String? ?? 'GH₵ 0.00',
                 style: theme.textTheme.titleMedium?.copyWith(
                   color: theme.colorScheme.primary,
                   fontWeight: FontWeight.w600,

@@ -24,11 +24,46 @@ class _CommentsBottomSheetState extends ConsumerState<CommentsBottomSheet> {
   final TextEditingController _commentController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
 
+  // Debouncing: prevent multiple rapid comment likes
+  final Set<String> _likingComments = {};
+  DateTime _lastCommentLikeTime = DateTime.now();
+
   @override
   void dispose() {
     _commentController.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  /// Debounced comment like function to prevent multiple rapid likes
+  void _debouncedCommentLike(String commentId, bool isLiked) {
+    final now = DateTime.now();
+
+    // Prevent likes within 500ms of each other
+    if (now.difference(_lastCommentLikeTime).inMilliseconds < 500) {
+      print('⚠️ Comment like debounced - too fast');
+      return;
+    }
+
+    // Prevent multiple likes on the same comment
+    if (_likingComments.contains(commentId)) {
+      print('⚠️ Comment like already in progress: $commentId');
+      return;
+    }
+
+    _lastCommentLikeTime = now;
+    _likingComments.add(commentId);
+
+    // Perform the like with cleanup
+    Future.microtask(() async {
+      try {
+        await ref
+            .read(commentsNotifierProvider(widget.reelId).notifier)
+            .toggleLike(commentId, isLiked);
+      } finally {
+        _likingComments.remove(commentId);
+      }
+    });
   }
 
   @override
@@ -154,11 +189,7 @@ class _CommentsBottomSheetState extends ConsumerState<CommentsBottomSheet> {
                       reelId: widget.reelId,
                       currentUserId: currentUser?.uid,
                       onLike: () {
-                        ref
-                            .read(
-                              commentsNotifierProvider(widget.reelId).notifier,
-                            )
-                            .toggleLike(comment.id, comment.isLiked);
+                        _debouncedCommentLike(comment.id, comment.isLiked);
                       },
                       onDelete: () {
                         ref

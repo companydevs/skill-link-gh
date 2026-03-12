@@ -7,6 +7,9 @@ class CommentsNotifier extends StateNotifier<AsyncValue<List<Comment>>> {
   final CommentsRepository _repository;
   final String reelId;
 
+  // Like debouncing: prevent multiple simultaneous likes
+  final Set<String> _likingComments = {};
+
   CommentsNotifier(this._repository, this.reelId)
     : super(const AsyncValue.loading()) {
     loadComments();
@@ -36,6 +39,12 @@ class CommentsNotifier extends StateNotifier<AsyncValue<List<Comment>>> {
   }
 
   Future<void> toggleLike(String commentId, bool currentIsLiked) async {
+    // Prevent multiple simultaneous likes on the same comment
+    if (_likingComments.contains(commentId)) {
+      print('⚠️ Like already in progress for comment: $commentId');
+      return;
+    }
+
     final currentState = state;
     if (!currentState.hasValue) return;
 
@@ -43,26 +52,36 @@ class CommentsNotifier extends StateNotifier<AsyncValue<List<Comment>>> {
     final index = comments.indexWhere((c) => c.id == commentId);
     if (index == -1) return;
 
-    // Optimistic update
-    final updatedComment = comments[index].copyWith(
-      isLiked: !currentIsLiked,
-      likes: currentIsLiked
-          ? comments[index].likes - 1
-          : comments[index].likes + 1,
-    );
+    // Mark this comment as being liked to prevent race conditions
+    _likingComments.add(commentId);
 
-    state = AsyncValue.data([
-      ...comments.sublist(0, index),
-      updatedComment,
-      ...comments.sublist(index + 1),
-    ]);
+    // Store original state for potential revert
+    final originalComments = List<Comment>.from(comments);
 
     try {
+      // Optimistic update
+      final updatedComment = comments[index].copyWith(
+        isLiked: !currentIsLiked,
+        likes: currentIsLiked
+            ? comments[index].likes - 1
+            : comments[index].likes + 1,
+      );
+
+      final updatedComments = List<Comment>.from(comments);
+      updatedComments[index] = updatedComment;
+      state = AsyncValue.data(updatedComments);
+
+      // Perform the actual like toggle
       await _repository.toggleCommentLike(reelId, commentId, currentIsLiked);
+      print('✅ Comment like toggled successfully: $commentId');
     } catch (e) {
+      print('❌ Comment like toggle failed for $commentId: $e');
+
       // Revert on error
-      state = AsyncValue.data(comments);
-      print('Like toggle failed: $e');
+      state = AsyncValue.data(originalComments);
+    } finally {
+      // Always remove from liking set to allow future likes
+      _likingComments.remove(commentId);
     }
   }
 

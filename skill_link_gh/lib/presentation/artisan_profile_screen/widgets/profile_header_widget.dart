@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import 'package:skill_link_gh/widgets/user_avatar_widget.dart';
 
 import '../../../core/app_export.dart';
 
@@ -47,7 +48,7 @@ class ProfileHeaderWidget extends StatelessWidget {
           right: 0,
           child: Column(
             children: [
-              // Profile Image
+              // Profile Image with UserAvatarWidget
               Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
@@ -63,17 +64,16 @@ class ProfileHeaderWidget extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(60),
-                  child: CustomImageWidget(
-                    imageUrl: artisanData["profileImage"] as String?,
-                    width: 120,
-                    height: 120,
-                    fit: BoxFit.cover,
-                    semanticLabel:
-                        artisanData["profileImageSemanticLabel"] as String? ??
-                        'Profile picture',
-                  ),
+                child: UserAvatarWidget(
+                  imageUrl: artisanData["profileImage"] as String?,
+                  name:
+                      artisanData["name"] as String? ??
+                      artisanData["fullName"] as String? ??
+                      'Unknown User',
+                  size: 120,
+                  semanticLabel:
+                      artisanData["profileImageSemanticLabel"] as String? ??
+                      'Profile picture',
                 ),
               ),
               SizedBox(height: 2.h),

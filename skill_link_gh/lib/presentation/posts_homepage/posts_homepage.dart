@@ -4,6 +4,7 @@ import 'package:sizer/sizer.dart';
 import 'package:skill_link_gh/domain/models/post_model.dart';
 import 'package:skill_link_gh/presentation/posts_homepage/widgets/filter_bottom_sheet_widget.dart';
 import 'package:skill_link_gh/provider/post_provider.dart';
+import 'package:skill_link_gh/widgets/post_shimmer_widget.dart';
 
 import '../../core/app_export.dart';
 import '../../widgets/custom_bottom_bar.dart';
@@ -44,10 +45,11 @@ class _PostsHomepageState extends ConsumerState<PostsHomepage> {
 
   void _onScroll() {
     final notifier = ref.read(postsNotifierProvider.notifier);
+    final postsState = ref.read(postsNotifierProvider);
     if (_scrollController.position.pixels >=
             _scrollController.position.maxScrollExtent * 0.8 &&
-        !notifier.isLoading &&
-        notifier.hasMore) {
+        !postsState.isLoading &&
+        postsState.hasMore) {
       notifier.loadMorePosts();
     }
   }
@@ -77,11 +79,6 @@ class _PostsHomepageState extends ConsumerState<PostsHomepage> {
     final notifier = ref.read(postsNotifierProvider.notifier);
     notifier.refreshPosts();
   }
-
-
-
-
-
 
   void _navigateToArtisanProfile(PostModel post) {
     Navigator.pushNamed(
@@ -136,7 +133,9 @@ class _PostsHomepageState extends ConsumerState<PostsHomepage> {
                   title: Text('Save Post', style: theme.textTheme.bodyLarge),
                   onTap: () {
                     Navigator.pop(context);
-                    ref.read(postsNotifierProvider.notifier).toggleSave(post.id);
+                    ref
+                        .read(postsNotifierProvider.notifier)
+                        .toggleSave(post.id);
                   },
                 ),
                 ListTile(
@@ -156,8 +155,9 @@ class _PostsHomepageState extends ConsumerState<PostsHomepage> {
                   ),
                   title: Text(
                     'Report',
-                    style: theme.textTheme.bodyLarge
-                        ?.copyWith(color: theme.colorScheme.error),
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
                   ),
                   onTap: () => Navigator.pop(context),
                 ),
@@ -173,8 +173,13 @@ class _PostsHomepageState extends ConsumerState<PostsHomepage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final posts = ref.watch(postsNotifierProvider);
+    final postsState = ref.watch(postsNotifierProvider);
     final notifier = ref.watch(postsNotifierProvider.notifier);
+
+    // Debug logging
+    print(
+      '🏠 PostsHomepage build - posts: ${postsState.posts.length}, isLoading: ${postsState.isLoading}',
+    );
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
@@ -223,38 +228,40 @@ class _PostsHomepageState extends ConsumerState<PostsHomepage> {
           SizedBox(width: 2.w),
         ],
       ),
-      body: posts.isEmpty && notifier.isLoading
-          ? _buildLoadingState(theme)
-          : posts.isEmpty
-              ? _buildEmptyState(theme)
-              : RefreshIndicator(
-                  key: _refreshIndicatorKey,
-                  onRefresh: () => notifier.refreshPosts(),
-                  color: theme.colorScheme.primary,
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: EdgeInsets.only(bottom: 2.h),
-                    itemCount: posts.length + (notifier.hasMore ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (index == posts.length) {
-                        return _buildLoadingIndicator(theme);
-                      }
+      body: postsState.posts.isEmpty && postsState.isLoading
+          ? const PostsShimmerList(itemCount: 5) // Beautiful shimmer loading
+          : postsState.posts.isEmpty
+          ? _buildEmptyState(theme)
+          : RefreshIndicator(
+              key: _refreshIndicatorKey,
+              onRefresh: () => notifier.refreshPosts(),
+              color: theme.colorScheme.primary,
+              child: ListView.builder(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.only(bottom: 2.h),
+                itemCount:
+                    postsState.posts.length + (postsState.hasMore ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index == postsState.posts.length) {
+                    return _buildLoadingIndicator(theme);
+                  }
 
-                      final post = posts[index];
-                      return PostCardWidget(
-                        post: post,
-                        onLike: () => notifier.toggleLikeSafe(post.id),
-                        // onComment: () => _navigateToPostDetail(post),
-                        onBookNow: () => _navigateToBooking(post),
-                        onArtisanTap: () => _navigateToArtisanProfile(post),
-                        // onPostTap: () => _navigateToPostDetail(post),
-                        onLongPress: () => _showPostOptions(post),
-                      );
-                    },
-                  ),
-                ),
+                  final post = postsState.posts[index];
+                  return PostCardWidget(
+                    post: post,
+                    onLike: () => notifier.toggleLikeSafe(post.id),
+                    // onComment: () => _navigateToPostDetail(post),
+                    onBookNow: () => _navigateToBooking(post),
+                    onArtisanTap: () => _navigateToArtisanProfile(post),
+                    // onPostTap: () => _navigateToPostDetail(post),
+                    onLongPress: () => _showPostOptions(post),
+                  );
+                },
+              ),
+            ),
       floatingActionButton: FloatingActionButton(
+        heroTag: "posts_filter", // Add unique hero tag
         onPressed: _showFilterBottomSheet,
         backgroundColor: theme.colorScheme.primary,
         child: CustomIconWidget(
@@ -264,93 +271,6 @@ class _PostsHomepageState extends ConsumerState<PostsHomepage> {
         ),
       ),
       bottomNavigationBar: const CustomBottomBar(currentIndex: 0),
-    );
-  }
-
-  Widget _buildLoadingState(ThemeData theme) {
-    return ListView.builder(
-      padding: EdgeInsets.symmetric(vertical: 2.h),
-      itemCount: 3,
-      itemBuilder: (context, index) => Container(
-        margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-        padding: EdgeInsets.all(4.w),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: theme.colorScheme.outline.withOpacity(0.2),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                SizedBox(width: 3.w),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 30.w,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                      ),
-                      SizedBox(height: 1.h),
-                      Container(
-                        width: 20.w,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 2.h),
-            Container(
-              width: double.infinity,
-              height: 200,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            SizedBox(height: 2.h),
-            Container(
-              width: double.infinity,
-              height: 12,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(6),
-              ),
-            ),
-            SizedBox(height: 1.h),
-            Container(
-              width: 60.w,
-              height: 12,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(6),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -394,11 +314,9 @@ class _PostsHomepageState extends ConsumerState<PostsHomepage> {
 
   Widget _buildLoadingIndicator(ThemeData theme) {
     return Container(
-      padding: EdgeInsets.symmetric(vertical: 2.h),
-      alignment: Alignment.center,
-      child: CircularProgressIndicator(
-        color: theme.colorScheme.primary,
-      ),
+      padding: EdgeInsets.symmetric(vertical: 1.h),
+      child:
+          const PostShimmerWidget(), // Use shimmer for pagination loading too
     );
   }
 }

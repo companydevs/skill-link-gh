@@ -8,66 +8,135 @@ class PostRepository {
 
   /// Fetch posts with optional pagination
   Future<List<PostModel>> fetchPosts({
-  DocumentSnapshot? startAfter,
-  int limit = 10,
-}) async {
-  final user = _auth.currentUser;
-  final uid = user?.uid;
+    DocumentSnapshot? startAfter,
+    int limit = 10,
+  }) async {
+    final user = _auth.currentUser;
+    final uid = user?.uid;
 
-  Query query = _firestore
-      .collection('posts')
-      .orderBy('createdAt', descending: true)
-      .limit(limit);
+    Query query = _firestore
+        .collection('posts')
+        .orderBy('createdAt', descending: true)
+        .limit(limit);
 
-  if (startAfter != null) query = query.startAfterDocument(startAfter);
+    if (startAfter != null) query = query.startAfterDocument(startAfter);
 
-  final snapshot = await query.get();
+    final snapshot = await query.get();
 
-  return Future.wait(snapshot.docs.map((doc) async {
-    bool isLiked = false;
+    return Future.wait(
+      snapshot.docs.map((doc) async {
+        bool isLiked = false;
+        List<LikedByUser> likedBy = [];
 
-    if (uid != null) {
-      final likeDoc = await doc.reference
-          .collection('likes')
-          .doc(uid)
-          .get();
-      isLiked = likeDoc.exists;
-    }
+        if (uid != null) {
+          final likeDoc = await doc.reference
+              .collection('likes')
+              .doc(uid)
+              .get();
+          isLiked = likeDoc.exists;
+        }
 
-    final post = PostModel.fromFirestore(doc);
-    return post.copyWith(isLiked: isLiked);
-  }));
-}
+        // Fetch recent likers (up to 3)
+        final likesSnapshot = await doc.reference
+            .collection('likes')
+            .orderBy('likedAt', descending: true)
+            .limit(3)
+            .get();
 
+        // Get user details from the likes documents (already stored there)
+        for (var likeDoc in likesSnapshot.docs) {
+          try {
+            final likeData = likeDoc.data() as Map<String, dynamic>?;
 
-Future<void> toggleLike(String postId) async {
-  final user = _auth.currentUser;
-  if (user == null) return;
+            // Use stored data from like document if available
+            if (likeData != null &&
+                likeData['userName'] != null &&
+                likeData['userName'].toString().isNotEmpty) {
+              likedBy.add(
+                LikedByUser(
+                  userId: likeDoc.id,
+                  userName: likeData['userName'] ?? '',
+                  userImage: likeData['userImage'] ?? '',
+                ),
+              );
+            } else {
+              // Fallback: fetch from users collection if not stored in like doc
+              final userDoc = await _firestore
+                  .collection('users')
+                  .doc(likeDoc.id)
+                  .get();
 
-  final postRef = _firestore.collection('posts').doc(postId);
-  final likeRef = postRef.collection('likes').doc(user.uid);
+              if (userDoc.exists) {
+                final userData = userDoc.data() as Map<String, dynamic>;
+                final userName = userData['name'] ?? userData['username'] ?? '';
 
-  await _firestore.runTransaction((tx) async {
-    final likeSnap = await tx.get(likeRef);
+                if (userName.isNotEmpty) {
+                  likedBy.add(
+                    LikedByUser(
+                      userId: likeDoc.id,
+                      userName: userName,
+                      userImage:
+                          userData['profileImage'] ??
+                          userData['photoUrl'] ??
+                          '',
+                    ),
+                  );
+                }
+              }
+            }
+          } catch (e) {
+            // Skip if user not found
+            continue;
+          }
+        }
 
-    if (likeSnap.exists) {
-      tx.delete(likeRef);
-      tx.update(postRef, {
-        'likes': FieldValue.increment(-1),
-      });
-    } else {
-      tx.set(
-        likeRef,
-        {'likedAt': FieldValue.serverTimestamp()},
-        SetOptions(merge: true),
-      );
-      tx.update(postRef, {
-        'likes': FieldValue.increment(1),
-      });
-    }
-  });
-}
+        final post = PostModel.fromFirestore(doc);
+        return post.copyWith(isLiked: isLiked, likedBy: likedBy);
+      }),
+    );
+  }
 
+  Future<void> toggleLike(String postId) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final postRef = _firestore.collection('posts').doc(postId);
+    final likeRef = postRef.collection('likes').doc(user.uid);
+
+    // Fetch current user data
+    final userDoc = await _firestore.collection('users').doc(user.uid).get();
+    final userData = userDoc.data();
+
+    // Get user name from various possible fields
+    final userName =
+        userData?['name'] ??
+        userData?['username'] ??
+        userData?['displayName'] ??
+        user.displayName ??
+        '';
+
+    final userImage =
+        userData?['profileImage'] ??
+        userData?['photoUrl'] ??
+        user.photoURL ??
+        '';
+
+    await _firestore.runTransaction((tx) async {
+      final likeSnap = await tx.get(likeRef);
+
+      if (likeSnap.exists) {
+        tx.delete(likeRef);
+        tx.update(postRef, {'likes': FieldValue.increment(-1)});
+      } else {
+        tx.set(likeRef, {
+          'likedAt': FieldValue.serverTimestamp(),
+          'userName': userName,
+          'userImage': userImage,
+        }, SetOptions(merge: true));
+        tx.update(postRef, {'likes': FieldValue.increment(1)});
+      }
+    });
+  }
 
   /// Toggle save/unsave for the current user
   Future<void> toggleSave(String postId, bool isSaved) async {
@@ -106,5 +175,3 @@ Future<void> toggleLike(String postId) async {
     return snapshot.docs.map((doc) => doc.id).toList();
   }
 }
-
-

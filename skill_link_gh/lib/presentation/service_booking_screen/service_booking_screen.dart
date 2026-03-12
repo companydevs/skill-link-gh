@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:skill_link_gh/domain/models/booking_model.dart';
+import 'package:skill_link_gh/provider/booking_provider.dart';
 
 import '../../core/app_export.dart';
 import '../../widgets/custom_app_bar.dart';
@@ -14,37 +18,94 @@ import './widgets/service_details_widget.dart';
 import './widgets/time_slot_picker_widget.dart';
 
 /// Service Booking Screen for scheduling appointments with artisans
-class ServiceBookingScreen extends StatefulWidget {
+class ServiceBookingScreen extends ConsumerStatefulWidget {
   const ServiceBookingScreen({super.key});
 
   @override
-  State<ServiceBookingScreen> createState() => _ServiceBookingScreenState();
+  ConsumerState<ServiceBookingScreen> createState() =>
+      _ServiceBookingScreenState();
 }
 
-class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
+class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
   int _currentStep = 0;
   DateTime? _selectedDate;
   String? _selectedTimeSlot;
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   List<XFile> _selectedImages = [];
   LatLng? _selectedLocation;
+  LocationData? _clientLocation;
   String? _selectedPaymentMethod;
   bool _termsAccepted = false;
   bool _isProcessing = false;
 
-  // Mock artisan data
-  final Map<String, dynamic> _artisanData = {
-    "name": "Kwame Mensah",
-    "serviceType": "Plumbing Services",
-    "rating": 4.8,
-    "reviews": 127,
-    "basePrice": "GH₵ 150.00",
-    "profileImage":
-        "https://img.rocket.new/generatedImages/rocket_gen_img_10a10f3da-1763296183354.png",
-    "semanticLabel":
-        "Professional headshot of a man with short black hair wearing a blue work uniform",
-  };
+  // Service data (passed from arguments or default)
+  Map<String, dynamic>? _serviceData;
+  Map<String, dynamic>? _artisanData;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadCurrentLocation();
+      _loadServiceData();
+    });
+  }
+
+  void _loadServiceData() {
+    // Get service data from route arguments
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
+    setState(() {
+      _serviceData =
+          args?['service'] ??
+          {
+            "id": "service_1",
+            "title": "Plumbing Services",
+            "description": "Professional plumbing services",
+            "basePrice": 150.0,
+            "duration": 2,
+          };
+
+      _artisanData =
+          args?['artisan'] ??
+          {
+            "id": "artisan_1",
+            "name": "Kwame Mensah",
+            "serviceType": "Plumbing Services",
+            "rating": 4.8,
+            "reviews": 127,
+            "profileImage":
+                "https://img.rocket.new/generatedImages/rocket_gen_img_10a10f3da-1763296183354.png",
+            "semanticLabel":
+                "Professional headshot of a man with short black hair wearing a blue work uniform",
+          };
+    });
+
+    // Pre-fill phone number from user profile
+    final user = FirebaseAuth.instance.currentUser;
+    if (user?.phoneNumber != null) {
+      _phoneController.text = user!.phoneNumber!;
+    }
+  }
+
+  Future<void> _loadCurrentLocation() async {
+    try {
+      await ref.read(bookingNotifierProvider.notifier).getCurrentLocation();
+      final currentLocation = ref.read(bookingNotifierProvider).currentLocation;
+      if (currentLocation != null) {
+        setState(() {
+          _clientLocation = currentLocation;
+          _addressController.text = currentLocation.address;
+        });
+      }
+    } catch (e) {
+      // Handle location error silently, but log it
+      print('Location error: $e');
+    }
+  }
 
   // Mock unavailable dates
   final List<DateTime> _unavailableDates = [
@@ -65,24 +126,26 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
 
   // Mock saved cards
   final List<Map<String, dynamic>> _savedCards = [
-    {
-      "id": "card_1",
-      "cardType": "Visa",
-      "lastFourDigits": "4242",
-    },
-    {
-      "id": "card_2",
-      "cardType": "Mastercard",
-      "lastFourDigits": "5555",
-    },
+    {"id": "card_1", "cardType": "Visa", "lastFourDigits": "4242"},
+    {"id": "card_2", "cardType": "Mastercard", "lastFourDigits": "5555"},
   ];
 
   Map<String, dynamic> get _pricingData {
-    double basePrice = 150.0;
-    double complexityFee =
-        _descriptionController.text.length > 100 ? 30.0 : 0.0;
+    // Get base price from artisan data or service data
+    double basePrice = 0.0;
+    if (_artisanData != null && _artisanData!['hourlyRate'] != null) {
+      basePrice = (_artisanData!['hourlyRate'] as num).toDouble();
+    } else if (_serviceData != null && _serviceData!['basePrice'] != null) {
+      basePrice = (_serviceData!['basePrice'] as num).toDouble();
+    } else {
+      basePrice = 150.0; // Fallback
+    }
+
+    double complexityFee = _descriptionController.text.length > 100
+        ? 30.0
+        : 0.0;
     double travelFee = _selectedLocation != null ? 20.0 : 0.0;
-    double platformFee = 15.0;
+    double platformFee = basePrice * 0.05; // 5% platform fee
     double total = basePrice + complexityFee + travelFee + platformFee;
 
     return {
@@ -125,7 +188,9 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
         return _descriptionController.text.isNotEmpty &&
             _addressController.text.isNotEmpty;
       case 2:
-        return _selectedPaymentMethod != null && _termsAccepted;
+        return _selectedPaymentMethod != null &&
+            _termsAccepted &&
+            (_clientLocation != null || _addressController.text.isNotEmpty);
       default:
         return false;
     }
@@ -140,9 +205,7 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please complete all required fields'),
-        ),
+        const SnackBar(content: Text('Please complete all required fields')),
       );
     }
   }
@@ -156,23 +219,94 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
   Future<void> _confirmBooking() async {
     setState(() => _isProcessing = true);
 
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
 
-    setState(() => _isProcessing = false);
+      // Ensure we have client location
+      if (_clientLocation == null) {
+        // Try to get location one more time
+        await _loadCurrentLocation();
 
-    if (mounted) {
-      Navigator.pushReplacementNamed(
-        context,
-        '/posts-homepage',
+        // If still null, create a default location from address
+        if (_clientLocation == null) {
+          if (_addressController.text.isNotEmpty) {
+            final locationFromAddress = await ref
+                .read(bookingNotifierProvider.notifier)
+                .getLocationFromAddress(_addressController.text);
+
+            if (locationFromAddress != null) {
+              setState(() => _clientLocation = locationFromAddress);
+            } else {
+              throw Exception(
+                'Unable to determine location. Please ensure location services are enabled or enter a valid address.',
+              );
+            }
+          } else {
+            throw Exception(
+              'Location is required. Please enable location services or enter your address.',
+            );
+          }
+        }
+      }
+
+      // Calculate total amount
+      final pricingData = _pricingData;
+      final totalPriceString = pricingData['totalPrice'] as String;
+      final totalAmount = double.parse(
+        totalPriceString.replaceAll('GH₵ ', '').replaceAll(',', ''),
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Booking confirmed successfully!'),
-          backgroundColor: Theme.of(context).colorScheme.tertiary,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      // Create booking
+      final result = await ref
+          .read(bookingNotifierProvider.notifier)
+          .createBooking(
+            clientId: user.uid,
+            artisanId: user.uid, // Using same user as artisan for testing
+            serviceId: _serviceData?['id'] ?? 'service_1',
+            serviceTitle: _serviceData?['title'] ?? 'Service',
+            serviceDescription: _descriptionController.text.trim(),
+            scheduledDate: _selectedDate!.toIso8601String().split('T')[0],
+            scheduledTime: _selectedTimeSlot!,
+            duration: _serviceData?['duration'] ?? 2,
+            totalAmount: totalAmount,
+            clientLocation: _clientLocation!,
+            specialRequests: _descriptionController.text.trim(),
+            contactPhone: _phoneController.text.trim(),
+            contactEmail: user.email ?? '',
+          );
+
+      if (result != null && result['success'] == true) {
+        if (mounted) {
+          // Navigate to payment verification screen
+          Navigator.pushReplacementNamed(
+            context,
+            '/payment-verification',
+            arguments: {
+              'paymentUrl': result['paymentUrl'],
+              'bookingId': result['bookingId'],
+              'reference': result['bookingReference'],
+            },
+          );
+        }
+      } else {
+        throw Exception(
+          'Failed to create booking: ${result?['error'] ?? 'Unknown error'}',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error creating booking: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } finally {
+      setState(() => _isProcessing = false);
     }
   }
 
@@ -180,6 +314,7 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
   void dispose() {
     _descriptionController.dispose();
     _addressController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -204,9 +339,7 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(
-                    color: theme.colorScheme.primary,
-                  ),
+                  CircularProgressIndicator(color: theme.colorScheme.primary),
                   const SizedBox(height: 16),
                   Text(
                     'Processing your booking...',
@@ -224,7 +357,7 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        ArtisanSummaryWidget(artisanData: _artisanData),
+                        ArtisanSummaryWidget(artisanData: _artisanData ?? {}),
                         const SizedBox(height: 24),
                         _buildStepContent(),
                       ],
@@ -273,8 +406,9 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
                           border: Border.all(
                             color: index <= _currentStep
                                 ? theme.colorScheme.primary
-                                : theme.colorScheme.outline
-                                    .withValues(alpha: 0.3),
+                                : theme.colorScheme.outline.withValues(
+                                    alpha: 0.3,
+                                  ),
                             width: 2,
                           ),
                         ),
@@ -455,9 +589,7 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
               flex: _currentStep > 0 ? 1 : 2,
               child: ElevatedButton(
                 onPressed: _canProceedToNextStep() ? _nextStep : null,
-                child: Text(
-                  _currentStep < 2 ? 'Continue' : 'Confirm Booking',
-                ),
+                child: Text(_currentStep < 2 ? 'Continue' : 'Confirm Booking'),
               ),
             ),
           ],

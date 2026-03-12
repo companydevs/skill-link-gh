@@ -285,9 +285,7 @@ class _ReelVideoPlayerWidgetState extends State<ReelVideoPlayerWidget> {
               ),
               const SizedBox(height: 16),
               Text(
-                _retryCount >= _maxRetries
-                    ? 'Video failed to load'
-                    : 'Loading video...',
+                _retryCount >= _maxRetries ? 'Video failed to load' : '',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,
@@ -339,16 +337,16 @@ class _ReelVideoPlayerWidgetState extends State<ReelVideoPlayerWidget> {
               Text(
                 _retryCount > 0
                     ? 'Retrying... ($_retryCount/$_maxRetries)'
-                    : 'Loading video...',
+                    : '',
                 style: const TextStyle(color: Colors.white70, fontSize: 14),
               ),
-              if (_retryCount == 0) ...[
-                const SizedBox(height: 8),
-                const Text(
-                  'Large videos may take longer to load',
-                  style: TextStyle(color: Colors.white54, fontSize: 12),
-                ),
-              ],
+              // if (_retryCount == 0) ...[
+              //   const SizedBox(height: 8),
+              //   const Text(
+              //     'Large videos may take longer to load',
+              //     style: TextStyle(color: Colors.white54, fontSize: 12),
+              //   ),
+              // ],
             ],
           ),
         ),
