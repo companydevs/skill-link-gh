@@ -69,6 +69,19 @@ class _PostCardWidgetState extends State<PostCardWidget>
   }
 
   @override
+  void didUpdateWidget(PostCardWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update local state when post data changes from provider
+    if (oldWidget.post.isLiked != widget.post.isLiked ||
+        oldWidget.post.likes != widget.post.likes) {
+      setState(() {
+        _isLiked = widget.post.isLiked;
+        _likes = widget.post.likes;
+      });
+    }
+  }
+
+  @override
   void dispose() {
     _likeAnimationController.dispose();
     for (var heart in _hearts) {
