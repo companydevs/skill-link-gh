@@ -36,10 +36,10 @@ class PostRepository {
           isLiked = likeDoc.exists;
         }
 
-        // Fetch recent likers (up to 3)
+        // Fetch recent likers (up to 3) - without ordering to avoid index requirement
+        // Note: This gets any 3 likers, not necessarily the most recent
         final likesSnapshot = await doc.reference
             .collection('likes')
-            .orderBy('likedAt', descending: true)
             .limit(3)
             .get();
 
