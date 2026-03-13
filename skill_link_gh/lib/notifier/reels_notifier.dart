@@ -27,7 +27,6 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
   Future<void> loadInitialReels() async {
     if (state.isLoading) return; // Prevent multiple simultaneous loads
 
-    print("🚀 Loading initial $_initialLoadSize reels...");
     state = const AsyncValue.loading();
 
     // Reset pagination state
@@ -39,8 +38,6 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
         limit: _initialLoadSize,
         useCache: true, // Use cache for better performance
       );
-
-      print("📱 Loaded ${reels.length} initial reels successfully");
 
       // Store last document for pagination
       if (reels.isNotEmpty) {
@@ -54,23 +51,17 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
 
       _hasMoreReels = reels.length == _initialLoadSize;
       state = AsyncValue.data(reels);
-      print("✅ Initial reels state updated successfully");
     } catch (e, stackTrace) {
-      print("❌ Error loading initial reels: $e");
       state = AsyncValue.error(e, stackTrace);
     }
   }
 
   Future<void> loadMoreReels() async {
     if (_isLoadingMore || !_hasMoreReels || !state.hasValue) {
-      print(
-        "📄 Load more skipped: loading=$_isLoadingMore, hasMore=$_hasMoreReels",
-      );
       return;
     }
 
     _isLoadingMore = true;
-    print("📄 Loading $_chunkSize more reels...");
 
     try {
       final currentReels = state.value!;
@@ -93,18 +84,12 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
         final allReels = [...currentReels, ...newReels];
         state = AsyncValue.data(allReels);
 
-        print(
-          "📄 Loaded ${newReels.length} more reels. Total: ${allReels.length}",
-        );
-
         // Check if we have more reels to load
         _hasMoreReels = newReels.length == _chunkSize;
       } else {
         _hasMoreReels = false;
-        print("📄 No more reels to load");
       }
     } catch (e) {
-      print("❌ Error loading more reels: $e");
       // Don't update state on error, just log it
     } finally {
       _isLoadingMore = false;
@@ -112,14 +97,12 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
   }
 
   Future<void> refreshReels() async {
-    print("🔄 Refreshing reels...");
     await loadInitialReels();
   }
 
   Future<void> toggleLike(String reelId) async {
     // Prevent multiple simultaneous likes on the same reel
     if (_likingReels.contains(reelId)) {
-      print('⚠️ Like already in progress for reel: $reelId');
       return;
     }
 
@@ -136,36 +119,33 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
     // Mark this reel as being liked to prevent race conditions
     _likingReels.add(reelId);
 
-    try {
-      // Optimistic update - instant UI response
-      final updatedReel = currentReel.copyWith(
-        isLiked: !currentIsLiked,
-        likes: currentIsLiked ? currentReel.likes - 1 : currentReel.likes + 1,
-      );
+    // INSTANT optimistic update
+    final updatedReel = currentReel.copyWith(
+      isLiked: !currentIsLiked,
+      likes: currentIsLiked ? currentReel.likes - 1 : currentReel.likes + 1,
+    );
 
-      final updatedReels = List<Reel>.from(reels);
-      updatedReels[index] = updatedReel;
-      state = AsyncValue.data(updatedReels);
+    final updatedReels = List<Reel>.from(reels);
+    updatedReels[index] = updatedReel;
+    state = AsyncValue.data(updatedReels);
 
-      // Perform the actual like toggle in background
-      await _repository.toggleLike(reelId, currentIsLiked);
-      print('✅ Like toggled successfully for reel: $reelId');
-    } catch (e) {
-      print('❌ Like toggle failed for reel $reelId: $e');
-
-      // Revert on error
-      state = AsyncValue.data(reels);
-    } finally {
-      // Always remove from liking set to allow future likes
-      _likingReels.remove(reelId);
-    }
+    // Perform the actual like toggle in background (fire-and-forget)
+    _repository
+        .toggleLike(reelId, currentIsLiked)
+        .then((_) {
+          _likingReels.remove(reelId);
+        })
+        .catchError((e) {
+          // Revert on error
+          state = AsyncValue.data(reels);
+          _likingReels.remove(reelId);
+        });
   }
 
   // Add new reel locally after successful upload
   Future<void> addNewReelLocally(Reel newReel) async {
     final currentReels = state.value ?? [];
     state = AsyncValue.data([newReel, ...currentReels]);
-    print("✅ Added new reel locally: ${newReel.id}");
   }
 
   // Getters for UI state

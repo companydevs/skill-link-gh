@@ -4,13 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:video_player/video_player.dart';
 
 import 'package:skill_link_gh/provider/reels_provider.dart';
 import 'package:skill_link_gh/widgets/custom_bottom_bar.dart';
 import 'package:skill_link_gh/utils/fix_negative_likes.dart';
 import './widgets/reel_info_overlay_widget.dart';
 import './widgets/reel_interaction_overlay_widget.dart';
-import './widgets/optimized_reel_video_player_widget.dart';
+import './widgets/reel_video_player_widget.dart';
 import './widgets/comments_bottom_sheet.dart';
 
 class ReelsScreen extends ConsumerStatefulWidget {
@@ -34,6 +35,37 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
   bool _showLikeAnimation = false;
   String? _animatingReelId;
 
+  // Preload cache for next video
+  void _preloadVideo(String videoUrl) {
+    debugPrint(
+      '⏩ Preloading next video: ${videoUrl.substring(videoUrl.length - 20)}',
+    );
+    // Simple preload - just create controller in background
+    Future.microtask(() async {
+      try {
+        final uri = Uri.parse(videoUrl);
+        if (!uri.hasScheme) return;
+
+        final controller = VideoPlayerController.networkUrl(
+          uri,
+          videoPlayerOptions: VideoPlayerOptions(
+            mixWithOthers: true,
+            allowBackgroundPlayback: false,
+          ),
+        );
+
+        await controller.initialize();
+        debugPrint(
+          '✅ Preload complete: ${videoUrl.substring(videoUrl.length - 20)}',
+        );
+        // Controller will be cached by video player widget
+      } catch (e) {
+        debugPrint('⚠️ Preload failed: $e');
+        // Preload failed, no big deal
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -51,8 +83,6 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _pageController.dispose();
     _captionController.dispose();
-    // Clear video cache when leaving reels screen
-    VideoControllerCache().clear();
     super.dispose();
   }
 
@@ -347,6 +377,12 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                       _currentReelIndex = index;
                     });
 
+                    // Preload next video
+                    if (index + 1 < reels.length) {
+                      final nextReel = reels[index + 1];
+                      _preloadVideo(nextReel.videoUrl);
+                    }
+
                     if (index >= reels.length - 2) {
                       final notifier = ref.read(reelsNotifierProvider.notifier);
                       if (notifier.hasMoreReels && !notifier.isLoadingMore) {
@@ -360,23 +396,13 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                     final reel = reels[index];
                     final isActive = _currentReelIndex == index;
 
-                    // Preload next 2 videos
-                    final preloadUrls = <String>[];
-                    if (index + 1 < reels.length) {
-                      preloadUrls.add(reels[index + 1].videoUrl);
-                    }
-                    if (index + 2 < reels.length) {
-                      preloadUrls.add(reels[index + 2].videoUrl);
-                    }
-
                     return Stack(
                       fit: StackFit.expand,
                       children: [
-                        OptimizedReelVideoPlayerWidget(
+                        ReelVideoPlayerWidget(
                           videoUrl: reel.videoUrl,
                           isActive: isActive,
                           isMuted: _isMuted,
-                          preloadUrls: preloadUrls,
                         ),
                         // Double tap to like with animation
                         GestureDetector(
@@ -418,10 +444,10 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                               },
                             ),
                           ),
-                        // Info overlay
+                        // Info overlay - positioned at bottom like TikTok
                         Positioned(
                           left: 16,
-                          bottom: 100,
+                          bottom: 20,
                           right: 80,
                           child: ReelInfoOverlayWidget(
                             artisanName: reel.artisanName,
@@ -438,10 +464,10 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                             },
                           ),
                         ),
-                        // Interaction overlay
+                        // Interaction overlay - positioned at bottom
                         Positioned(
                           right: 12,
-                          bottom: 100,
+                          bottom: 20,
                           child: ReelInteractionOverlayWidget(
                             likes: reel.likes,
                             comments: reel.comments,
@@ -463,10 +489,10 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                             },
                           ),
                         ),
-                        // Mute button
+                        // Mute button - adjusted position
                         Positioned(
                           right: 16,
-                          bottom: 120,
+                          top: MediaQuery.of(context).padding.top + 80,
                           child: IconButton(
                             icon: Icon(
                               _isMuted ? Icons.volume_off : Icons.volume_up,

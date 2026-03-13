@@ -2,6 +2,36 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
+// Simple cache for 3 videos max (current + prev + next)
+class _VideoCache {
+  static final Map<String, VideoPlayerController> _cache = {};
+  static const int _maxCacheSize = 3;
+
+  static VideoPlayerController? get(String url) {
+    final controller = _cache[url];
+    if (controller != null) {
+      debugPrint('✅ Cache HIT for: ${url.substring(url.length - 20)}');
+    }
+    return controller;
+  }
+
+  static void put(String url, VideoPlayerController controller) {
+    // Remove oldest if cache is full
+    if (_cache.length >= _maxCacheSize) {
+      final oldestKey = _cache.keys.first;
+      debugPrint(
+        '🗑️ Cache FULL - removing: ${oldestKey.substring(oldestKey.length - 20)}',
+      );
+      _cache[oldestKey]?.dispose();
+      _cache.remove(oldestKey);
+    }
+    debugPrint(
+      '💾 Cache PUT: ${url.substring(url.length - 20)} (total: ${_cache.length + 1})',
+    );
+    _cache[url] = controller;
+  }
+}
+
 class ReelVideoPlayerWidget extends StatefulWidget {
   final String videoUrl;
   final bool isActive;
@@ -80,7 +110,28 @@ class _ReelVideoPlayerWidgetState extends State<ReelVideoPlayerWidget> {
         return;
       }
 
-      print('🎬 Initializing video: ${widget.videoUrl.substring(0, 60)}...');
+      // Check cache first
+      final cachedController = _VideoCache.get(widget.videoUrl);
+      if (cachedController != null && cachedController.value.isInitialized) {
+        debugPrint('🚀 Using cached controller - instant playback!');
+        _controller = cachedController;
+
+        if (mounted) {
+          setState(() {
+            _isInitialized = true;
+            _hasError = false;
+            _isLoading = false;
+          });
+
+          _controller.setLooping(true);
+          _controller.setVolume(widget.isMuted ? 0.0 : 1.0);
+
+          if (widget.isActive) {
+            _controller.play();
+          }
+        }
+        return;
+      }
 
       // Create controller with proper URI parsing and optimized settings
       _controller = VideoPlayerController.networkUrl(
@@ -94,6 +145,7 @@ class _ReelVideoPlayerWidgetState extends State<ReelVideoPlayerWidget> {
           'User-Agent': 'SkillLink-Mobile-App/1.0',
           'Accept': 'video/*',
         },
+        formatHint: VideoFormat.other, // Let player auto-detect format
       );
 
       // Add listener for buffering status
@@ -117,7 +169,8 @@ class _ReelVideoPlayerWidgetState extends State<ReelVideoPlayerWidget> {
           _retryCount = 0; // Reset retry count on success
         });
 
-        print('✅ Video initialized successfully');
+        // Add to cache
+        _VideoCache.put(widget.videoUrl, _controller);
 
         // Configure video settings
         _controller.setLooping(true);
@@ -130,8 +183,6 @@ class _ReelVideoPlayerWidgetState extends State<ReelVideoPlayerWidget> {
       }
     } catch (e) {
       if (mounted) {
-        print('❌ Video initialization error (attempt ${_retryCount + 1}): $e');
-
         // Determine if we should retry based on error type
         bool shouldRetry = _retryCount < _maxRetries && _shouldRetryError(e);
 
@@ -161,12 +212,7 @@ class _ReelVideoPlayerWidgetState extends State<ReelVideoPlayerWidget> {
 
   void _videoPlayerListener() {
     if (!mounted) return;
-
-    // Handle buffering states
-    if (_controller.value.isBuffering && _isInitialized) {
-      // Video is buffering - this is normal for large files
-      print('📡 Video buffering...');
-    }
+    // Handle buffering states silently
   }
 
   bool _is404Error(dynamic error) {
@@ -233,7 +279,7 @@ class _ReelVideoPlayerWidgetState extends State<ReelVideoPlayerWidget> {
     // Handle URL changes
     if (oldWidget.videoUrl != widget.videoUrl) {
       _controller.removeListener(_videoPlayerListener);
-      _controller.dispose();
+      // Don't dispose - let cache handle it
       _isInitialized = false;
       _hasError = false;
       _retryCount = 0;
@@ -261,7 +307,7 @@ class _ReelVideoPlayerWidgetState extends State<ReelVideoPlayerWidget> {
     _isDisposed = true;
     if (_isInitialized) {
       _controller.removeListener(_videoPlayerListener);
-      _controller.dispose();
+      // Don't dispose controller - cache manages it
     }
     super.dispose();
   }

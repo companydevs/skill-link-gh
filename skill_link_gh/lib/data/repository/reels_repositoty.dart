@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:skill_link_gh/domain/models/reel_model.dart';
+import 'package:video_compress/video_compress.dart';
+import 'package:flutter/foundation.dart';
 
 class ReelsRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -231,7 +233,7 @@ class ReelsRepository {
     });
   }
 
-  /// Upload video to Firebase Storage with progress callback
+  /// Upload video to Firebase Storage with progress callback and compression
   Future<String> uploadVideo(File file, Function(double) onProgress) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) throw Exception("User not authenticated");
@@ -241,10 +243,42 @@ class ReelsRepository {
       throw Exception("Video file does not exist");
     }
 
-    // Check file size (limit to 100MB)
-    final fileSize = file.lengthSync();
+    File videoToUpload = file;
+    MediaInfo? compressedInfo;
+
+    try {
+      // Compress video to reduce size and resolution
+      debugPrint('🎬 Starting video compression...');
+
+      final info = await VideoCompress.compressVideo(
+        file.path,
+        quality: VideoQuality.MediumQuality, // Good balance
+        deleteOrigin: false, // Keep original
+        includeAudio: true,
+      );
+
+      if (info != null && info.file != null) {
+        compressedInfo = info;
+        videoToUpload = info.file!;
+        debugPrint('✅ Compression complete: ${info.filesize} bytes');
+        debugPrint(
+          '📊 Original: ${file.lengthSync()} → Compressed: ${info.filesize}',
+        );
+
+        // Update progress for compression complete
+        onProgress(0.3); // 30% for compression
+      }
+    } catch (e) {
+      debugPrint('⚠️ Compression failed, uploading original: $e');
+      // Continue with original file if compression fails
+    }
+
+    // Check file size after compression
+    final fileSize = videoToUpload.lengthSync();
     if (fileSize > 100 * 1024 * 1024) {
-      throw Exception("Video file too large (max 100MB)");
+      throw Exception(
+        "Video file too large even after compression (max 100MB)",
+      );
     }
 
     final fileName = '${DateTime.now().millisecondsSinceEpoch}.mp4';
@@ -257,18 +291,32 @@ class ReelsRepository {
       customMetadata: {
         'uploadedBy': uid,
         'uploadedAt': DateTime.now().toIso8601String(),
+        'compressed': compressedInfo != null ? 'true' : 'false',
       },
     );
 
-    final uploadTask = ref.putFile(file, metadata);
+    final uploadTask = ref.putFile(videoToUpload, metadata);
 
     uploadTask.snapshotEvents.listen((taskSnapshot) {
-      final progress = taskSnapshot.bytesTransferred / taskSnapshot.totalBytes;
-      onProgress(progress.clamp(0.0, 1.0));
+      // Map upload progress from 30% to 100%
+      final uploadProgress =
+          taskSnapshot.bytesTransferred / taskSnapshot.totalBytes;
+      final totalProgress =
+          0.3 + (uploadProgress * 0.7); // 30% compression + 70% upload
+      onProgress(totalProgress.clamp(0.0, 1.0));
     });
 
     final taskSnapshot = await uploadTask;
     final downloadUrl = await taskSnapshot.ref.getDownloadURL();
+
+    // Clean up compressed file if it was created
+    if (compressedInfo != null && videoToUpload.path != file.path) {
+      try {
+        await videoToUpload.delete();
+      } catch (e) {
+        debugPrint('⚠️ Failed to delete compressed temp file: $e');
+      }
+    }
 
     // Validate the download URL
     if (downloadUrl.isEmpty) {
