@@ -339,7 +339,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     if (uid == null) return null;
     // Must match storage rules: profile_images/{userId}/{fileName}
     final ref = FirebaseStorage.instance.ref('profile_images/$uid/$path');
-    await ref.putFile(file);
+    final task = ref.putFile(file);
+    await task;
     return await ref.getDownloadURL();
   }
 
@@ -506,13 +507,34 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         height: double.infinity,
                         fit: BoxFit.cover,
                       )
-                    : CustomImageWidget(
-                        imageUrl:
-                            currentData?["coverPhoto"] as String? ??
-                            'https://images.unsplash.com/photo-1557804506-669a67965ba0?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
+                    : currentData?["coverPhoto"] != null
+                    ? CustomImageWidget(
+                        imageUrl: currentData!["coverPhoto"] as String,
                         width: double.infinity,
                         height: double.infinity,
                         fit: BoxFit.cover,
+                      )
+                    : Container(
+                        color: theme.colorScheme.primaryContainer,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.add_photo_alternate_outlined,
+                              size: 36,
+                              color: theme.colorScheme.primary.withValues(
+                                alpha: 0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Tap to add cover photo',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
               ),
               Positioned(
