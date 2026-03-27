@@ -153,7 +153,7 @@ class _SearchAndDiscoveryScreenState extends State<SearchAndDiscoveryScreen> {
   }
 
   List<Map<String, dynamic>> get _filteredArtisans {
-    var filtered = List<Map<String, dynamic>>.from(_mockArtisans);
+    var filtered = List<Map<String, dynamic>>.from(_artisans);
 
     if (_searchQuery.isNotEmpty) {
       filtered = filtered.where((artisan) {
@@ -504,7 +504,7 @@ class _SearchAndDiscoveryScreenState extends State<SearchAndDiscoveryScreen> {
               ),
             ),
             Expanded(
-              child: _isLoadingLocation
+              child: _isLoadingLocation || _isLoadingArtisans
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -512,7 +512,9 @@ class _SearchAndDiscoveryScreenState extends State<SearchAndDiscoveryScreen> {
                           CircularProgressIndicator(),
                           SizedBox(height: 2.h),
                           Text(
-                            'Getting your location...',
+                            _isLoadingLocation
+                                ? 'Getting your location...'
+                                : 'Finding artisans near you...',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
