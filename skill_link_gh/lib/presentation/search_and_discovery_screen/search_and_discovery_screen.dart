@@ -476,34 +476,47 @@ class _SearchAndDiscoveryScreenState extends State<SearchAndDiscoveryScreen> {
               ),
               child: Row(
                 children: [
-                  Text(
-                    '${filteredArtisans.length} artisans found',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                  Expanded(
+                    child: Text(
+                      '${filteredArtisans.length} artisans found',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Spacer(),
                   TextButton.icon(
                     onPressed: _showSortBottomSheet,
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.symmetric(horizontal: 2.w),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
                     icon: CustomIconWidget(
                       iconName: 'sort',
                       color: theme.colorScheme.primary,
-                      size: 20,
+                      size: 18,
                     ),
                     label: Text('Sort'),
                   ),
-                  SizedBox(width: 2.w),
+                  SizedBox(width: 1.w),
                   TextButton.icon(
                     onPressed: _showFilterBottomSheet,
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.symmetric(horizontal: 2.w),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
                     icon: CustomIconWidget(
                       iconName: 'filter_list',
                       color: theme.colorScheme.primary,
-                      size: 20,
+                      size: 18,
                     ),
                     label: Text('Filter'),
                   ),
-                  SizedBox(width: 2.w),
                   IconButton(
+                    padding: EdgeInsets.symmetric(horizontal: 2.w),
+                    constraints: const BoxConstraints(),
                     icon: CustomIconWidget(
                       iconName: _isMapView ? 'list' : 'map',
                       color: theme.colorScheme.primary,
