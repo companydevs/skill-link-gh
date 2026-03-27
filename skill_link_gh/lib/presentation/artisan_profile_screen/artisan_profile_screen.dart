@@ -5,16 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
 import 'package:skill_link_gh/data/repository/auth_repository.dart';
 import 'package:skill_link_gh/provider/profile_provider.dart';
-import 'package:skill_link_gh/widgets/user_avatar_widget.dart';
 import 'package:skill_link_gh/widgets/custom_app_toast.dart';
 import 'package:skill_link_gh/widgets/utils/createPost.dart';
 import 'package:skill_link_gh/routes/app_routes.dart';
 
 import '../../core/app_export.dart';
-import '../../widgets/custom_app_bar.dart';
 import '../../widgets/custom_bottom_bar.dart';
 import './widgets/about_section_widget.dart';
-import './widgets/action_buttons_widget.dart';
 import './widgets/portfolio_section_widget.dart';
 import './widgets/profile_header_widget.dart';
 import './widgets/profile_stats_widget.dart';
@@ -33,95 +30,19 @@ class ArtisanProfileScreen extends ConsumerStatefulWidget {
 class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
     with SingleTickerProviderStateMixin {
   final AuthRepository _authRepository = AuthRepository();
-
   late TabController _tabController;
-  final ScrollController _scrollController = ScrollController();
-  bool _showStickyHeader = false;
   bool _isLoggingOut = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
-    _scrollController.addListener(_onScroll);
-  }
-
-  void _onScroll() {
-    if (_scrollController.offset > 200 && !_showStickyHeader) {
-      setState(() => _showStickyHeader = true);
-    } else if (_scrollController.offset <= 200 && _showStickyHeader) {
-      setState(() => _showStickyHeader = false);
-    }
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _scrollController.dispose();
     super.dispose();
-  }
-
-  void _handleBookNow() {
-    Navigator.pushNamed(context, '/service-booking-screen');
-  }
-
-  void _handleMessage() {
-    Navigator.pushNamed(context, '/posts-homepage');
-  }
-
-  void _handleShare() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Profile sharing coming soon')),
-    );
-  }
-
-  void _handleFavorite() {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Added to favorites')));
-  }
-
-  void _handleReport() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Report User'),
-        content: const Text('Are you sure you want to report this artisan?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('Report submitted')));
-            },
-            child: const Text('Report'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _handleVerification() {
-    Navigator.pushNamed(context, AppRoutes.verificationScreen);
-  }
-
-  bool _isVerified(Map<String, dynamic> artisanData) {
-    final verificationBadges =
-        artisanData["verificationBadges"] as Map<String, dynamic>?;
-    return verificationBadges?["identityVerified"] == true;
-  }
-
-  // Create Post Handler
-  void _handleCreatePost() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const CreatePostScreen()),
-    );
   }
 
   @override
@@ -129,40 +50,34 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
     final theme = Theme.of(context);
     final profileState = ref.watch(profileNotifierProvider);
 
-    // Show full-screen loader only on first ever load (no cached data yet)
+    // Skeleton on very first load
     if (profileState.isLoading && profileState.profileData == null) {
       return Scaffold(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        appBar: CustomAppBar(variant: AppBarVariant.transparent),
+        appBar: _buildAppBar(theme, null),
         bottomNavigationBar: CustomBottomBar(
           currentIndex: context.currentBottomBarIndex,
         ),
-        body: _buildProfileSkeleton(theme),
+        body: _buildSkeleton(theme),
       );
     }
 
-    // If we have an error and no data at all, show error state
     if (profileState.error != null && profileState.profileData == null) {
       return Scaffold(
-        backgroundColor: theme.scaffoldBackgroundColor,
+        appBar: _buildAppBar(theme, null),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.grey),
-              const SizedBox(height: 16),
-              Text('Failed to load profile', style: theme.textTheme.titleLarge),
-              const SizedBox(height: 8),
+              const Icon(Icons.error_outline, size: 48, color: Colors.grey),
+              SizedBox(height: 2.h),
               Text(
-                profileState.error!,
-                style: theme.textTheme.bodyMedium,
-                textAlign: TextAlign.center,
+                'Could not load profile',
+                style: theme.textTheme.titleMedium,
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 2.h),
               ElevatedButton(
-                onPressed: () {
-                  ref.read(profileNotifierProvider.notifier).refreshProfile();
-                },
+                onPressed: () =>
+                    ref.read(profileNotifierProvider.notifier).refreshProfile(),
                 child: const Text('Retry'),
               ),
             ],
@@ -171,327 +86,152 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
       );
     }
 
-    final artisanData = profileState.profileData!;
-    final portfolioImages = profileState.portfolioImages;
+    final data = profileState.profileData!;
     final reviews = profileState.reviews;
+    final portfolio = profileState.portfolioImages;
     final services = profileState.services;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      extendBodyBehindAppBar: true,
-      appBar: _showStickyHeader
-          ? CustomAppBar(
-              variant: AppBarVariant.standard,
-              backgroundColor: theme.colorScheme.surface,
-              titleWidget: Row(
-                children: [
-                  UserAvatarWidget(
-                    imageUrl: artisanData["profileImage"] as String?,
-                    name: artisanData["fullName"] as String? ?? 'Unknown User',
-                    size: 40,
-                    semanticLabel: 'Profile picture',
-                  ),
-                  SizedBox(width: 2.w),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          artisanData["fullName"] as String? ?? 'Unknown User',
-                          style: theme.textTheme.titleMedium,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Row(
-                          children: [
-                            CustomIconWidget(
-                              iconName: 'star',
-                              size: 14,
-                              color: theme.colorScheme.secondary,
-                            ),
-                            SizedBox(width: 1.w),
-                            Text(
-                              '${artisanData["rating"] ?? 0.0} (${reviews.length})',
-                              style: theme.textTheme.bodySmall,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                IconButton(
-                  icon: CustomIconWidget(
-                    iconName: 'edit',
-                    size: 24,
-                    color: theme.colorScheme.onSurface,
-                  ),
-                  onPressed: () =>
-                      Navigator.pushNamed(context, AppRoutes.editProfileScreen),
-                ),
-                IconButton(
-                  icon: CustomIconWidget(
-                    iconName: 'share',
-                    size: 24,
-                    color: theme.colorScheme.onSurface,
-                  ),
-                  onPressed: _handleShare,
-                ),
-                PopupMenuButton<String>(
-                  icon: CustomIconWidget(
-                    iconName: 'more_vert',
-                    size: 24,
-                    color: Colors.white,
-                  ),
-                  onSelected: (value) {
-                    if (value == 'favorite') _handleFavorite();
-                    if (value == 'report') _handleReport();
-                    if (value == 'logout') _handleLogout();
-                    if (value == 'delete') _handleDeleteAccount();
-                    if (value == 'verify') _handleVerification();
-                  },
-                  itemBuilder: (context) => [
-                    if (!_isVerified(artisanData))
-                      const PopupMenuItem(
-                        value: 'verify',
-                        child: Row(
-                          children: [
-                            Icon(Icons.verified_user, size: 20),
-                            SizedBox(width: 8),
-                            Text('Get Verified'),
-                          ],
-                        ),
-                      ),
-                    const PopupMenuItem(
-                      value: 'favorite',
-                      child: Text('Save to Favorites'),
-                    ),
-                    const PopupMenuItem(
-                      value: 'report',
-                      child: Text('Report User'),
-                    ),
-                    const PopupMenuItem(
-                      value: 'logout',
-                      child: Text('Log out'),
-                    ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Text(
-                        'Delete Account',
-                        style: TextStyle(color: Colors.red),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            )
-          : CustomAppBar(
-              variant: AppBarVariant.transparent,
-              actions: [
-                IconButton(
-                  icon: CustomIconWidget(
-                    iconName: 'edit',
-                    size: 24,
-                    color: Colors.white,
-                  ),
-                  onPressed: () =>
-                      Navigator.pushNamed(context, AppRoutes.editProfileScreen),
-                ),
-                IconButton(
-                  icon: CustomIconWidget(
-                    iconName: 'share',
-                    size: 24,
-                    color: Colors.white,
-                  ),
-                  onPressed: _handleShare,
-                ),
-                PopupMenuButton<String>(
-                  icon: CustomIconWidget(
-                    iconName: 'more_vert',
-                    size: 24,
-                    color: Colors.white,
-                  ),
-                  onSelected: (value) {
-                    if (value == 'favorite') _handleFavorite();
-                    if (value == 'report') _handleReport();
-                    if (value == 'logout') _handleLogout();
-                    if (value == 'delete') _handleDeleteAccount();
-                    if (value == 'verify') _handleVerification();
-                  },
-                  itemBuilder: (context) => [
-                    if (!_isVerified(artisanData))
-                      const PopupMenuItem(
-                        value: 'verify',
-                        child: Row(
-                          children: [
-                            Icon(Icons.verified_user, size: 20),
-                            SizedBox(width: 8),
-                            Text('Get Verified'),
-                          ],
-                        ),
-                      ),
-                    const PopupMenuItem(
-                      value: 'favorite',
-                      child: Text('Save to Favorites'),
-                    ),
-                    const PopupMenuItem(
-                      value: 'report',
-                      child: Text('Report User'),
-                    ),
-                    const PopupMenuItem(
-                      value: 'logout',
-                      child: Text('Log out'),
-                    ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Text(
-                        'Delete Account',
-                        style: TextStyle(color: Colors.red),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-      body: Stack(
-        children: [
-          CustomScrollView(
-            controller: _scrollController,
-            slivers: [
-              SliverToBoxAdapter(
-                child: ProfileHeaderWidget(artisanData: artisanData),
-              ),
-              SliverToBoxAdapter(
-                child: ProfileStatsWidget(artisanData: artisanData),
-              ),
-              // Add verification status widget if not fully verified
-              SliverToBoxAdapter(
-                child: VerificationStatusWidget(
-                  artisanData: artisanData,
-                  onVerifyTap: _handleVerification,
-                ),
-              ),
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _SliverTabBarDelegate(
-                  TabBar(
-                    controller: _tabController,
-                    labelColor: theme.colorScheme.primary,
-                    unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
-                    indicatorColor: theme.colorScheme.primary,
-                    tabs: const [
-                      Tab(text: 'About'),
-                      Tab(text: 'Portfolio'),
-                      Tab(text: 'Reviews'),
-                      Tab(text: 'Services'),
-                    ],
-                  ),
-                ),
-              ),
-              SliverFillRemaining(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    AboutSectionWidget(artisanData: artisanData),
-                    PortfolioSectionWidget(portfolioImages: portfolioImages),
-                    ReviewsSectionWidget(
-                      reviews: reviews,
-                      averageRating:
-                          (artisanData["rating"] as num?)?.toDouble() ?? 0.0,
-                      totalReviews: reviews.length,
-                    ),
-                    ServicesSectionWidget(services: services),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: ActionButtonsWidget(
-              onBookNow: _handleBookNow,
-              onMessage: _handleMessage,
-            ),
-          ),
-        ],
-      ),
+      appBar: _buildAppBar(theme, data),
       bottomNavigationBar: CustomBottomBar(
         currentIndex: context.currentBottomBarIndex,
       ),
-      // FAB for creating post
       floatingActionButton: FloatingActionButton(
-        heroTag: "profile_create_post", // Add unique hero tag
-        onPressed: _handleCreatePost,
+        heroTag: 'profile_create_post',
+        mini: true,
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CreatePostScreen()),
+        ),
         child: const Icon(Icons.post_add),
+      ),
+      body: NestedScrollView(
+        headerSliverBuilder: (context, _) => [
+          SliverToBoxAdapter(child: ProfileHeaderWidget(artisanData: data)),
+          SliverToBoxAdapter(child: ProfileStatsWidget(artisanData: data)),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: 1.5.h),
+              child: VerificationStatusWidget(
+                artisanData: data,
+                onVerifyTap: () =>
+                    Navigator.pushNamed(context, AppRoutes.verificationScreen),
+              ),
+            ),
+          ),
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _TabBarDelegate(
+              TabBar(
+                controller: _tabController,
+                labelColor: theme.colorScheme.primary,
+                unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
+                indicatorColor: theme.colorScheme.primary,
+                indicatorSize: TabBarIndicatorSize.label,
+                tabs: const [
+                  Tab(text: 'About'),
+                  Tab(text: 'Portfolio'),
+                  Tab(text: 'Reviews'),
+                  Tab(text: 'Services'),
+                ],
+              ),
+            ),
+          ),
+        ],
+        body: TabBarView(
+          controller: _tabController,
+          children: [
+            AboutSectionWidget(artisanData: data),
+            PortfolioSectionWidget(portfolioImages: portfolio),
+            ReviewsSectionWidget(
+              reviews: reviews,
+              averageRating: (data['rating'] as num?)?.toDouble() ?? 0.0,
+              totalReviews: reviews.length,
+            ),
+            ServicesSectionWidget(services: services),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildProfileSkeleton(ThemeData theme) {
-    final shimmerBase = theme.colorScheme.surfaceContainerHighest;
-    final shimmerHighlight = theme.colorScheme.surface;
+  PreferredSizeWidget _buildAppBar(
+    ThemeData theme,
+    Map<String, dynamic>? data,
+  ) {
+    return AppBar(
+      title: data != null
+          ? Text(
+              data['fullName'] as String? ?? '',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            )
+          : null,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.edit_outlined),
+          onPressed: () =>
+              Navigator.pushNamed(context, AppRoutes.editProfileScreen),
+        ),
+        PopupMenuButton<String>(
+          onSelected: (v) {
+            if (v == 'logout') _handleLogout();
+            if (v == 'delete') _handleDeleteAccount();
+            if (v == 'verify')
+              Navigator.pushNamed(context, AppRoutes.verificationScreen);
+          },
+          itemBuilder: (_) => [
+            const PopupMenuItem(value: 'verify', child: Text('Get Verified')),
+            const PopupMenuItem(value: 'logout', child: Text('Log out')),
+            PopupMenuItem(
+              value: 'delete',
+              child: Text(
+                'Delete Account',
+                style: TextStyle(color: theme.colorScheme.error),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 
-    Widget box(double w, double h, {double radius = 8}) => Container(
+  Widget _buildSkeleton(ThemeData theme) {
+    final c = theme.colorScheme.surfaceContainerHighest;
+    Widget box(double w, double h, {double r = 8}) => Container(
       width: w,
       height: h,
       decoration: BoxDecoration(
-        color: shimmerBase,
-        borderRadius: BorderRadius.circular(radius),
+        color: c,
+        borderRadius: BorderRadius.circular(r),
       ),
     );
-
-    return SingleChildScrollView(
-      physics: const NeverScrollableScrollPhysics(),
+    return Padding(
+      padding: EdgeInsets.all(4.w),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Cover photo placeholder
-          Container(height: 22.h, color: shimmerBase),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 20.w,
-                      height: 20.w,
-                      decoration: BoxDecoration(
-                        color: shimmerHighlight,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: theme.colorScheme.surface,
-                          width: 3,
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 4.w),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        box(40.w, 2.h),
-                        SizedBox(height: 1.h),
-                        box(25.w, 1.5.h),
-                      ],
-                    ),
-                  ],
-                ),
-                SizedBox(height: 2.h),
-                box(double.infinity, 1.5.h),
-                SizedBox(height: 1.h),
-                box(60.w, 1.5.h),
-                SizedBox(height: 3.h),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: List.generate(3, (_) => box(20.w, 6.h, radius: 12)),
-                ),
-              ],
-            ),
+          Row(
+            children: [
+              box(18.w, 18.w, r: 100),
+              SizedBox(width: 4.w),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  box(35.w, 2.h),
+                  SizedBox(height: 1.h),
+                  box(22.w, 1.5.h),
+                  SizedBox(height: 1.h),
+                  box(28.w, 1.5.h),
+                ],
+              ),
+            ],
+          ),
+          SizedBox(height: 2.h),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: List.generate(3, (_) => box(20.w, 5.h, r: 8)),
           ),
         ],
       ),
@@ -501,59 +241,54 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
   Future<void> _handleLogout() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: const Text('Log out'),
+          content: const Text('Are you sure you want to log out?'),
+          actions: [
+            TextButton(
+              onPressed: _isLoggingOut ? null : () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
             ),
-            title: const Text('Log out'),
-            content: const Text('Are you sure you want to log out?'),
-            actions: [
-              TextButton(
-                onPressed: _isLoggingOut
-                    ? null
-                    : () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: _isLoggingOut
-                    ? null
-                    : () async {
-                        setState(() => _isLoggingOut = true);
-                        try {
-                          await _authRepository.signOut();
-                        } finally {
-                          if (mounted) Navigator.pop(context, true);
-                        }
-                      },
-                child: _isLoggingOut
-                    ? const CircularProgressIndicator()
-                    : const Text('Log out'),
-              ),
-            ],
-          );
-        },
+            ElevatedButton(
+              onPressed: _isLoggingOut
+                  ? null
+                  : () async {
+                      setState(() => _isLoggingOut = true);
+                      try {
+                        await _authRepository.signOut();
+                      } finally {
+                        if (mounted) Navigator.pop(ctx, true);
+                      }
+                    },
+              child: _isLoggingOut
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Log out'),
+            ),
+          ],
+        ),
       ),
     );
 
-    if (confirmed != true) return;
-
-    if (!mounted) return;
+    if (confirmed != true || !mounted) return;
     Navigator.pushNamedAndRemoveUntil(
       context,
       AppRoutes.loginScreen,
-      (route) => false,
+      (_) => false,
     );
   }
 
   Future<void> _handleDeleteAccount() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (_) => AlertDialog(
         title: const Text('Delete Account'),
         content: const Text(
-          'Are you sure you want to delete your account? This action cannot be undone.',
+          'This cannot be undone. All your data will be permanently deleted.',
         ),
         actions: [
           TextButton(
@@ -562,22 +297,48 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text(
+              'Delete',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ),
         ],
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return;
 
     try {
-      showLoadingDialog(context, message: 'Deleting your account...');
-      final functions = FirebaseFunctions.instance;
-      await functions.httpsCallable('deleteUserAccount').call();
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const PopScope(
+          canPop: false,
+          child: Dialog(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(width: 20),
+                  Text('Deleting account...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await FirebaseFunctions.instance
+          .httpsCallable('deleteUserAccount')
+          .call();
       await FirebaseAuth.instance.signOut();
+      if (!mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
-      Navigator.pushReplacementNamed(context, '/login-screen');
+      Navigator.pushReplacementNamed(context, AppRoutes.loginScreen);
     } catch (e) {
+      if (!mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
       AppToast.show(
         context,
@@ -586,37 +347,11 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
       );
     }
   }
-
-  void showLoadingDialog(BuildContext context, {String? message}) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => WillPopScope(
-        onWillPop: () async => false,
-        child: Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircularProgressIndicator(),
-                const SizedBox(width: 20),
-                Text(message ?? 'Please wait...'),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
-class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
+class _TabBarDelegate extends SliverPersistentHeaderDelegate {
   final TabBar tabBar;
-  _SliverTabBarDelegate(this.tabBar);
+  _TabBarDelegate(this.tabBar);
 
   @override
   double get minExtent => tabBar.preferredSize.height;
@@ -636,5 +371,5 @@ class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  bool shouldRebuild(_SliverTabBarDelegate oldDelegate) => false;
+  bool shouldRebuild(_TabBarDelegate old) => false;
 }

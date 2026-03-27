@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import 'package:skill_link_gh/widgets/user_avatar_widget.dart';
 
-import '../../../core/app_export.dart';
-
 class ProfileHeaderWidget extends StatelessWidget {
   final Map<String, dynamic> artisanData;
 
