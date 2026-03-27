@@ -64,14 +64,24 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
       dev.log('📍 Last known: $pos', name: 'Location');
 
       if (pos == null) {
-        pos = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.medium,
-            timeLimit: Duration(seconds: 10),
-          ),
-        );
         dev.log(
-          '📍 Current: ${pos.latitude}, ${pos.longitude}',
+          '📍 No last known — using position stream (low accuracy, faster fix)...',
+          name: 'Location',
+        );
+        // Stream-based is more reliable than getCurrentPosition on cold start
+        pos =
+            await Geolocator.getPositionStream(
+              locationSettings: const LocationSettings(
+                accuracy: LocationAccuracy.low,
+                distanceFilter: 0,
+              ),
+            ).first.timeout(
+              const Duration(seconds: 20),
+              onTimeout: () =>
+                  throw Exception('GPS timed out — try Pick on Map'),
+            );
+        dev.log(
+          '📍 Stream position: ${pos.latitude}, ${pos.longitude}',
           name: 'Location',
         );
       }
@@ -80,13 +90,18 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
       widget.onLocationSelected(latLng);
       if (mounted) setState(() => _pickedLatLng = latLng);
 
-      final address = await _geocode(latLng);
-      dev.log('📍 Geocode result: $address', name: 'Location');
-
+      // Show coordinates immediately so user sees something
       if (mounted) {
         widget.addressController.text =
-            address ??
             '${latLng.latitude.toStringAsFixed(5)}, ${latLng.longitude.toStringAsFixed(5)}';
+      }
+
+      // Then replace with human-readable address
+      final address = await _geocode(latLng);
+      dev.log('📍 Geocode result: $address', name: 'Location');
+      if (mounted && address != null) {
+        widget.addressController.text = address;
+        setState(() {}); // refresh display
       }
     } catch (e, st) {
       dev.log('❌ Error: $e', name: 'Location', error: e, stackTrace: st);
