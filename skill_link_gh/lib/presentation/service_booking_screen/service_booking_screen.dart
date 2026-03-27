@@ -54,41 +54,98 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
   }
 
   void _loadServiceData() {
-    // Get service data from route arguments
     final args =
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
 
-    setState(() {
-      _serviceData =
-          args?['service'] ??
-          {
-            "id": "service_1",
-            "title": "Plumbing Services",
-            "description": "Professional plumbing services",
-            "basePrice": 150.0,
-            "duration": 2,
-          };
+    // Args can come from:
+    // 1. Post card → post.toJson() with artisanId, artisanName, artisanImage, priceRange
+    // 2. Search/artisan card → artisan map with id, name, profileImage, rating, etc.
+    // 3. Services section → no args
 
-      _artisanData =
-          args?['artisan'] ??
-          {
-            "id": "artisan_1",
-            "name": "Kwame Mensah",
-            "serviceType": "Plumbing Services",
-            "rating": 4.8,
-            "reviews": 127,
-            "profileImage":
-                "https://img.rocket.new/generatedImages/rocket_gen_img_10a10f3da-1763296183354.png",
-            "semanticLabel":
-                "Professional headshot of a man with short black hair wearing a blue work uniform",
-          };
+    Map<String, dynamic> artisan = {};
+    Map<String, dynamic> service = {};
+
+    if (args != null) {
+      // From artisan card (search screen) — has 'name', 'profileImage', 'services'
+      if (args.containsKey('name') || args.containsKey('fullName')) {
+        artisan = {
+          'id': args['id'] ?? args['uid'] ?? '',
+          'name': args['name'] ?? args['fullName'] ?? 'Artisan',
+          'serviceType':
+              (args['services'] as List?)?.join(', ') ??
+              (args['serviceCategories'] as List?)?.join(', ') ??
+              '',
+          'rating': args['rating'] ?? 0.0,
+          'reviews': args['totalReviews'] ?? 0,
+          'profileImage': args['profileImage'] ?? '',
+          'hourlyRate': args['hourlyRate'],
+          'priceRange': args['priceRange'] ?? '',
+        };
+      }
+      // From post card → post.toJson() has artisanId, artisanName, artisanImage, priceRange
+      else if (args.containsKey('artisanId') ||
+          args.containsKey('artisanName')) {
+        artisan = {
+          'id': args['artisanId'] ?? '',
+          'name': args['artisanName'] ?? 'Artisan',
+          'serviceType': args['category'] ?? '',
+          'rating': args['rating'] ?? 0.0,
+          'reviews': args['totalReviews'] ?? 0,
+          'profileImage': args['artisanImage'] ?? '',
+          'priceRange': args['priceRange'] ?? '',
+        };
+        service = {
+          'id': args['id'] ?? '',
+          'title': args['title'] ?? args['category'] ?? 'Service',
+          'description': args['description'] ?? '',
+          'basePrice': _parsePriceRange(args['priceRange'] as String?),
+          'duration': 2,
+        };
+      }
+      // Nested artisan/service keys
+      else {
+        artisan = Map<String, dynamic>.from(args['artisan'] as Map? ?? {});
+        service = Map<String, dynamic>.from(args['service'] as Map? ?? {});
+      }
+    }
+
+    setState(() {
+      _artisanData = artisan.isNotEmpty ? artisan : null;
+      _serviceData = service.isNotEmpty
+          ? service
+          : {
+              'id': 'service_1',
+              'title': artisan['serviceType'] ?? 'Service',
+              'description': '',
+              'basePrice':
+                  _parseHourlyRate(artisan['hourlyRate']) ??
+                  _parsePriceRange(artisan['priceRange'] as String?) ??
+                  0.0,
+              'duration': 2,
+            };
     });
 
-    // Pre-fill phone number from user profile
     final user = FirebaseAuth.instance.currentUser;
     if (user?.phoneNumber != null) {
       _phoneController.text = user!.phoneNumber!;
     }
+  }
+
+  double? _parseHourlyRate(dynamic rate) {
+    if (rate == null) return null;
+    if (rate is num) return rate.toDouble();
+    if (rate is String) return double.tryParse(rate);
+    return null;
+  }
+
+  double? _parsePriceRange(String? range) {
+    if (range == null || range.isEmpty) return null;
+    // e.g. "GHS 50-200" → take the lower bound
+    final digits = RegExp(r'\d+').allMatches(range);
+    if (digits.isNotEmpty) {
+      return double.tryParse(digits.first.group(0)!);
+    }
+    return null;
   }
 
   Future<void> _loadCurrentLocation() async {
