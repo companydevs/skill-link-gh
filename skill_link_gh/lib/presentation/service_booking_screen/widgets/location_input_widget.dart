@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
-
-import '../../../widgets/custom_icon_widget.dart';
+import 'package:sizer/sizer.dart';
 
 const _mapsApiKey = 'AIzaSyCeGxqoYlPBqAXDX5JMp89wwJfmQEM-ZWc';
 
@@ -31,32 +30,23 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
   @override
   void initState() {
     super.initState();
-    if (widget.addressController.text.isEmpty) {
-      _autoFillLocation();
-    }
+    _autoFillLocation();
   }
 
   Future<void> _autoFillLocation() async {
     if (_isLocating) return;
-    setState(() => _isLocating = true);
+    if (mounted) setState(() => _isLocating = true);
     try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        _showSnack('Please enable location services');
-        return;
+      if (!await Geolocator.isLocationServiceEnabled()) return;
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
       }
-
-      final status = await Permission.location.request();
-      if (status.isPermanentlyDenied) {
-        _showSnack('Location permission denied. Open settings to allow.');
+      if (perm == LocationPermission.deniedForever) {
         openAppSettings();
         return;
       }
-      if (!status.isGranted) {
-        _showSnack('Location permission required');
-        return;
-      }
-
+      if (perm == LocationPermission.denied) return;
       Position? pos = await Geolocator.getLastKnownPosition();
       pos ??= await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
@@ -64,49 +54,42 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
           timeLimit: Duration(seconds: 10),
         ),
       );
-
       final latLng = LatLng(pos.latitude, pos.longitude);
       widget.onLocationSelected(latLng);
       if (mounted) setState(() => _pickedLatLng = latLng);
-      await _reverseGeocode(latLng);
-    } catch (e) {
-      _showSnack('Could not detect location. Enter address manually.');
+      final address = await _geocode(latLng);
+      if (mounted) {
+        widget.addressController.text =
+            address ??
+            '${latLng.latitude.toStringAsFixed(5)}, ${latLng.longitude.toStringAsFixed(5)}';
+      }
+    } catch (_) {
     } finally {
       if (mounted) setState(() => _isLocating = false);
     }
   }
 
-  /// Uses Google Maps Geocoding API (same key as Maps SDK) — works reliably on all Android devices
-  Future<void> _reverseGeocode(LatLng pos) async {
+  Future<String?> _geocode(LatLng pos) async {
     try {
-      final dio = Dio();
-      final response = await dio.get<Map<String, dynamic>>(
+      final dio = Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 6),
+          receiveTimeout: const Duration(seconds: 6),
+        ),
+      );
+      final resp = await dio.get<Map<String, dynamic>>(
         'https://maps.googleapis.com/maps/api/geocode/json',
         queryParameters: {
           'latlng': '${pos.latitude},${pos.longitude}',
           'key': _mapsApiKey,
         },
-        options: Options(receiveTimeout: const Duration(seconds: 8)),
       );
-      final results = response.data?['results'] as List?;
+      final results = resp.data?['results'] as List?;
       if (results != null && results.isNotEmpty) {
-        final address = results.first['formatted_address'] as String? ?? '';
-        if (address.isNotEmpty && mounted) {
-          widget.addressController.text = address;
-          return;
-        }
+        return results.first['formatted_address'] as String?;
       }
     } catch (_) {}
-    // Fallback — show coordinates so the field isn't empty
-    if (mounted) {
-      widget.addressController.text =
-          '${pos.latitude.toStringAsFixed(5)}, ${pos.longitude.toStringAsFixed(5)}';
-    }
-  }
-
-  void _showSnack(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    return null;
   }
 
   Future<void> _openMapPicker() async {
@@ -122,15 +105,19 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
         ),
       ),
     );
-
     if (result != null && mounted) {
       widget.onLocationSelected(result);
       setState(() {
         _pickedLatLng = result;
         _isLocating = true;
       });
-      await _reverseGeocode(result);
-      if (mounted) setState(() => _isLocating = false);
+      final address = await _geocode(result);
+      if (mounted) {
+        widget.addressController.text =
+            address ??
+            '${result.latitude.toStringAsFixed(5)}, ${result.longitude.toStringAsFixed(5)}';
+        setState(() => _isLocating = false);
+      }
     }
   }
 
@@ -140,150 +127,180 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
     final hasLocation =
         _pickedLatLng != null || widget.selectedLocation != null;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.2),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                'Service Location',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              if (hasLocation)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer.withValues(
-                      alpha: 0.5,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.my_location,
-                        size: 12,
-                        color: theme.colorScheme.primary,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Located',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: widget.addressController,
-            decoration: InputDecoration(
-              hintText: _isLocating
-                  ? 'Getting your location...'
-                  : 'Your service address',
-              prefixIcon: _isLocating
-                  ? const Padding(
-                      padding: EdgeInsets.all(14),
-                      child: SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                  : Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: CustomIconWidget(
-                        iconName: 'location_on',
-                        color: theme.colorScheme.primary,
-                        size: 20,
-                      ),
-                    ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(
-                  color: theme.colorScheme.outline.withValues(alpha: 0.3),
-                ),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(
-                  color: theme.colorScheme.outline.withValues(alpha: 0.3),
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(
-                  color: theme.colorScheme.primary,
-                  width: 2,
-                ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Service Location',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
               ),
             ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _isLocating ? null : _autoFillLocation,
-                  icon: _isLocating
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+            const Spacer(),
+            if (_isLocating)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Detecting...',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ],
+              )
+            else if (hasLocation)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.check_circle,
+                    size: 14,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Set',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+        SizedBox(height: 1.h),
+        // Tappable address tile
+        GestureDetector(
+          onTap: _openMapPicker,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.5,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: hasLocation
+                    ? theme.colorScheme.primary.withValues(alpha: 0.4)
+                    : theme.colorScheme.outline.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  hasLocation ? Icons.location_on : Icons.location_searching,
+                  color: hasLocation
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _isLocating
+                      ? Text(
+                          'Getting your location...',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontStyle: FontStyle.italic,
+                          ),
                         )
-                      : const Icon(Icons.my_location, size: 16),
-                  label: Text(_isLocating ? 'Locating...' : 'Use My Location'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    textStyle: theme.textTheme.labelMedium,
-                  ),
+                      : Text(
+                          widget.addressController.text.isNotEmpty
+                              ? widget.addressController.text
+                              : 'Tap to set location',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: widget.addressController.text.isNotEmpty
+                                ? theme.colorScheme.onSurface
+                                : theme.colorScheme.onSurfaceVariant,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _openMapPicker,
-                  icon: const Icon(Icons.map_outlined, size: 16),
-                  label: const Text('Pick on Map'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    textStyle: theme.textTheme.labelMedium,
-                  ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.edit_location_alt_outlined,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ],
-      ),
+        ),
+        SizedBox(height: 0.8.h),
+        // Subtle action links
+        Row(
+          children: [
+            GestureDetector(
+              onTap: _isLocating ? null : _autoFillLocation,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.my_location,
+                    size: 13,
+                    color: _isLocating
+                        ? theme.colorScheme.onSurfaceVariant
+                        : theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Use my location',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: _isLocating
+                          ? theme.colorScheme.onSurfaceVariant
+                          : theme.colorScheme.primary,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Spacer(),
+            GestureDetector(
+              onTap: _openMapPicker,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.map_outlined,
+                    size: 13,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Pick on map',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
 
-// ── Full-screen map picker ────────────────────────────────────────────────────
-
 class _MapPickerScreen extends StatefulWidget {
   final LatLng initialLocation;
   const _MapPickerScreen({required this.initialLocation});
-
   @override
   State<_MapPickerScreen> createState() => _MapPickerScreenState();
 }
@@ -308,8 +325,13 @@ class _MapPickerScreenState extends State<_MapPickerScreen> {
   Future<void> _goToMyLocation() async {
     setState(() => _isLocating = true);
     try {
-      final status = await Permission.location.request();
-      if (!status.isGranted) return;
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever)
+        return;
       Position? pos = await Geolocator.getLastKnownPosition();
       pos ??= await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
@@ -331,7 +353,7 @@ class _MapPickerScreenState extends State<_MapPickerScreen> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pick Location'),
+        title: const Text('Set Location'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, _picked),
@@ -340,6 +362,7 @@ class _MapPickerScreenState extends State<_MapPickerScreen> {
               style: TextStyle(
                 color: theme.colorScheme.primary,
                 fontWeight: FontWeight.w700,
+                fontSize: 16,
               ),
             ),
           ),
@@ -379,29 +402,30 @@ class _MapPickerScreenState extends State<_MapPickerScreen> {
             left: 16,
             right: 16,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(20),
+                color: Colors.black.withValues(alpha: 0.65),
+                borderRadius: BorderRadius.circular(24),
               ),
               child: const Text(
-                'Tap the map or drag the pin to set your location',
+                'Tap anywhere or drag the pin to set your location',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white, fontSize: 12),
+                style: TextStyle(color: Colors.white, fontSize: 13),
               ),
             ),
           ),
           Positioned(
-            bottom: 24,
+            bottom: 32,
             right: 16,
-            child: FloatingActionButton.small(
-              heroTag: 'map_my_location',
+            child: FloatingActionButton(
+              heroTag: 'map_my_loc',
               onPressed: _isLocating ? null : _goToMyLocation,
               backgroundColor: theme.colorScheme.surface,
+              elevation: 4,
               child: _isLocating
                   ? SizedBox(
-                      width: 18,
-                      height: 18,
+                      width: 20,
+                      height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         color: theme.colorScheme.primary,
