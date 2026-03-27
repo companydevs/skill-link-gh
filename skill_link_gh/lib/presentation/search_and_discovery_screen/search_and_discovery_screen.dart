@@ -63,8 +63,6 @@ class _SearchAndDiscoveryScreenState extends State<SearchAndDiscoveryScreen> {
     {'name': 'Welding', 'icon': 'hardware'},
   ];
 
-  final List<Map<String, dynamic>> _mockArtisans = [];
-
   @override
   void initState() {
     super.initState();
