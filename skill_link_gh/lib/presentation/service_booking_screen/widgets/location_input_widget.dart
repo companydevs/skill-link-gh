@@ -1,3 +1,4 @@
+import 'dart:developer' as dev;
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -37,33 +38,58 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
     if (_isLocating) return;
     if (mounted) setState(() => _isLocating = true);
     try {
-      if (!await Geolocator.isLocationServiceEnabled()) return;
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      dev.log('📍 Service enabled: $serviceEnabled', name: 'Location');
+      if (!serviceEnabled) return;
+
       var perm = await Geolocator.checkPermission();
+      dev.log('📍 Permission check: $perm', name: 'Location');
+
       if (perm == LocationPermission.denied) {
         perm = await Geolocator.requestPermission();
+        dev.log('📍 After request: $perm', name: 'Location');
       }
       if (perm == LocationPermission.deniedForever) {
+        dev.log('❌ Permanently denied', name: 'Location');
         openAppSettings();
         return;
       }
-      if (perm == LocationPermission.denied) return;
+      if (perm == LocationPermission.denied) {
+        dev.log('❌ Still denied', name: 'Location');
+        return;
+      }
+
+      dev.log('✅ Permission granted, fetching position...', name: 'Location');
       Position? pos = await Geolocator.getLastKnownPosition();
-      pos ??= await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          timeLimit: Duration(seconds: 10),
-        ),
-      );
+      dev.log('📍 Last known: $pos', name: 'Location');
+
+      if (pos == null) {
+        pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+            timeLimit: Duration(seconds: 10),
+          ),
+        );
+        dev.log(
+          '📍 Current: ${pos.latitude}, ${pos.longitude}',
+          name: 'Location',
+        );
+      }
+
       final latLng = LatLng(pos.latitude, pos.longitude);
       widget.onLocationSelected(latLng);
       if (mounted) setState(() => _pickedLatLng = latLng);
+
       final address = await _geocode(latLng);
+      dev.log('📍 Geocode result: $address', name: 'Location');
+
       if (mounted) {
         widget.addressController.text =
             address ??
             '${latLng.latitude.toStringAsFixed(5)}, ${latLng.longitude.toStringAsFixed(5)}';
       }
-    } catch (_) {
+    } catch (e, st) {
+      dev.log('❌ Error: $e', name: 'Location', error: e, stackTrace: st);
     } finally {
       if (mounted) setState(() => _isLocating = false);
     }
