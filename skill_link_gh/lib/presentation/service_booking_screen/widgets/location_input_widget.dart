@@ -97,6 +97,10 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
 
   Future<String?> _geocode(LatLng pos) async {
     try {
+      dev.log(
+        '📍 Calling Geocoding API for ${pos.latitude}, ${pos.longitude}',
+        name: 'Location',
+      );
       final dio = Dio(
         BaseOptions(
           connectTimeout: const Duration(seconds: 6),
@@ -110,11 +114,20 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
           'key': _mapsApiKey,
         },
       );
+      dev.log('📍 Geocoding status: ${resp.data?['status']}', name: 'Location');
       final results = resp.data?['results'] as List?;
+      dev.log(
+        '📍 Geocoding results count: ${results?.length}',
+        name: 'Location',
+      );
       if (results != null && results.isNotEmpty) {
-        return results.first['formatted_address'] as String?;
+        final address = results.first['formatted_address'] as String?;
+        dev.log('📍 Address: $address', name: 'Location');
+        return address;
       }
-    } catch (_) {}
+    } catch (e) {
+      dev.log('❌ Geocoding error: $e', name: 'Location');
+    }
     return null;
   }
 
