@@ -10,7 +10,6 @@ import 'package:skill_link_gh/widgets/user_avatar_widget.dart';
 import 'package:skill_link_gh/widgets/custom_app_toast.dart';
 import 'package:skill_link_gh/widgets/custom_text_form_field.dart';
 
-import '../../core/app_export.dart';
 import '../../widgets/custom_app_bar.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
@@ -475,130 +474,194 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     ThemeData theme,
     Map<String, dynamic>? currentData,
   ) {
+    final hasCover = _coverImage != null || currentData?["coverPhoto"] != null;
+    final hasProfile =
+        _profileImage != null || currentData?["profileImage"] != null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Profile Images',
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        SizedBox(height: 2.h),
-
-        // Cover Photo
-        Container(
-          width: double.infinity,
-          height: 20.h,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: theme.colorScheme.outline.withValues(alpha: 0.3),
-            ),
-          ),
+        // ── Cover photo ───────────────────────────────────────────────
+        GestureDetector(
+          onTap: () => _showImageSourceDialog(isProfile: false),
           child: Stack(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: _coverImage != null
-                    ? Image.file(
-                        _coverImage!,
-                        width: double.infinity,
-                        height: double.infinity,
-                        fit: BoxFit.cover,
-                      )
-                    : currentData?["coverPhoto"] != null
-                    ? CustomImageWidget(
-                        imageUrl: currentData!["coverPhoto"] as String,
-                        width: double.infinity,
-                        height: double.infinity,
-                        fit: BoxFit.cover,
-                      )
-                    : Container(
-                        color: theme.colorScheme.primaryContainer,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+              // Cover container
+              Container(
+                width: double.infinity,
+                height: 18.h,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  color: theme.colorScheme.primaryContainer,
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: hasCover
+                    ? (_coverImage != null
+                          ? Image.file(
+                              _coverImage!,
+                              width: double.infinity,
+                              height: double.infinity,
+                              fit: BoxFit.cover,
+                            )
+                          : Image.network(
+                              currentData!["coverPhoto"] as String,
+                              width: double.infinity,
+                              height: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  _coverEmptyState(theme),
+                            ))
+                    : _coverEmptyState(theme),
+              ),
+
+              // Dark overlay + edit hint when image exists
+              if (hasCover)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      color: Colors.black.withValues(alpha: 0.25),
+                    ),
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.45),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.add_photo_alternate_outlined,
-                              size: 36,
-                              color: theme.colorScheme.primary.withValues(
-                                alpha: 0.5,
-                              ),
+                            const Icon(
+                              Icons.edit,
+                              color: Colors.white,
+                              size: 16,
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(width: 6),
                             Text(
-                              'Tap to add cover photo',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
+                              'Change cover',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: Colors.white,
                               ),
                             ),
                           ],
                         ),
                       ),
-              ),
-              Positioned(
-                top: 8,
-                right: 8,
-                child: FloatingActionButton.small(
-                  heroTag: "cover_image_edit", // Add unique hero tag
-                  onPressed: () => _showImageSourceDialog(isProfile: false),
-                  backgroundColor: theme.colorScheme.surface.withValues(
-                    alpha: 0.9,
-                  ),
-                  child: Icon(
-                    Icons.camera_alt,
-                    color: theme.colorScheme.onSurface,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
 
-        SizedBox(height: 2.h),
-
-        // Profile Photo
-        Center(
+        // ── Profile photo — overlapping the cover bottom edge ─────────
+        Transform.translate(
+          offset: const Offset(16, -36),
           child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: theme.colorScheme.outline.withValues(alpha: 0.3),
-                    width: 2,
+              GestureDetector(
+                onTap: () => _showImageSourceDialog(isProfile: true),
+                child: Container(
+                  width: 88,
+                  height: 88,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: theme.scaffoldBackgroundColor,
+                      width: 3,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: hasProfile
+                        ? (_profileImage != null
+                              ? Image.file(
+                                  _profileImage!,
+                                  width: 88,
+                                  height: 88,
+                                  fit: BoxFit.cover,
+                                )
+                              : Image.network(
+                                  currentData!["profileImage"] as String,
+                                  width: 88,
+                                  height: 88,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) =>
+                                      UserAvatarWidget(
+                                        name:
+                                            currentData["fullName"]
+                                                as String? ??
+                                            'U',
+                                        size: 88,
+                                      ),
+                                ))
+                        : UserAvatarWidget(
+                            name: currentData?["fullName"] as String? ?? 'User',
+                            size: 88,
+                          ),
                   ),
                 ),
-                child: _profileImage != null
-                    ? ClipOval(
-                        child: Image.file(
-                          _profileImage!,
-                          width: 120,
-                          height: 120,
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : UserAvatarWidget(
-                        imageUrl: currentData?["profileImage"] as String?,
-                        name: currentData?["fullName"] as String? ?? 'User',
-                        size: 120,
-                      ),
               ),
+              // Camera badge
               Positioned(
                 bottom: 0,
                 right: 0,
-                child: FloatingActionButton.small(
-                  heroTag: "profile_image_edit", // Add unique hero tag
-                  onPressed: () => _showImageSourceDialog(isProfile: true),
-                  backgroundColor: theme.colorScheme.primary,
-                  child: const Icon(Icons.camera_alt, color: Colors.white),
+                child: GestureDetector(
+                  onTap: () => _showImageSourceDialog(isProfile: true),
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: theme.scaffoldBackgroundColor,
+                        width: 2,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt,
+                      color: Colors.white,
+                      size: 14,
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _coverEmptyState(ThemeData theme) {
+    return SizedBox.expand(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.add_photo_alternate_outlined,
+            size: 40,
+            color: theme.colorScheme.primary.withValues(alpha: 0.5),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Tap to add cover photo',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
