@@ -4,7 +4,6 @@ import 'package:skill_link_gh/widgets/user_avatar_widget.dart';
 
 import '../../../core/app_export.dart';
 
-/// Profile header widget displaying cover photo, profile image, and basic info
 class ProfileHeaderWidget extends StatelessWidget {
   final Map<String, dynamic> artisanData;
 
@@ -13,144 +12,115 @@ class ProfileHeaderWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final name =
+        artisanData['fullName'] as String? ??
+        artisanData['name'] as String? ??
+        'Unknown';
+    final location = artisanData['location'] as String? ?? '';
+    final rating = (artisanData['rating'] as num?)?.toDouble() ?? 0.0;
+    final totalReviews = artisanData['totalReviews'] as int? ?? 0;
+    final isVerified =
+        (artisanData['verificationBadges'] as Map?)?['identityVerified'] ==
+        true;
+    final categories = List<String>.from(
+      artisanData['serviceCategories'] as List? ?? [],
+    );
+    final hourlyRate = artisanData['hourlyRate'];
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        // Cover Photo
-        CustomImageWidget(
-          imageUrl:
-              artisanData["coverPhoto"] as String? ??
-              'https://images.unsplash.com/photo-1557804506-669a67965ba0?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
-          width: 100.w,
-          height: 30.h,
-          fit: BoxFit.cover,
-          semanticLabel:
-              artisanData["coverPhotoSemanticLabel"] as String? ??
-              'Cover photo',
-        ),
-        // Gradient Overlay
-        Container(
-          width: 100.w,
-          height: 30.h,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Colors.transparent, Colors.black.withValues(alpha: 0.7)],
-            ),
-          ),
-        ),
-        // Profile Content
-        Positioned(
-          bottom: -8.h,
-          left: 0,
-          right: 0,
-          child: Column(
+    return Padding(
+      padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Avatar + name row
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Profile Image with UserAvatarWidget
-              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: theme.colorScheme.surface,
-                    width: 4,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: theme.colorScheme.shadow,
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: UserAvatarWidget(
-                  imageUrl: artisanData["profileImage"] as String?,
-                  name:
-                      artisanData["name"] as String? ??
-                      artisanData["fullName"] as String? ??
-                      'Unknown User',
-                  size: 120,
-                  semanticLabel:
-                      artisanData["profileImageSemanticLabel"] as String? ??
-                      'Profile picture',
-                ),
+              UserAvatarWidget(
+                imageUrl: artisanData['profileImage'] as String?,
+                name: name,
+                size: 72,
+                semanticLabel: 'Profile picture of $name',
               ),
-              SizedBox(height: 2.h),
-              // Name and Categories
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4.w),
+              SizedBox(width: 4.w),
+              Expanded(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      artisanData["name"] as String? ??
-                          artisanData["fullName"] as String? ??
-                          'Unknown User',
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 1.h),
-                    Wrap(
-                      spacing: 2.w,
-                      runSpacing: 1.h,
-                      alignment: WrapAlignment.center,
-                      children:
-                          ((artisanData["serviceCategories"] as List?) ?? [])
-                              .map(
-                                (category) => Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 3.w,
-                                    vertical: 0.5.h,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: theme.colorScheme.primaryContainer,
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: Text(
-                                    category as String? ?? 'Service',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.primary,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                    ),
-                    SizedBox(height: 1.5.h),
-                    // Rating and Verification
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        CustomIconWidget(
-                          iconName: 'star',
-                          size: 20,
-                          color: theme.colorScheme.secondary,
+                        Flexible(
+                          child: Text(
+                            name,
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isVerified) ...[
+                          SizedBox(width: 1.5.w),
+                          Icon(
+                            Icons.verified,
+                            size: 18,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (location.isNotEmpty) ...[
+                      SizedBox(height: 0.4.h),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.location_on_outlined,
+                            size: 14,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          SizedBox(width: 1.w),
+                          Flexible(
+                            child: Text(
+                              location,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    SizedBox(height: 0.6.h),
+                    // Rating row
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.star_rounded,
+                          size: 16,
+                          color: Colors.amber[600],
                         ),
                         SizedBox(width: 1.w),
                         Text(
-                          '${artisanData["rating"] ?? 0.0} (${artisanData["totalReviews"] ?? 0} reviews)',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w500,
+                          rating.toStringAsFixed(1),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        if (((artisanData["verificationBadges"]
-                                    as Map?)?["identityVerified"]
-                                as bool?) ==
-                            true) ...[
-                          SizedBox(width: 2.w),
-                          Container(
-                            padding: EdgeInsets.all(0.5.w),
-                            decoration: BoxDecoration(
+                        Text(
+                          ' ($totalReviews)',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        if (hourlyRate != null) ...[
+                          SizedBox(width: 3.w),
+                          Text(
+                            'GHS $hourlyRate/hr',
+                            style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.primary,
-                              shape: BoxShape.circle,
-                            ),
-                            child: CustomIconWidget(
-                              iconName: 'verified',
-                              size: 16,
-                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
@@ -161,8 +131,41 @@ class ProfileHeaderWidget extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ],
+
+          // Category chips
+          if (categories.isNotEmpty) ...[
+            SizedBox(height: 1.5.h),
+            Wrap(
+              spacing: 2.w,
+              runSpacing: 0.8.h,
+              children: categories
+                  .take(4)
+                  .map(
+                    (c) => Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 3.w,
+                        vertical: 0.4.h,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer.withValues(
+                          alpha: 0.6,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        c,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
