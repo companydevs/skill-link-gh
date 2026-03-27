@@ -129,14 +129,20 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
     final theme = Theme.of(context);
     final profileState = ref.watch(profileNotifierProvider);
 
-    if (profileState.isLoading) {
+    // Show full-screen loader only on first ever load (no cached data yet)
+    if (profileState.isLoading && profileState.profileData == null) {
       return Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
-        body: const Center(child: CircularProgressIndicator()),
+        appBar: CustomAppBar(variant: AppBarVariant.transparent),
+        bottomNavigationBar: CustomBottomBar(
+          currentIndex: context.currentBottomBarIndex,
+        ),
+        body: _buildProfileSkeleton(theme),
       );
     }
 
-    if (profileState.error != null) {
+    // If we have an error and no data at all, show error state
+    if (profileState.error != null && profileState.profileData == null) {
       return Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
         body: Center(
@@ -421,6 +427,73 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
         heroTag: "profile_create_post", // Add unique hero tag
         onPressed: _handleCreatePost,
         child: const Icon(Icons.post_add),
+      ),
+    );
+  }
+
+  Widget _buildProfileSkeleton(ThemeData theme) {
+    final shimmerBase = theme.colorScheme.surfaceContainerHighest;
+    final shimmerHighlight = theme.colorScheme.surface;
+
+    Widget box(double w, double h, {double radius = 8}) => Container(
+      width: w,
+      height: h,
+      decoration: BoxDecoration(
+        color: shimmerBase,
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    );
+
+    return SingleChildScrollView(
+      physics: const NeverScrollableScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Cover photo placeholder
+          Container(height: 22.h, color: shimmerBase),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 20.w,
+                      height: 20.w,
+                      decoration: BoxDecoration(
+                        color: shimmerHighlight,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: theme.colorScheme.surface,
+                          width: 3,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 4.w),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        box(40.w, 2.h),
+                        SizedBox(height: 1.h),
+                        box(25.w, 1.5.h),
+                      ],
+                    ),
+                  ],
+                ),
+                SizedBox(height: 2.h),
+                box(double.infinity, 1.5.h),
+                SizedBox(height: 1.h),
+                box(60.w, 1.5.h),
+                SizedBox(height: 3.h),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: List.generate(3, (_) => box(20.w, 6.h, radius: 12)),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

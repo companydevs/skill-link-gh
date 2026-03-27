@@ -54,21 +54,19 @@ class ProfileNotifier extends Notifier<ProfileState> {
   }
 
   Future<void> loadProfile() async {
-    // Don't use state.copyWith during initialization - causes circular dependency
-    // Set state directly instead
-    state = ProfileState(isLoading: true, error: null);
+    // Keep existing data visible while refreshing — only show loading if no data yet
+    state = state.copyWith(isLoading: true, error: null);
 
     try {
       final profileData = await _repository.getCurrentUserProfile();
 
       if (profileData == null) {
-        state = ProfileState(isLoading: false, error: 'Profile not found');
+        state = state.copyWith(isLoading: false, error: 'Profile not found');
         return;
       }
 
       final userId = profileData['id'] as String;
 
-      // Load all profile sections in parallel
       final results = await Future.wait([
         _repository.getPortfolioImages(userId),
         _repository.getReviews(userId),
@@ -83,7 +81,7 @@ class ProfileNotifier extends Notifier<ProfileState> {
         isLoading: false,
       );
     } catch (e) {
-      state = ProfileState(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
