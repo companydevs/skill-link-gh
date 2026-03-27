@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -332,12 +334,35 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     }
   }
 
+  Future<String?> _uploadImage(File file, String path) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return null;
+    final ref = FirebaseStorage.instance.ref('users/$uid/$path');
+    await ref.putFile(file);
+    return await ref.getDownloadURL();
+  }
+
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
+      // Upload images in parallel if changed
+      final uploads = await Future.wait([
+        if (_profileImage != null)
+          _uploadImage(_profileImage!, 'profileImage.jpg')
+        else
+          Future.value(null),
+        if (_coverImage != null)
+          _uploadImage(_coverImage!, 'coverPhoto.jpg')
+        else
+          Future.value(null),
+      ]);
+
+      final profileImageUrl = uploads[0];
+      final coverPhotoUrl = uploads[1];
+
       final profileData = {
         'fullName': _fullNameController.text.trim(),
         'bio': _bioController.text.trim(),
@@ -364,6 +389,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           'end':
               '${_endTime.hour}:${_endTime.minute.toString().padLeft(2, '0')}',
         },
+        if (profileImageUrl != null) 'profileImage': profileImageUrl,
+        if (coverPhotoUrl != null) 'coverPhoto': coverPhotoUrl,
       };
 
       await ref
