@@ -12,6 +12,7 @@ import 'package:skill_link_gh/presentation/verification_screen/verification_scre
 import 'package:skill_link_gh/presentation/payment_verification_screen/payment_verification_screen.dart';
 import 'package:skill_link_gh/presentation/booking_tracking_screen/booking_tracking_screen.dart';
 import 'package:skill_link_gh/presentation/debug_screen/fix_data_screen.dart';
+import 'package:skill_link_gh/presentation/debug_screen/cleanup_videos_screen.dart';
 import 'package:skill_link_gh/test_reels_screen.dart';
 import '../presentation/artisan_profile_screen/artisan_profile_screen.dart';
 import '../presentation/reels_screen/reels_screen.dart';
@@ -43,6 +44,7 @@ class AppRoutes {
       '/payment-verification-screen';
   static const String bookingTrackingScreen = '/booking-tracking-screen';
   static const String fixDataScreen = '/fix-data-screen';
+  static const String cleanupVideosScreen = '/cleanup-videos-screen';
 
   static Map<String, WidgetBuilder> routes = {
     initial: (context) => const SplashScreen(),
@@ -81,5 +83,6 @@ class AppRoutes {
     paymentVerificationScreen: (context) => const PaymentVerificationScreen(),
     bookingTrackingScreen: (context) => const BookingTrackingScreen(),
     fixDataScreen: (context) => const FixDataScreen(),
+    cleanupVideosScreen: (context) => const CleanupVideosScreen(),
   };
 }

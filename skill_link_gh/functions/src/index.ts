@@ -30,6 +30,9 @@ export {deleteComment} from "./posts/deleteComment";
 export {createPost} from "./posts/createPost";
 export {createReel} from "./reels/createReel";
 
+// Video cleanup functions
+export {cleanup4KVideos, listVideoSizes} from "./cleanupVideos";
+
 // Booking functions
 export {
   createBooking,

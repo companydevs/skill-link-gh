@@ -100,7 +100,7 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
     await loadInitialReels();
   }
 
-  Future<void> toggleLike(String reelId) async {
+  void toggleLike(String reelId) {
     // Prevent multiple simultaneous likes on the same reel
     if (_likingReels.contains(reelId)) {
       return;
@@ -119,7 +119,7 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
     // Mark this reel as being liked to prevent race conditions
     _likingReels.add(reelId);
 
-    // INSTANT optimistic update
+    // INSTANT optimistic update - NO AWAIT
     final updatedReel = currentReel.copyWith(
       isLiked: !currentIsLiked,
       likes: currentIsLiked ? currentReel.likes - 1 : currentReel.likes + 1,
@@ -130,16 +130,27 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
     state = AsyncValue.data(updatedReels);
 
     // Perform the actual like toggle in background (fire-and-forget)
-    _repository
-        .toggleLike(reelId, currentIsLiked)
-        .then((_) {
-          _likingReels.remove(reelId);
-        })
-        .catchError((e) {
-          // Revert on error
-          state = AsyncValue.data(reels);
-          _likingReels.remove(reelId);
-        });
+    // Use unawaited to make it truly async
+    Future.microtask(() {
+      _repository
+          .toggleLike(reelId, currentIsLiked)
+          .then((_) {
+            _likingReels.remove(reelId);
+          })
+          .catchError((e) {
+            // Revert on error
+            final currentReels = state.value;
+            if (currentReels != null) {
+              final idx = currentReels.indexWhere((r) => r.id == reelId);
+              if (idx != -1) {
+                final revertedReels = List<Reel>.from(currentReels);
+                revertedReels[idx] = currentReel; // Revert to original
+                state = AsyncValue.data(revertedReels);
+              }
+            }
+            _likingReels.remove(reelId);
+          });
+    });
   }
 
   // Add new reel locally after successful upload

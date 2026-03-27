@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:video_player/video_player.dart';
 
 import 'package:skill_link_gh/provider/reels_provider.dart';
 import 'package:skill_link_gh/widgets/custom_bottom_bar.dart';
@@ -34,37 +33,6 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
   // Like animation state
   bool _showLikeAnimation = false;
   String? _animatingReelId;
-
-  // Preload cache for next video
-  void _preloadVideo(String videoUrl) {
-    debugPrint(
-      '⏩ Preloading next video: ${videoUrl.substring(videoUrl.length - 20)}',
-    );
-    // Simple preload - just create controller in background
-    Future.microtask(() async {
-      try {
-        final uri = Uri.parse(videoUrl);
-        if (!uri.hasScheme) return;
-
-        final controller = VideoPlayerController.networkUrl(
-          uri,
-          videoPlayerOptions: VideoPlayerOptions(
-            mixWithOthers: true,
-            allowBackgroundPlayback: false,
-          ),
-        );
-
-        await controller.initialize();
-        debugPrint(
-          '✅ Preload complete: ${videoUrl.substring(videoUrl.length - 20)}',
-        );
-        // Controller will be cached by video player widget
-      } catch (e) {
-        debugPrint('⚠️ Preload failed: $e');
-        // Preload failed, no big deal
-      }
-    });
-  }
 
   @override
   void initState() {
@@ -111,16 +79,13 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
       }
     });
 
-    // Perform the like instantly
-    ref
-        .read(reelsNotifierProvider.notifier)
-        .toggleLike(reelId)
-        .then((_) {
-          _likingReels.remove(reelId);
-        })
-        .catchError((e) {
-          _likingReels.remove(reelId);
-        });
+    // Perform the like instantly - NO AWAIT
+    ref.read(reelsNotifierProvider.notifier).toggleLike(reelId);
+
+    // Remove from debounce set after a short delay
+    Future.delayed(const Duration(milliseconds: 300), () {
+      _likingReels.remove(reelId);
+    });
   }
 
   Future<void> _pickAndUploadVideo() async {
@@ -149,17 +114,23 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
 
     // Show uploading dialog with progress
     double uploadProgress = 0.0;
+    String progressText = "Compressing video...";
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
+        builder: (context, setDialogState) => AlertDialog(
           title: const Text("Uploading Reel..."),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                "Processing your video (${(fileSize / (1024 * 1024)).toStringAsFixed(1)} MB)",
+                "Original size: ${(fileSize / (1024 * 1024)).toStringAsFixed(1)} MB",
+              ),
+              const SizedBox(height: 8),
+              Text(
+                progressText,
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 16),
               LinearProgressIndicator(value: uploadProgress),
@@ -177,6 +148,12 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
       final videoUrl = await repository.uploadVideo(file, (progress) {
         if (mounted) {
           uploadProgress = progress;
+          // Update progress text based on stage
+          if (progress < 0.3) {
+            progressText = "Compressing video...";
+          } else {
+            progressText = "Uploading to cloud...";
+          }
         }
       });
 
@@ -376,12 +353,6 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                     setState(() {
                       _currentReelIndex = index;
                     });
-
-                    // Preload next video
-                    if (index + 1 < reels.length) {
-                      final nextReel = reels[index + 1];
-                      _preloadVideo(nextReel.videoUrl);
-                    }
 
                     if (index >= reels.length - 2) {
                       final notifier = ref.read(reelsNotifierProvider.notifier);
