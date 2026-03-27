@@ -384,15 +384,16 @@ class _MapPickerScreenState extends State<_MapPickerScreen> {
         perm = await Geolocator.requestPermission();
       }
       if (perm == LocationPermission.denied ||
-          perm == LocationPermission.deniedForever)
+          perm == LocationPermission.deniedForever) {
         return;
+      }
       Position? pos = await Geolocator.getLastKnownPosition();
-      pos ??= await Geolocator.getCurrentPosition(
+      pos ??= await Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          timeLimit: Duration(seconds: 8),
+          accuracy: LocationAccuracy.low,
+          distanceFilter: 0,
         ),
-      );
+      ).first.timeout(const Duration(seconds: 15));
       final latLng = LatLng(pos.latitude, pos.longitude);
       setState(() => _picked = latLng);
       _ctrl?.animateCamera(CameraUpdate.newLatLngZoom(latLng, 16));
