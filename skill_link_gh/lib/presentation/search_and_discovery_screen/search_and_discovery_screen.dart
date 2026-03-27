@@ -6,6 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../data/repository/artisan_repository.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/custom_bottom_bar.dart';
 import '../../widgets/custom_icon_widget.dart';
@@ -30,6 +31,10 @@ class _SearchAndDiscoveryScreenState extends State<SearchAndDiscoveryScreen> {
   String _sortBy = 'distance';
   LatLng _currentLocation = const LatLng(5.6037, -0.1870);
   bool _isLoadingLocation = true;
+  bool _isLoadingArtisans = false;
+  List<Map<String, dynamic>> _artisans = [];
+
+  final ArtisanRepository _artisanRepository = ArtisanRepository();
 
   final Map<String, dynamic> _filters = {
     'distance': 10.0,
@@ -58,88 +63,7 @@ class _SearchAndDiscoveryScreenState extends State<SearchAndDiscoveryScreen> {
     {'name': 'Welding', 'icon': 'hardware'},
   ];
 
-  final List<Map<String, dynamic>> _mockArtisans = [
-    {
-      'id': 1,
-      'name': 'Kwame Mensah',
-      'profileImage':
-          'https://img.rocket.new/generatedImages/rocket_gen_img_103ed5b0c-1763301455344.png',
-      'semanticLabel':
-          'Professional headshot of African man with short black hair wearing blue work shirt',
-      'services': ['Plumbing', 'Pipe Fitting'],
-      'rating': 4.8,
-      'distance': 1.2,
-      'isAvailable': true,
-      'isVerified': true,
-      'latitude': 5.6137,
-      'longitude': -0.1770,
-      'priceRange': 'GHS 50-200',
-    },
-    {
-      'id': 2,
-      'name': 'Ama Osei',
-      'profileImage':
-          'https://img.rocket.new/generatedImages/rocket_gen_img_1a0ea65bb-1763296441079.png',
-      'semanticLabel':
-          'Professional headshot of African woman with braided hair wearing yellow work uniform',
-      'services': ['Electrical', 'Wiring'],
-      'rating': 4.9,
-      'distance': 2.5,
-      'isAvailable': true,
-      'isVerified': true,
-      'latitude': 5.5937,
-      'longitude': -0.1970,
-      'priceRange': 'GHS 80-300',
-    },
-    {
-      'id': 3,
-      'name': 'Kofi Asante',
-      'profileImage':
-          'https://img.rocket.new/generatedImages/rocket_gen_img_19b49695f-1763293153611.png',
-      'semanticLabel':
-          'Professional headshot of African man with short hair wearing green work shirt',
-      'services': ['Carpentry', 'Furniture'],
-      'rating': 4.7,
-      'distance': 3.8,
-      'isAvailable': false,
-      'isVerified': true,
-      'latitude': 5.6237,
-      'longitude': -0.1670,
-      'priceRange': 'GHS 100-500',
-    },
-    {
-      'id': 4,
-      'name': 'Akosua Boateng',
-      'profileImage':
-          'https://img.rocket.new/generatedImages/rocket_gen_img_13661fd1e-1763300454485.png',
-      'semanticLabel':
-          'Professional headshot of African woman with short hair wearing pink cleaning uniform',
-      'services': ['Cleaning', 'Deep Cleaning'],
-      'rating': 4.6,
-      'distance': 4.2,
-      'isAvailable': true,
-      'isVerified': false,
-      'latitude': 5.5837,
-      'longitude': -0.2070,
-      'priceRange': 'GHS 40-150',
-    },
-    {
-      'id': 5,
-      'name': 'Yaw Owusu',
-      'profileImage':
-          'https://img.rocket.new/generatedImages/rocket_gen_img_153041a11-1763292325606.png',
-      'semanticLabel':
-          'Professional headshot of African man with beard wearing orange work shirt',
-      'services': ['Painting', 'Interior Design'],
-      'rating': 4.5,
-      'distance': 5.1,
-      'isAvailable': true,
-      'isVerified': true,
-      'latitude': 5.6337,
-      'longitude': -0.1570,
-      'priceRange': 'GHS 60-250',
-    },
-  ];
+  final List<Map<String, dynamic>> _mockArtisans = [];
 
   @override
   void initState() {
@@ -156,11 +80,32 @@ class _SearchAndDiscoveryScreenState extends State<SearchAndDiscoveryScreen> {
         setState(() {
           _isLoadingLocation = false;
         });
+        await _loadArtisans();
       }
     } catch (e) {
       setState(() {
         _isLoadingLocation = false;
       });
+      await _loadArtisans();
+    }
+  }
+
+  Future<void> _loadArtisans() async {
+    if (!mounted) return;
+    setState(() => _isLoadingArtisans = true);
+    try {
+      final artisans = await _artisanRepository.fetchArtisans(
+        userLat: _currentLocation.latitude,
+        userLng: _currentLocation.longitude,
+      );
+      if (mounted) {
+        setState(() {
+          _artisans = artisans;
+          _isLoadingArtisans = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingArtisans = false);
     }
   }
 
@@ -173,6 +118,7 @@ class _SearchAndDiscoveryScreenState extends State<SearchAndDiscoveryScreen> {
           _currentLocation = LatLng(lastKnown.latitude, lastKnown.longitude);
           _isLoadingLocation = false;
         });
+        await _loadArtisans();
         return;
       }
 
@@ -193,6 +139,7 @@ class _SearchAndDiscoveryScreenState extends State<SearchAndDiscoveryScreen> {
           _currentLocation = LatLng(position.latitude, position.longitude);
           _isLoadingLocation = false;
         });
+        await _loadArtisans();
       }
     } catch (e) {
       // Fall back to default location (Accra) silently
@@ -200,6 +147,7 @@ class _SearchAndDiscoveryScreenState extends State<SearchAndDiscoveryScreen> {
         setState(() {
           _isLoadingLocation = false;
         });
+        await _loadArtisans();
       }
     }
   }
