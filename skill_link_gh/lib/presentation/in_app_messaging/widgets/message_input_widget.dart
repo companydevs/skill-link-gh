@@ -10,6 +10,7 @@ class MessageInputWidget extends StatefulWidget {
   final Function(String) onSendImage;
   final Function(String) onSendVoice;
   final Function() onSendLocation;
+  final Function(bool)? onTypingChanged;
 
   const MessageInputWidget({
     super.key,
@@ -17,6 +18,7 @@ class MessageInputWidget extends StatefulWidget {
     required this.onSendImage,
     required this.onSendVoice,
     required this.onSendLocation,
+    this.onTypingChanged,
   });
 
   @override
@@ -42,8 +44,12 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
   }
 
   void _onTextChanged() {
+    final typing = _messageController.text.trim().isNotEmpty;
+    if (typing != _isTyping) {
+      widget.onTypingChanged?.call(typing);
+    }
     setState(() {
-      _isTyping = _messageController.text.trim().isNotEmpty;
+      _isTyping = typing;
     });
   }
 
@@ -74,8 +80,9 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
                 width: 12.w,
                 height: 0.5.h,
                 decoration: BoxDecoration(
-                  color:
-                      theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                  color: theme.colorScheme.onSurfaceVariant.withValues(
+                    alpha: 0.3,
+                  ),
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -91,7 +98,8 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
                       onTap: () {
                         Navigator.pop(context);
                         widget.onSendImage(
-                            'https://images.pexels.com/photos/1181406/pexels-photo-1181406.jpeg');
+                          'https://images.pexels.com/photos/1181406/pexels-photo-1181406.jpeg',
+                        );
                       },
                     ),
                     SizedBox(height: 2.h),
@@ -141,11 +149,7 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
                 shape: BoxShape.circle,
               ),
               child: Center(
-                child: CustomIconWidget(
-                  iconName: icon,
-                  size: 24,
-                  color: color,
-                ),
+                child: CustomIconWidget(iconName: icon, size: 24, color: color),
               ),
             ),
             SizedBox(width: 4.w),
@@ -168,7 +172,8 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
 
     if (!_isRecording) {
       widget.onSendVoice(
-          'voice_message_${DateTime.now().millisecondsSinceEpoch}');
+        'voice_message_${DateTime.now().millisecondsSinceEpoch}',
+      );
     }
   }
 
@@ -229,8 +234,10 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
                 border: InputBorder.none,
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 4.w,
+                  vertical: 1.5.h,
+                ),
               ),
             ),
           ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:skill_link_gh/domain/models/post_model.dart';
+import 'package:skill_link_gh/presentation/in_app_messaging/conversations_screen.dart';
 import 'package:skill_link_gh/presentation/in_app_messaging/in_app_messaging.dart';
 import 'package:skill_link_gh/presentation/login_screen/login_screen.dart';
 import 'package:skill_link_gh/presentation/onboarding_flow/onboarding_flow.dart';
@@ -37,6 +38,7 @@ class AppRoutes {
   static const String postsHomepage = '/posts-homepage';
   static const String postCommentScreen = '/post-comment-screen';
   static const String inAppMessagingScreen = '/in-app-messaging-screen';
+  static const String conversationsScreen = '/conversations-screen';
   static const String testReels = '/test-reels';
   static const String editProfileScreen = '/edit-profile-screen';
   static const String verificationScreen = '/verification-screen';
@@ -77,6 +79,7 @@ class AppRoutes {
     },
 
     inAppMessagingScreen: (context) => const InAppMessaging(),
+    conversationsScreen: (context) => const ConversationsScreen(),
     testReels: (context) => const TestReelsScreen(),
     editProfileScreen: (context) => const EditProfileScreen(),
     verificationScreen: (context) => const VerificationScreen(),
