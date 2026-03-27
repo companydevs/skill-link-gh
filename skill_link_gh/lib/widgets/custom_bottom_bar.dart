@@ -67,7 +67,7 @@ class CustomBottomBar extends StatelessWidget {
       icon: Icons.chat_bubble_outline,
       activeIcon: Icons.chat_bubble,
       label: 'Messages',
-      route: '/in-app-messaging-screen', // Using posts as placeholder for messages
+      route: '/conversations-screen',
     ),
     BottomNavItem(
       icon: Icons.person_outline,
@@ -153,10 +153,7 @@ class CustomBottomBar extends StatelessWidget {
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
                     transitionBuilder: (child, animation) {
-                      return ScaleTransition(
-                        scale: animation,
-                        child: child,
-                      );
+                      return ScaleTransition(scale: animation, child: child);
                     },
                     child: Icon(
                       isSelected ? item.activeIcon : item.icon,

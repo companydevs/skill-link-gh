@@ -7,6 +7,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
 import '../../data/repository/artisan_repository.dart';
+import '../../presentation/in_app_messaging/in_app_messaging.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/custom_bottom_bar.dart';
 import '../../widgets/custom_icon_widget.dart';
@@ -597,7 +598,16 @@ class _SearchAndDiscoveryScreenState extends State<SearchAndDiscoveryScreen> {
                             );
                           },
                           onMessage: () {
-                            Navigator.pushNamed(context, '/posts-homepage');
+                            Navigator.pushNamed(
+                              context,
+                              '/in-app-messaging-screen',
+                              arguments: ChatArgs(
+                                otherUserId: artisan['id'] as String,
+                                otherUserName: artisan['name'] as String,
+                                otherUserAvatar:
+                                    artisan['profileImage'] as String? ?? '',
+                              ),
+                            );
                           },
                           onBookNow: () {
                             Navigator.pushNamed(

@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:sizer/sizer.dart';
-import 'package:skill_link_gh/widgets/custom_bottom_bar.dart';
 
 import '../../core/app_export.dart';
 import '../../data/repository/chat_repository.dart';
@@ -377,7 +376,7 @@ class _InAppMessagingState extends State<InAppMessaging> {
           ),
         ],
       ),
-      bottomNavigationBar: const CustomBottomBar(currentIndex: 3),
+      bottomNavigationBar: null,
       body: Column(
         children: [
           Expanded(
