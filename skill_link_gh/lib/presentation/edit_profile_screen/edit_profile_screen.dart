@@ -337,7 +337,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Future<String?> _uploadImage(File file, String path) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return null;
-    final ref = FirebaseStorage.instance.ref('users/$uid/$path');
+    // Must match storage rules: profile_images/{userId}/{fileName}
+    final ref = FirebaseStorage.instance.ref('profile_images/$uid/$path');
     await ref.putFile(file);
     return await ref.getDownloadURL();
   }
