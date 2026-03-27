@@ -195,9 +195,9 @@ class _SearchAndDiscoveryScreenState extends State<SearchAndDiscoveryScreen> {
     if (_selectedCategory != null && _selectedCategory != 'All') {
       filtered = filtered.where((artisan) {
         return (artisan['services'] as List).any(
-          (service) => (service as String)
-              .toLowerCase()
-              .contains(_selectedCategory!.toLowerCase()),
+          (service) => (service as String).toLowerCase().contains(
+            _selectedCategory!.toLowerCase(),
+          ),
         );
       }).toList();
     }
@@ -222,11 +222,14 @@ class _SearchAndDiscoveryScreenState extends State<SearchAndDiscoveryScreen> {
     switch (_sortBy) {
       case 'rating':
         filtered.sort(
-            (a, b) => (b['rating'] as double).compareTo(a['rating'] as double));
+          (a, b) => (b['rating'] as double).compareTo(a['rating'] as double),
+        );
         break;
       case 'distance':
-        filtered.sort((a, b) =>
-            (a['distance'] as double).compareTo(b['distance'] as double));
+        filtered.sort(
+          (a, b) =>
+              (a['distance'] as double).compareTo(b['distance'] as double),
+        );
         break;
       case 'price':
         break;
@@ -419,213 +422,213 @@ class _SearchAndDiscoveryScreenState extends State<SearchAndDiscoveryScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Container(
-            padding: EdgeInsets.all(4.w),
-            color: theme.colorScheme.surface,
-            child: Column(
-              children: [
-                SearchBarWidget(
-                  onSearchChanged: (query) {
-                    setState(() {
-                      _searchQuery = query;
-                    });
-                  },
-                  onSearchSubmitted: (query) {
-                    setState(() {
-                      _searchQuery = query;
-                    });
-                  },
-                  onVoiceSearch: _handleVoiceSearch,
-                  recentSearches: _recentSearches,
-                  onRecentSearchTap: (search) {
-                    setState(() {
-                      _searchQuery = search;
-                    });
-                  },
-                ),
-                SizedBox(height: 2.h),
-                CategoryChipsWidget(
-                  categories: _categories,
-                  selectedCategory: _selectedCategory,
-                  onCategorySelected: (category) {
-                    setState(() {
-                      _selectedCategory = category == 'All' ? null : category;
-                    });
-                  },
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-            decoration: BoxDecoration(
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Container(
+              padding: EdgeInsets.all(4.w),
               color: theme.colorScheme.surface,
-              border: Border(
-                bottom: BorderSide(
-                  color: theme.colorScheme.outline.withValues(alpha: 0.2),
-                  width: 1,
-                ),
+              child: Column(
+                children: [
+                  SearchBarWidget(
+                    onSearchChanged: (query) {
+                      setState(() {
+                        _searchQuery = query;
+                      });
+                    },
+                    onSearchSubmitted: (query) {
+                      setState(() {
+                        _searchQuery = query;
+                      });
+                    },
+                    onVoiceSearch: _handleVoiceSearch,
+                    recentSearches: _recentSearches,
+                    onRecentSearchTap: (search) {
+                      setState(() {
+                        _searchQuery = search;
+                      });
+                    },
+                  ),
+                  SizedBox(height: 2.h),
+                  CategoryChipsWidget(
+                    categories: _categories,
+                    selectedCategory: _selectedCategory,
+                    onCategorySelected: (category) {
+                      setState(() {
+                        _selectedCategory = category == 'All' ? null : category;
+                      });
+                    },
+                  ),
+                ],
               ),
             ),
-            child: Row(
-              children: [
-                Text(
-                  '${filteredArtisans.length} artisans found',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                border: Border(
+                  bottom: BorderSide(
+                    color: theme.colorScheme.outline.withValues(alpha: 0.2),
+                    width: 1,
                   ),
                 ),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: _showSortBottomSheet,
-                  icon: CustomIconWidget(
-                    iconName: 'sort',
-                    color: theme.colorScheme.primary,
-                    size: 20,
-                  ),
-                  label: Text('Sort'),
-                ),
-                SizedBox(width: 2.w),
-                TextButton.icon(
-                  onPressed: _showFilterBottomSheet,
-                  icon: CustomIconWidget(
-                    iconName: 'filter_list',
-                    color: theme.colorScheme.primary,
-                    size: 20,
-                  ),
-                  label: Text('Filter'),
-                ),
-                SizedBox(width: 2.w),
-                IconButton(
-                  icon: CustomIconWidget(
-                    iconName: _isMapView ? 'list' : 'map',
-                    color: theme.colorScheme.primary,
-                    size: 24,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _isMapView = !_isMapView;
-                    });
-                  },
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: _isLoadingLocation
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 2.h),
-                        Text(
-                          'Getting your location...',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    '${filteredArtisans.length} artisans found',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
-                  )
-                : _isMapView
-                    ? MapViewWidget(
-                        artisans: filteredArtisans,
-                        currentLocation: _currentLocation,
-                        onArtisanSelected: (artisan) {
-                          Navigator.pushNamed(
-                            context,
-                            '/artisan-profile-screen',
-                            arguments: artisan,
-                          );
-                        },
-                      )
-                    : filteredArtisans.isEmpty
-                        ? Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(8.w),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  CustomIconWidget(
-                                    iconName: 'search_off',
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                    size: 64,
-                                  ),
-                                  SizedBox(height: 2.h),
-                                  Text(
-                                    'No artisans found',
-                                    style:
-                                        theme.textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  SizedBox(height: 1.h),
-                                  Text(
-                                    'Try adjusting your filters or search in a different area',
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  SizedBox(height: 3.h),
-                                  ElevatedButton(
-                                    onPressed: () {
-                                      setState(() {
-                                        _searchQuery = '';
-                                        _selectedCategory = null;
-                                        _filters['distance'] = 10.0;
-                                        _filters['minPrice'] = 0.0;
-                                        _filters['maxPrice'] = 1000.0;
-                                        _filters['minRating'] = 0.0;
-                                        _filters['availability'] = 'any';
-                                        _filters['verifiedOnly'] = false;
-                                      });
-                                    },
-                                    child: Text('Reset Filters'),
-                                  ),
-                                ],
+                  ),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: _showSortBottomSheet,
+                    icon: CustomIconWidget(
+                      iconName: 'sort',
+                      color: theme.colorScheme.primary,
+                      size: 20,
+                    ),
+                    label: Text('Sort'),
+                  ),
+                  SizedBox(width: 2.w),
+                  TextButton.icon(
+                    onPressed: _showFilterBottomSheet,
+                    icon: CustomIconWidget(
+                      iconName: 'filter_list',
+                      color: theme.colorScheme.primary,
+                      size: 20,
+                    ),
+                    label: Text('Filter'),
+                  ),
+                  SizedBox(width: 2.w),
+                  IconButton(
+                    icon: CustomIconWidget(
+                      iconName: _isMapView ? 'list' : 'map',
+                      color: theme.colorScheme.primary,
+                      size: 24,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _isMapView = !_isMapView;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: _isLoadingLocation
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 2.h),
+                          Text(
+                            'Getting your location...',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : _isMapView
+                  ? MapViewWidget(
+                      artisans: filteredArtisans,
+                      currentLocation: _currentLocation,
+                      onArtisanSelected: (artisan) {
+                        Navigator.pushNamed(
+                          context,
+                          '/artisan-profile-screen',
+                          arguments: artisan,
+                        );
+                      },
+                    )
+                  : filteredArtisans.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(8.w),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CustomIconWidget(
+                              iconName: 'search_off',
+                              color: theme.colorScheme.onSurfaceVariant,
+                              size: 64,
+                            ),
+                            SizedBox(height: 2.h),
+                            Text(
+                              'No artisans found',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                          )
-                        : ListView.builder(
-                            padding: EdgeInsets.only(top: 1.h, bottom: 2.h),
-                            itemCount: filteredArtisans.length,
-                            itemBuilder: (context, index) {
-                              final artisan = filteredArtisans[index];
-                              return ArtisanCardWidget(
-                                artisan: artisan,
-                                onViewProfile: () {
-                                  Navigator.pushNamed(
-                                    context,
-                                    '/artisan-profile-screen',
-                                    arguments: artisan,
-                                  );
-                                },
-                                onMessage: () {
-                                  Navigator.pushNamed(
-                                    context,
-                                    '/posts-homepage',
-                                  );
-                                },
-                                onBookNow: () {
-                                  Navigator.pushNamed(
-                                    context,
-                                    '/service-booking-screen',
-                                    arguments: artisan,
-                                  );
-                                },
-                              );
-                            },
-                          ),
-          ),
-        ],
+                            SizedBox(height: 1.h),
+                            Text(
+                              'Try adjusting your filters or search in a different area',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            SizedBox(height: 3.h),
+                            ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  _searchQuery = '';
+                                  _selectedCategory = null;
+                                  _filters['distance'] = 10.0;
+                                  _filters['minPrice'] = 0.0;
+                                  _filters['maxPrice'] = 1000.0;
+                                  _filters['minRating'] = 0.0;
+                                  _filters['availability'] = 'any';
+                                  _filters['verifiedOnly'] = false;
+                                });
+                              },
+                              child: Text('Reset Filters'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: EdgeInsets.only(
+                        top: 1.h,
+                        bottom: MediaQuery.of(context).padding.bottom + 2.h,
+                      ),
+                      itemCount: filteredArtisans.length,
+                      itemBuilder: (context, index) {
+                        final artisan = filteredArtisans[index];
+                        return ArtisanCardWidget(
+                          artisan: artisan,
+                          onViewProfile: () {
+                            Navigator.pushNamed(
+                              context,
+                              '/artisan-profile-screen',
+                              arguments: artisan,
+                            );
+                          },
+                          onMessage: () {
+                            Navigator.pushNamed(context, '/posts-homepage');
+                          },
+                          onBookNow: () {
+                            Navigator.pushNamed(
+                              context,
+                              '/service-booking-screen',
+                              arguments: artisan,
+                            );
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
-      bottomNavigationBar: CustomBottomBar(
-        currentIndex: 2,
-      ),
+      bottomNavigationBar: CustomBottomBar(currentIndex: 2),
     );
   }
 }
