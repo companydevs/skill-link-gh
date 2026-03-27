@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:skill_link_gh/domain/models/post_model.dart';
+import 'package:skill_link_gh/widgets/user_avatar_widget.dart';
 
 import '../../../core/app_export.dart';
 
@@ -200,7 +201,7 @@ class _PostCardWidgetState extends State<PostCardWidget>
               child: CustomImageWidget(
                 imageUrl: widget.post.artisanImage.isNotEmpty
                     ? widget.post.artisanImage
-                    : 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
+                    : kDefaultMaleAvatar,
                 width: 40,
                 height: 40,
                 fit: BoxFit.cover,
