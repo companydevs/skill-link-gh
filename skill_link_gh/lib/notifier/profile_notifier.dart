@@ -47,8 +47,6 @@ class ProfileNotifier extends Notifier<ProfileState> {
 
   @override
   ProfileState build() {
-    // Don't call loadProfile here - it causes circular dependency
-    // Instead, return initial state and load asynchronously
     Future.microtask(() => loadProfile());
     return ProfileState(isLoading: true);
   }
