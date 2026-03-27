@@ -166,17 +166,41 @@ class _SearchAndDiscoveryScreenState extends State<SearchAndDiscoveryScreen> {
 
   Future<void> _getCurrentLocation() async {
     try {
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-      setState(() {
-        _currentLocation = LatLng(position.latitude, position.longitude);
-        _isLoadingLocation = false;
-      });
+      // Try last known position first — instant, no GPS wait
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null && mounted) {
+        setState(() {
+          _currentLocation = LatLng(lastKnown.latitude, lastKnown.longitude);
+          _isLoadingLocation = false;
+        });
+        return;
+      }
+
+      // Fall back to current position with a 8s timeout
+      final position =
+          await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.medium,
+              timeLimit: Duration(seconds: 8),
+            ),
+          ).timeout(
+            const Duration(seconds: 8),
+            onTimeout: () => throw Exception('Location timeout'),
+          );
+
+      if (mounted) {
+        setState(() {
+          _currentLocation = LatLng(position.latitude, position.longitude);
+          _isLoadingLocation = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _isLoadingLocation = false;
-      });
+      // Fall back to default location (Accra) silently
+      if (mounted) {
+        setState(() {
+          _isLoadingLocation = false;
+        });
+      }
     }
   }
 
