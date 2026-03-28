@@ -26,102 +26,72 @@ class LocationInputWidget extends StatefulWidget {
 
 class _LocationInputWidgetState extends State<LocationInputWidget> {
   bool _isLocating = false;
+  bool _gpsFailed = false;
   LatLng? _pickedLatLng;
 
   @override
   void initState() {
     super.initState();
-    // Don't auto-run GPS on init — just show the input ready.
-    // User taps "Use my location" to trigger it explicitly.
+    _tryAutoLocation();
   }
 
-  /// Gets location using network provider (cell/WiFi) — works indoors, instant.
-  /// Falls back to GPS only if network provider also fails.
-  Future<void> _useMyLocation() async {
-    if (_isLocating) return;
+  /// Tries to get last-known position only (instant, no GPS wait).
+  /// If unavailable, silently falls back — user can pick on map.
+  Future<void> _tryAutoLocation() async {
     if (mounted) setState(() => _isLocating = true);
     try {
       final svcOn = await Geolocator.isLocationServiceEnabled();
-      dev.log('Service: $svcOn', name: 'Location');
-      if (!svcOn) {
-        _showSnack('Please turn on Location in device settings');
-        return;
-      }
+      if (!svcOn) { _setFailed(); return; }
 
       var perm = await Geolocator.checkPermission();
-      dev.log('Perm: $perm', name: 'Location');
       if (perm == LocationPermission.denied) {
         perm = await Geolocator.requestPermission();
-        dev.log('After request: $perm', name: 'Location');
       }
       if (perm == LocationPermission.deniedForever) {
-        _showSnack('Location permission denied. Open Settings to allow.');
         openAppSettings();
+        _setFailed();
         return;
       }
-      if (perm == LocationPermission.denied) {
-        _showSnack('Location permission is required');
-        return;
-      }
+      if (perm == LocationPermission.denied) { _setFailed(); return; }
 
-      // 1. Try last known — instant, no hardware needed
-      Position? pos = await Geolocator.getLastKnownPosition();
+      // Only use last-known — instant, no GPS hardware needed
+      final pos = await Geolocator.getLastKnownPosition();
       dev.log('Last known: $pos', name: 'Location');
 
-      // 2. Try network-based (cell/WiFi) — works indoors, ~1-2s
-      if (pos == null) {
-        dev.log('Trying network provider (NETWORK_PROVIDER)...', name: 'Location');
-        try {
-          pos = await Geolocator.getCurrentPosition(
-            locationSettings: AndroidSettings(
-              accuracy: LocationAccuracy.lowest, // uses network, not GPS
-              forceLocationManager: true,
-              timeLimit: const Duration(seconds: 8),
-            ),
-          );
-          dev.log('Network pos: ${pos.latitude}, ${pos.longitude}', name: 'Location');
-        } catch (e) {
-          dev.log('Network provider failed: $e', name: 'Location');
-        }
+      if (pos != null) {
+        final ll = LatLng(pos.latitude, pos.longitude);
+        _applyPosition(ll);
+      } else {
+        // No cached position — GPS hardware needed, skip silently
+        dev.log('No last known position, skipping auto-detect', name: 'Location');
+        _setFailed();
       }
-
-      // 3. If still null, tell user to pick on map
-      if (pos == null) {
-        dev.log('All providers failed — prompting map picker', name: 'Location');
-        _showSnack('Could not detect location. Use "Pick on Map" instead.');
-        return;
-      }
-
-      final ll = LatLng(pos.latitude, pos.longitude);
-      widget.onLocationSelected(ll);
-      if (mounted) setState(() => _pickedLatLng = ll);
-
-      // Show coords immediately
-      if (mounted) {
-        widget.addressController.text =
-            '${ll.latitude.toStringAsFixed(5)}, ${ll.longitude.toStringAsFixed(5)}';
-      }
-
-      // Geocode in background
-      final addr = await _geocode(ll);
-      dev.log('Geocode: $addr', name: 'Location');
-      if (mounted && addr != null) {
-        widget.addressController.text = addr;
-        setState(() {});
-      }
-    } catch (e, st) {
-      dev.log('Error: $e', name: 'Location', error: e, stackTrace: st);
-      _showSnack('Could not get location. Use "Pick on Map" instead.');
+    } catch (e) {
+      dev.log('Auto-location error: $e', name: 'Location');
+      _setFailed();
     } finally {
       if (mounted) setState(() => _isLocating = false);
     }
   }
 
-  void _showSnack(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
-    );
+  void _setFailed() {
+    if (mounted) setState(() => _gpsFailed = true);
+  }
+
+  Future<void> _applyPosition(LatLng ll) async {
+    widget.onLocationSelected(ll);
+    if (mounted) setState(() { _pickedLatLng = ll; _gpsFailed = false; });
+    // Show coords immediately
+    if (mounted) {
+      widget.addressController.text =
+          '${ll.latitude.toStringAsFixed(5)}, ${ll.longitude.toStringAsFixed(5)}';
+    }
+    // Try to geocode in background
+    final addr = await _geocode(ll);
+    if (mounted && addr != null) {
+      widget.addressController.text = addr;
+      setState(() {});
+    }
   }
 
   Future<String?> _geocode(LatLng pos) async {
@@ -161,15 +131,9 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
       ),
     );
     if (result != null && mounted) {
-      widget.onLocationSelected(result);
-      setState(() { _pickedLatLng = result; _isLocating = true; });
-      widget.addressController.text =
-          '${result.latitude.toStringAsFixed(5)}, ${result.longitude.toStringAsFixed(5)}';
-      final addr = await _geocode(result);
-      if (mounted) {
-        if (addr != null) widget.addressController.text = addr;
-        setState(() => _isLocating = false);
-      }
+      setState(() => _isLocating = true);
+      await _applyPosition(result);
+      if (mounted) setState(() => _isLocating = false);
     }
   }
 
@@ -177,6 +141,7 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final hasLocation = _pickedLatLng != null || widget.selectedLocation != null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -199,7 +164,8 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
             ]),
         ]),
         SizedBox(height: 1.h),
-        // Tappable address tile — opens map picker
+
+        // Address tile — tappable to open map
         GestureDetector(
           onTap: _openMapPicker,
           child: Container(
@@ -221,13 +187,13 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
               const SizedBox(width: 10),
               Expanded(
                 child: _isLocating
-                    ? Text('Getting your location...',
+                    ? Text('Detecting location...',
                         style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic))
                     : Text(
                         widget.addressController.text.isNotEmpty
                             ? widget.addressController.text
-                            : 'Tap to set location on map',
+                            : 'Tap to set your location',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: widget.addressController.text.isNotEmpty
                               ? theme.colorScheme.onSurface
@@ -242,15 +208,30 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
             ]),
           ),
         ),
+
         SizedBox(height: 0.8.h),
+
+        // GPS failed hint — show map picker CTA prominently
+        if (_gpsFailed && !hasLocation)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(children: [
+              Icon(Icons.info_outline, size: 13, color: theme.colorScheme.onSurfaceVariant),
+              const SizedBox(width: 4),
+              Text("GPS unavailable — use map to set location",
+                  style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant)),
+            ]),
+          ),
+
         Row(children: [
           GestureDetector(
-            onTap: _isLocating ? null : _useMyLocation,
+            onTap: _isLocating ? null : _tryAutoLocation,
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.my_location, size: 13,
                   color: _isLocating ? theme.colorScheme.onSurfaceVariant : theme.colorScheme.primary),
               const SizedBox(width: 4),
-              Text('Use my location',
+              Text('Detect location',
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: _isLocating ? theme.colorScheme.onSurfaceVariant : theme.colorScheme.primary,
                     decoration: TextDecoration.underline,
@@ -307,18 +288,24 @@ class _MapPickerScreenState extends State<_MapPickerScreen> {
       if (perm == LocationPermission.denied) {
         perm = await Geolocator.requestPermission();
       }
-      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
-        return;
-      }
+      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) return;
+
+      // Try last known first (instant)
       Position? pos = await Geolocator.getLastKnownPosition();
       if (pos == null) {
-        pos = await Geolocator.getCurrentPosition(
-          locationSettings: AndroidSettings(
-            accuracy: LocationAccuracy.lowest,
-            forceLocationManager: true,
-            timeLimit: const Duration(seconds: 8),
-          ),
-        );
+        // Try with forceLocationManager, short timeout
+        try {
+          pos = await Geolocator.getCurrentPosition(
+            locationSettings: AndroidSettings(
+              accuracy: LocationAccuracy.low,
+              forceLocationManager: true,
+              timeLimit: const Duration(seconds: 8),
+            ),
+          );
+        } catch (_) {
+          // GPS unavailable on this device — stay at current map position
+          return;
+        }
       }
       final ll = LatLng(pos.latitude, pos.longitude);
       setState(() => _picked = ll);
