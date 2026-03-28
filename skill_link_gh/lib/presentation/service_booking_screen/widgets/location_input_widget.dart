@@ -218,7 +218,7 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
             child: Row(children: [
               Icon(Icons.info_outline, size: 13, color: theme.colorScheme.onSurfaceVariant),
               const SizedBox(width: 4),
-              Text("GPS unavailable — use map to set location",
+              Text("GPS unavailable on this device. Tap "Pick on map" to set your location manually",
                   style: theme.textTheme.labelSmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant)),
             ]),
