@@ -31,16 +31,22 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
   @override
   void initState() {
     super.initState();
-    _autoFillLocation();
+    // Don't auto-run GPS on init — just show the input ready.
+    // User taps "Use my location" to trigger it explicitly.
   }
 
-  Future<void> _autoFillLocation() async {
+  /// Gets location using network provider (cell/WiFi) — works indoors, instant.
+  /// Falls back to GPS only if network provider also fails.
+  Future<void> _useMyLocation() async {
     if (_isLocating) return;
     if (mounted) setState(() => _isLocating = true);
     try {
       final svcOn = await Geolocator.isLocationServiceEnabled();
       dev.log('Service: $svcOn', name: 'Location');
-      if (!svcOn) return;
+      if (!svcOn) {
+        _showSnack('Please turn on Location in device settings');
+        return;
+      }
 
       var perm = await Geolocator.checkPermission();
       dev.log('Perm: $perm', name: 'Location');
@@ -49,37 +55,54 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
         dev.log('After request: $perm', name: 'Location');
       }
       if (perm == LocationPermission.deniedForever) {
-        dev.log('Permanently denied', name: 'Location');
+        _showSnack('Location permission denied. Open Settings to allow.');
         openAppSettings();
         return;
       }
       if (perm == LocationPermission.denied) {
-        dev.log('Denied', name: 'Location');
+        _showSnack('Location permission is required');
         return;
       }
 
+      // 1. Try last known — instant, no hardware needed
       Position? pos = await Geolocator.getLastKnownPosition();
       dev.log('Last known: $pos', name: 'Location');
 
+      // 2. Try network-based (cell/WiFi) — works indoors, ~1-2s
       if (pos == null) {
-        dev.log('Using forceLocationManager (TECNO fix)...', name: 'Location');
-        pos = await Geolocator.getCurrentPosition(
-          locationSettings: AndroidSettings(
-            accuracy: LocationAccuracy.low,
-            forceLocationManager: true,
-            timeLimit: const Duration(seconds: 15),
-          ),
-        );
-        dev.log('Got: ${pos.latitude}, ${pos.longitude}', name: 'Location');
+        dev.log('Trying network provider (NETWORK_PROVIDER)...', name: 'Location');
+        try {
+          pos = await Geolocator.getCurrentPosition(
+            locationSettings: AndroidSettings(
+              accuracy: LocationAccuracy.lowest, // uses network, not GPS
+              forceLocationManager: true,
+              timeLimit: const Duration(seconds: 8),
+            ),
+          );
+          dev.log('Network pos: ${pos.latitude}, ${pos.longitude}', name: 'Location');
+        } catch (e) {
+          dev.log('Network provider failed: $e', name: 'Location');
+        }
+      }
+
+      // 3. If still null, tell user to pick on map
+      if (pos == null) {
+        dev.log('All providers failed — prompting map picker', name: 'Location');
+        _showSnack('Could not detect location. Use "Pick on Map" instead.');
+        return;
       }
 
       final ll = LatLng(pos.latitude, pos.longitude);
       widget.onLocationSelected(ll);
       if (mounted) setState(() => _pickedLatLng = ll);
+
+      // Show coords immediately
       if (mounted) {
         widget.addressController.text =
             '${ll.latitude.toStringAsFixed(5)}, ${ll.longitude.toStringAsFixed(5)}';
       }
+
+      // Geocode in background
       final addr = await _geocode(ll);
       dev.log('Geocode: $addr', name: 'Location');
       if (mounted && addr != null) {
@@ -88,9 +111,17 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
       }
     } catch (e, st) {
       dev.log('Error: $e', name: 'Location', error: e, stackTrace: st);
+      _showSnack('Could not get location. Use "Pick on Map" instead.');
     } finally {
       if (mounted) setState(() => _isLocating = false);
     }
+  }
+
+  void _showSnack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
+    );
   }
 
   Future<String?> _geocode(LatLng pos) async {
@@ -168,6 +199,7 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
             ]),
         ]),
         SizedBox(height: 1.h),
+        // Tappable address tile — opens map picker
         GestureDetector(
           onTap: _openMapPicker,
           child: Container(
@@ -195,7 +227,7 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
                     : Text(
                         widget.addressController.text.isNotEmpty
                             ? widget.addressController.text
-                            : 'Tap to set location',
+                            : 'Tap to set location on map',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: widget.addressController.text.isNotEmpty
                               ? theme.colorScheme.onSurface
@@ -213,7 +245,7 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
         SizedBox(height: 0.8.h),
         Row(children: [
           GestureDetector(
-            onTap: _isLocating ? null : _autoFillLocation,
+            onTap: _isLocating ? null : _useMyLocation,
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.my_location, size: 13,
                   color: _isLocating ? theme.colorScheme.onSurfaceVariant : theme.colorScheme.primary),
@@ -279,13 +311,15 @@ class _MapPickerScreenState extends State<_MapPickerScreen> {
         return;
       }
       Position? pos = await Geolocator.getLastKnownPosition();
-      pos ??= await Geolocator.getCurrentPosition(
-        locationSettings: AndroidSettings(
-          accuracy: LocationAccuracy.low,
-          forceLocationManager: true,
-          timeLimit: const Duration(seconds: 15),
-        ),
-      );
+      if (pos == null) {
+        pos = await Geolocator.getCurrentPosition(
+          locationSettings: AndroidSettings(
+            accuracy: LocationAccuracy.lowest,
+            forceLocationManager: true,
+            timeLimit: const Duration(seconds: 8),
+          ),
+        );
+      }
       final ll = LatLng(pos.latitude, pos.longitude);
       setState(() => _picked = ll);
       _ctrl?.animateCamera(CameraUpdate.newLatLngZoom(ll, 16));
