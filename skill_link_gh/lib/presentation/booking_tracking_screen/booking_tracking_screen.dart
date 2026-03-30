@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:sizer/sizer.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:skill_link_gh/domain/models/booking_model.dart';
+import 'package:skill_link_gh/presentation/in_app_messaging/in_app_messaging.dart';
 import 'package:skill_link_gh/provider/booking_provider.dart';
 import 'package:skill_link_gh/widgets/custom_app_toast.dart';
 import 'package:skill_link_gh/widgets/user_avatar_widget.dart';
@@ -203,17 +205,31 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen> {
   }
 
   Future<void> _messageArtisan() async {
-    // Navigate to messaging screen
-    if (mounted) {
-      Navigator.pushNamed(
-        context,
-        '/in-app-messaging-screen',
-        arguments: {
-          'recipientId': _booking?.artisanId,
-          'recipientName': 'Artisan', // You can get this from booking details
-        },
-      );
-    }
+    if (_booking == null || !mounted) return;
+    // Fetch artisan profile for name/avatar
+    String artisanName = 'Artisan';
+    String artisanAvatar = '';
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_booking!.artisanId)
+          .get();
+      if (doc.exists) {
+        artisanName = doc.data()?['fullName'] as String? ?? 'Artisan';
+        artisanAvatar = doc.data()?['profileImage'] as String? ?? '';
+      }
+    } catch (_) {}
+
+    if (!mounted) return;
+    Navigator.pushNamed(
+      context,
+      '/in-app-messaging-screen',
+      arguments: ChatArgs(
+        otherUserId: _booking!.artisanId,
+        otherUserName: artisanName,
+        otherUserAvatar: artisanAvatar,
+      ),
+    );
   }
 
   String _getStatusText(BookingStatus status) {
