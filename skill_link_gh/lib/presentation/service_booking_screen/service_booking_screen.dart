@@ -31,6 +31,9 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
   int _currentStep = 0;
   DateTime? _selectedDate;
   String? _selectedTimeSlot;
+  int _numberOfDays = 1; // for daily-rate bookings
+  bool _isContractBooking =
+      false; // true = from post (fixed price), false = from profile (daily rate)
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
