@@ -746,7 +746,6 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
 
   Widget _buildContractBadge() {
     final theme = Theme.of(context);
-    final pricing = _serviceData?['title'] ?? '';
     final priceRange = _artisanData?['priceRange'] as String? ?? '';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
