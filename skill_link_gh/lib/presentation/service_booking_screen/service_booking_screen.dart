@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -168,21 +169,10 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
   }
 
   // Mock unavailable dates
-  final List<DateTime> _unavailableDates = [
-    DateTime.now().add(const Duration(days: 3)),
-    DateTime.now().add(const Duration(days: 7)),
-    DateTime.now().add(const Duration(days: 14)),
-  ];
+  List<DateTime> _unavailableDates = [];
 
-  // Mock available time slots
-  final List<String> _availableTimeSlots = [
-    "08:00 AM",
-    "10:00 AM",
-    "12:00 PM",
-    "02:00 PM",
-    "04:00 PM",
-    "06:00 PM",
-  ];
+  // Time slots generated from artisan's working hours
+  List<String> _availableTimeSlots = [];
 
   // Mock saved cards
   final List<Map<String, dynamic>> _savedCards = [
