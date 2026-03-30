@@ -286,9 +286,8 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
 
   Map<String, dynamic> get _pricingData {
     if (_isContractBooking) {
-      // Contract: fixed price from the post — no day multiplier
-      final contractPrice =
-          (_serviceData?['basePrice'] as num?)?.toDouble() ?? 0.0;
+      final raw = (_serviceData?['basePrice'] as num?)?.toDouble() ?? 0.0;
+      final contractPrice = (raw.isNaN || raw.isInfinite) ? 0.0 : raw;
       final platformFee = contractPrice * 0.05;
       final total = contractPrice + platformFee;
       return {
@@ -304,13 +303,13 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
         "isContract": true,
       };
     } else {
-      // Daily rate: dailyRate × numberOfDays
-      double dailyRate = 0.0;
+      double rawRate = 0.0;
       if (_artisanData?['dailyRate'] != null) {
-        dailyRate = _parseHourlyRate(_artisanData!['dailyRate']) ?? 0.0;
+        rawRate = _parseHourlyRate(_artisanData!['dailyRate']) ?? 0.0;
       } else if (_serviceData?['basePrice'] != null) {
-        dailyRate = (_serviceData!['basePrice'] as num?)?.toDouble() ?? 0.0;
+        rawRate = (_serviceData!['basePrice'] as num?)?.toDouble() ?? 0.0;
       }
+      final dailyRate = (rawRate.isNaN || rawRate.isInfinite) ? 0.0 : rawRate;
       final subtotal = dailyRate * _numberOfDays;
       final travelFee = _selectedLocation != null ? 20.0 : 0.0;
       final platformFee = subtotal * 0.05;
@@ -438,8 +437,13 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
       // Extract numeric value robustly — strip all non-numeric chars except dot
       final numericString = totalPriceString.replaceAll(RegExp(r'[^\d.]'), '');
       final totalAmount = double.tryParse(numericString);
-      if (totalAmount == null || totalAmount.isNaN || totalAmount <= 0) {
-        throw Exception('Invalid price. Please go back and try again.');
+      if (totalAmount == null ||
+          totalAmount.isNaN ||
+          totalAmount.isInfinite ||
+          totalAmount <= 0) {
+        throw Exception(
+          'Invalid price "$totalPriceString". Please go back and try again.',
+        );
       }
 
       // Use real artisan ID from loaded data
