@@ -1,4 +1,4 @@
-import 'dart:developer' as dev;
+﻿import 'dart:developer' as dev;
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -206,6 +206,66 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
               ),
           ],
         ),
+        SizedBox(height: 1.h),
+        GestureDetector(
+          onTap: _openMapPicker,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.5,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: hasLocation
+                    ? theme.colorScheme.primary.withValues(alpha: 0.4)
+                    : theme.colorScheme.outline.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  hasLocation ? Icons.location_on : Icons.location_searching,
+                  color: hasLocation
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _isLocating
+                      ? Text(
+                          'Getting your location...',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        )
+                      : Text(
+                          widget.addressController.text.isNotEmpty
+                              ? widget.addressController.text
+                              : 'Tap to set location',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: widget.addressController.text.isNotEmpty
+                                ? theme.colorScheme.onSurface
+                                : theme.colorScheme.onSurfaceVariant,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.edit_location_alt_outlined,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ),
+          ),
+        ),
+
         SizedBox(height: 1.h),
         GestureDetector(
           onTap: _openMapPicker,
