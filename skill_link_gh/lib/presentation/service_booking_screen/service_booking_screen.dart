@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -77,7 +77,7 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
           'rating': args['rating'] ?? 0.0,
           'reviews': args['totalReviews'] ?? 0,
           'profileImage': args['profileImage'] ?? '',
-          'hourlyRate': args['hourlyRate'],
+          'dailyRate': args['dailyRate'],
           'priceRange': args['priceRange'] ?? '',
         };
       } else if (args.containsKey('artisanId') ||
@@ -116,7 +116,7 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
               'title': artisan['serviceType'] ?? 'Service',
               'description': '',
               'basePrice':
-                  _parseHourlyRate(artisan['hourlyRate']) ??
+                  _parseHourlyRate(artisan['dailyRate']) ??
                   _parsePriceRange(artisan['priceRange'] as String?),
               'duration': 2,
             };
@@ -147,16 +147,16 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
       final data = doc.data()!;
       setState(() {
         // Update hourly rate from real profile
-        if (data['hourlyRate'] != null) {
+        if (data['dailyRate'] != null) {
           _artisanData = {
             ..._artisanData ?? {},
-            'hourlyRate': data['hourlyRate'],
+            'dailyRate': data['dailyRate'],
           };
           // Update service base price too
           _serviceData = {
             ..._serviceData ?? {},
             'basePrice':
-                (_parseHourlyRate(data['hourlyRate']) ??
+                (_parseHourlyRate(data['dailyRate']) ??
                 _serviceData?['basePrice']),
           };
         }
@@ -279,8 +279,8 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
     double? basePrice;
 
     // Priority: artisan's real hourlyRate > service basePrice > post priceRange lower bound
-    if (_artisanData != null && _artisanData!['hourlyRate'] != null) {
-      basePrice = _parseHourlyRate(_artisanData!['hourlyRate']);
+    if (_artisanData != null && _artisanData!['dailyRate'] != null) {
+      basePrice = _parseHourlyRate(_artisanData!['dailyRate']);
     }
     if (basePrice == null &&
         _serviceData != null &&

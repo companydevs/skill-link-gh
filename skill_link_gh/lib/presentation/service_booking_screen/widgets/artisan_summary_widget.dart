@@ -25,12 +25,12 @@ class ArtisanSummaryWidget extends StatelessWidget {
         0;
     final profileImage = artisanData['profileImage'] as String? ?? '';
 
-    // Price display — prefer hourlyRate, then priceRange
-    final hourlyRate = artisanData['hourlyRate'];
+    // Price display — prefer dailyRate, then priceRange
+    final dailyRate = artisanData['dailyRate'] ?? artisanData['hourlyRate'];
     final priceRange = artisanData['priceRange'] as String?;
     String priceLabel = '';
-    if (hourlyRate != null) {
-      priceLabel = 'GHS $hourlyRate/hr';
+    if (dailyRate != null) {
+      priceLabel = 'GHS $dailyRate/day';
     } else if (priceRange != null && priceRange.isNotEmpty) {
       priceLabel = priceRange;
     }
