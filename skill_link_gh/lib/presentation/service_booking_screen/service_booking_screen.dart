@@ -61,17 +61,12 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
     final args =
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
 
-    // Args can come from:
-    // 1. Post card → post.toJson() with artisanId, artisanName, artisanImage, priceRange
-    // 2. Search/artisan card → artisan map with id, name, profileImage, rating, etc.
-    // 3. Services section → no args
-
     Map<String, dynamic> artisan = {};
     Map<String, dynamic> service = {};
 
     if (args != null) {
-      // From artisan card (search screen) — has 'name', 'profileImage', 'services'
       if (args.containsKey('name') || args.containsKey('fullName')) {
+        // From artisan/search card
         artisan = {
           'id': args['id'] ?? args['uid'] ?? '',
           'name': args['name'] ?? args['fullName'] ?? 'Artisan',
@@ -85,29 +80,28 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
           'hourlyRate': args['hourlyRate'],
           'priceRange': args['priceRange'] ?? '',
         };
-      }
-      // From post card → post.toJson() has artisanId, artisanName, artisanImage, priceRange
-      else if (args.containsKey('artisanId') ||
+      } else if (args.containsKey('artisanId') ||
           args.containsKey('artisanName')) {
+        // From post card — 'pricing' field holds "GHS 1500 - 3800"
+        final pricing =
+            args['pricing'] as String? ?? args['priceRange'] as String? ?? '';
         artisan = {
           'id': args['artisanId'] ?? '',
           'name': args['artisanName'] ?? 'Artisan',
-          'serviceType': args['category'] ?? '',
+          'serviceType': args['serviceCategory'] ?? args['category'] ?? '',
           'rating': args['rating'] ?? 0.0,
           'reviews': args['totalReviews'] ?? 0,
           'profileImage': args['artisanImage'] ?? '',
-          'priceRange': args['priceRange'] ?? '',
+          'priceRange': pricing,
         };
         service = {
           'id': args['id'] ?? '',
-          'title': args['title'] ?? args['category'] ?? 'Service',
+          'title': args['serviceCategory'] ?? args['category'] ?? 'Service',
           'description': args['description'] ?? '',
-          'basePrice': _parsePriceRange(args['priceRange'] as String?),
+          'basePrice': _parsePriceRange(pricing),
           'duration': 2,
         };
-      }
-      // Nested artisan/service keys
-      else {
+      } else {
         artisan = Map<String, dynamic>.from(args['artisan'] as Map? ?? {});
         service = Map<String, dynamic>.from(args['service'] as Map? ?? {});
       }
@@ -123,8 +117,7 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
               'description': '',
               'basePrice':
                   _parseHourlyRate(artisan['hourlyRate']) ??
-                  _parsePriceRange(artisan['priceRange'] as String?) ??
-                  0.0,
+                  _parsePriceRange(artisan['priceRange'] as String?),
               'duration': 2,
             };
     });
@@ -133,6 +126,108 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
     if (user?.phoneNumber != null) {
       _phoneController.text = user!.phoneNumber!;
     }
+
+    // Fetch full artisan profile from Firestore for real schedule + hourly rate
+    final artisanId = artisan['id'] as String? ?? '';
+    if (artisanId.isNotEmpty) {
+      _fetchArtisanProfile(artisanId);
+    } else {
+      _buildDefaultTimeSlots();
+    }
+  }
+
+  Future<void> _fetchArtisanProfile(String artisanId) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(artisanId)
+          .get();
+      if (!doc.exists || !mounted) return;
+
+      final data = doc.data()!;
+      setState(() {
+        // Update hourly rate from real profile
+        if (data['hourlyRate'] != null) {
+          _artisanData = {
+            ..._artisanData ?? {},
+            'hourlyRate': data['hourlyRate'],
+          };
+          // Update service base price too
+          _serviceData = {
+            ..._serviceData ?? {},
+            'basePrice':
+                (_parseHourlyRate(data['hourlyRate']) ??
+                _serviceData?['basePrice']),
+          };
+        }
+
+        // Build time slots from artisan's working hours
+        final workingHours = data['workingHours'] as Map<String, dynamic>?;
+        final startStr = workingHours?['start'] as String? ?? '09:00';
+        final endStr = workingHours?['end'] as String? ?? '17:00';
+        _availableTimeSlots = _generateTimeSlots(startStr, endStr);
+
+        // Build unavailable dates from availability days
+        final availability = data['availability'] as Map<String, dynamic>?;
+        if (availability != null) {
+          _unavailableDates = _getUnavailableDates(availability);
+        }
+      });
+    } catch (_) {
+      _buildDefaultTimeSlots();
+    }
+  }
+
+  void _buildDefaultTimeSlots() {
+    setState(() {
+      _availableTimeSlots = _generateTimeSlots('09:00', '17:00');
+    });
+  }
+
+  /// Generate 2-hour slots between start and end time
+  List<String> _generateTimeSlots(String start, String end) {
+    final slots = <String>[];
+    try {
+      final startParts = start.split(':');
+      final endParts = end.split(':');
+      int hour = int.parse(startParts[0]);
+      final endHour = int.parse(endParts[0]);
+
+      while (hour < endHour) {
+        final period = hour >= 12 ? 'PM' : 'AM';
+        final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+        slots.add('${displayHour.toString().padLeft(2, '0')}:00 $period');
+        hour += 2;
+      }
+    } catch (_) {
+      return ['09:00 AM', '11:00 AM', '01:00 PM', '03:00 PM', '05:00 PM'];
+    }
+    return slots.isEmpty
+        ? ['09:00 AM', '11:00 AM', '01:00 PM', '03:00 PM', '05:00 PM']
+        : slots;
+  }
+
+  /// Returns dates in the next 90 days that are NOT in the artisan's available days
+  List<DateTime> _getUnavailableDates(Map<String, dynamic> availability) {
+    const dayNames = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+    final unavailable = <DateTime>[];
+    final now = DateTime.now();
+    for (int i = 0; i <= 90; i++) {
+      final date = now.add(Duration(days: i));
+      // weekday: 1=Mon, 7=Sun
+      final dayName = dayNames[date.weekday - 1];
+      final isAvailable = availability[dayName] as bool? ?? false;
+      if (!isAvailable) unavailable.add(date);
+    }
+    return unavailable;
   }
 
   double? _parseHourlyRate(dynamic rate) {
@@ -181,29 +276,38 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
   ];
 
   Map<String, dynamic> get _pricingData {
-    // Get base price from artisan data or service data
-    double basePrice = 0.0;
+    double? basePrice;
+
+    // Priority: artisan's real hourlyRate > service basePrice > post priceRange lower bound
     if (_artisanData != null && _artisanData!['hourlyRate'] != null) {
-      basePrice = (_artisanData!['hourlyRate'] as num).toDouble();
-    } else if (_serviceData != null && _serviceData!['basePrice'] != null) {
-      basePrice = (_serviceData!['basePrice'] as num).toDouble();
-    } else {
-      basePrice = 150.0; // Fallback
+      basePrice = _parseHourlyRate(_artisanData!['hourlyRate']);
+    }
+    if (basePrice == null &&
+        _serviceData != null &&
+        _serviceData!['basePrice'] != null) {
+      basePrice = (_serviceData!['basePrice'] as num?)?.toDouble();
     }
 
-    double complexityFee = _descriptionController.text.length > 100
-        ? 30.0
-        : 0.0;
-    double travelFee = _selectedLocation != null ? 20.0 : 0.0;
-    double platformFee = basePrice * 0.05; // 5% platform fee
-    double total = basePrice + complexityFee + travelFee + platformFee;
+    // If still null, show 0 — never use a hardcoded fallback
+    basePrice ??= 0.0;
+
+    final complexityFee = _descriptionController.text.length > 100 ? 30.0 : 0.0;
+    final travelFee = _selectedLocation != null ? 20.0 : 0.0;
+    final platformFee = basePrice * 0.05;
+    final total = basePrice + complexityFee + travelFee + platformFee;
+
+    final label = basePrice == 0.0
+        ? 'Not set'
+        : 'GH₵ ${basePrice.toStringAsFixed(2)}';
 
     return {
-      "basePrice": "GH₵ ${basePrice.toStringAsFixed(2)}",
+      "basePrice": label,
       "complexityFee": "GH₵ ${complexityFee.toStringAsFixed(2)}",
       "travelFee": "GH₵ ${travelFee.toStringAsFixed(2)}",
       "platformFee": "GH₵ ${platformFee.toStringAsFixed(2)}",
-      "totalPrice": "GH₵ ${total.toStringAsFixed(2)}",
+      "totalPrice": basePrice == 0.0
+          ? 'TBD'
+          : "GH₵ ${total.toStringAsFixed(2)}",
     };
   }
 
