@@ -47,6 +47,9 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
   @override
   void initState() {
     super.initState();
+    // Rebuild when description changes so Continue button enables/disables
+    _descriptionController.addListener(() => setState(() {}));
+    _addressController.addListener(() => setState(() {}));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadCurrentLocation();
       _loadServiceData();
