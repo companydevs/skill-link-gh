@@ -28,6 +28,9 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen> {
   BookingModel? _booking;
   Set<Marker> _markers = {};
   Set<Polyline> _polylines = {};
+  String _artisanName = 'Artisan';
+  String _artisanAvatar = '';
+  LatLng? _artisanStaticLocation; // from artisan's profile
 
   @override
   void initState() {
@@ -60,26 +63,63 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen> {
     if (_bookingId == null) return;
 
     try {
-      await ref
-          .read(bookingNotifierProvider.notifier)
-          .getBookingDetails(_bookingId!);
-      final currentBooking = ref.read(bookingNotifierProvider).currentBooking;
+      // Read directly from Firestore — faster and doesn't need the Cloud Function
+      final doc = await FirebaseFirestore.instance
+          .collection('bookings')
+          .doc(_bookingId!)
+          .get();
 
-      if (currentBooking != null && mounted) {
-        setState(() {
-          _booking = currentBooking;
-        });
+      if (!doc.exists || !mounted) {
+        // Try via Cloud Function as fallback
+        await ref
+            .read(bookingNotifierProvider.notifier)
+            .getBookingDetails(_bookingId!);
+        final currentBooking = ref.read(bookingNotifierProvider).currentBooking;
+        if (currentBooking != null && mounted) {
+          setState(() => _booking = currentBooking);
+          await _loadArtisanProfile(currentBooking.artisanId);
+          _updateMapMarkers();
+        }
+        return;
+      }
+
+      final data = doc.data()!;
+      final booking = BookingModel.fromJson({...data, 'id': doc.id}, doc.id);
+      if (mounted) {
+        setState(() => _booking = booking);
+        await _loadArtisanProfile(booking.artisanId);
         _updateMapMarkers();
       }
     } catch (e) {
       if (mounted) {
         AppToast.show(
           context,
-          message: 'Failed to load booking details: $e',
+          message: 'Failed to load booking: $e',
           type: ToastType.error,
         );
       }
     }
+  }
+
+  Future<void> _loadArtisanProfile(String artisanId) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(artisanId)
+          .get();
+      if (doc.exists && mounted) {
+        setState(() {
+          _artisanName = doc.data()?['fullName'] as String? ?? 'Artisan';
+          _artisanAvatar = doc.data()?['profileImage'] as String? ?? '';
+          // Use artisan's stored location if no live location yet
+          final lat = (doc.data()?['latitude'] as num?)?.toDouble();
+          final lng = (doc.data()?['longitude'] as num?)?.toDouble();
+          if (lat != null && lng != null) {
+            _artisanStaticLocation = LatLng(lat, lng);
+          }
+        });
+      }
+    } catch (_) {}
   }
 
   void _startLocationUpdates() {
@@ -97,35 +137,35 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen> {
     final polylines = <Polyline>{};
 
     // Client location marker
-    if (_booking!.clientLocation != null) {
+    final clientLoc = _booking!.clientLocation;
+    if (clientLoc != null) {
       markers.add(
         Marker(
           markerId: const MarkerId('client'),
-          position: LatLng(
-            _booking!.clientLocation!.latitude,
-            _booking!.clientLocation!.longitude,
-          ),
+          position: LatLng(clientLoc.latitude, clientLoc.longitude),
           infoWindow: InfoWindow(
             title: 'Your Location',
-            snippet: _booking!.clientLocation!.address,
+            snippet: clientLoc.address,
           ),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
         ),
       );
     }
 
-    // Artisan location marker (if available)
-    if (_booking!.artisanCurrentLocation != null) {
+    // Artisan location — prefer live, fall back to profile location
+    final liveLoc = _booking!.artisanCurrentLocation;
+    final artisanLatLng = liveLoc != null
+        ? LatLng(liveLoc.latitude, liveLoc.longitude)
+        : _artisanStaticLocation;
+
+    if (artisanLatLng != null) {
       markers.add(
         Marker(
           markerId: const MarkerId('artisan'),
-          position: LatLng(
-            _booking!.artisanCurrentLocation!.latitude,
-            _booking!.artisanCurrentLocation!.longitude,
-          ),
+          position: artisanLatLng,
           infoWindow: InfoWindow(
-            title: 'Artisan Location',
-            snippet: _booking!.artisanCurrentLocation!.address,
+            title: _artisanName,
+            snippet: liveLoc != null ? liveLoc.address : 'Artisan location',
           ),
           icon: BitmapDescriptor.defaultMarkerWithHue(
             BitmapDescriptor.hueGreen,
@@ -133,20 +173,14 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen> {
         ),
       );
 
-      // Add polyline between client and artisan
-      if (_booking!.clientLocation != null) {
+      // Polyline from artisan → client
+      if (clientLoc != null) {
         polylines.add(
           Polyline(
             polylineId: const PolylineId('route'),
             points: [
-              LatLng(
-                _booking!.artisanCurrentLocation!.latitude,
-                _booking!.artisanCurrentLocation!.longitude,
-              ),
-              LatLng(
-                _booking!.clientLocation!.latitude,
-                _booking!.clientLocation!.longitude,
-              ),
+              artisanLatLng,
+              LatLng(clientLoc.latitude, clientLoc.longitude),
             ],
             color: Theme.of(context).colorScheme.primary,
             width: 4,
@@ -161,9 +195,12 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen> {
       _polylines = polylines;
     });
 
-    // Fit map to show all markers
     if (_mapController != null && markers.length > 1) {
       _fitMapToMarkers();
+    } else if (_mapController != null && markers.length == 1) {
+      _mapController!.animateCamera(
+        CameraUpdate.newLatLngZoom(markers.first.position, 14),
+      );
     }
   }
 
