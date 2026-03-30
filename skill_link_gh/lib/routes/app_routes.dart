@@ -44,6 +44,8 @@ class AppRoutes {
   static const String verificationScreen = '/verification-screen';
   static const String paymentVerificationScreen =
       '/payment-verification-screen';
+  static const String paymentVerification =
+      '/payment-verification'; // alias used by booking function
   static const String bookingTrackingScreen = '/booking-tracking-screen';
   static const String fixDataScreen = '/fix-data-screen';
   static const String cleanupVideosScreen = '/cleanup-videos-screen';
@@ -84,6 +86,7 @@ class AppRoutes {
     editProfileScreen: (context) => const EditProfileScreen(),
     verificationScreen: (context) => const VerificationScreen(),
     paymentVerificationScreen: (context) => const PaymentVerificationScreen(),
+    '/payment-verification': (context) => const PaymentVerificationScreen(),
     bookingTrackingScreen: (context) => const BookingTrackingScreen(),
     fixDataScreen: (context) => const FixDataScreen(),
     cleanupVideosScreen: (context) => const CleanupVideosScreen(),
