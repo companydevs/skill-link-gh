@@ -34,6 +34,19 @@ class _SplashScreenState extends State<SplashScreen> {
     });
   }
 
+  Future<void> _requestLocationPermission() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return; // Don't force — just skip silently
+
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        await Geolocator.requestPermission();
+      }
+      // If permanently denied, don't open settings here — let the user discover it naturally
+    } catch (_) {}
+  }
+
   Future<void> _checkUserStatusAndNavigate() async {
     final user = FirebaseAuth.instance.currentUser;
 
@@ -54,15 +67,20 @@ class _SplashScreenState extends State<SplashScreen> {
       final bool isOtpVerified = data['isOtpVerified'] ?? false;
 
       if (emailVerified && isOtpVerified) {
-        Navigator.pushReplacementNamed(context, AppRoutes.postsHomepage);
+        await _requestLocationPermission();
+        if (mounted)
+          Navigator.pushReplacementNamed(context, AppRoutes.postsHomepage);
       } else {
-        Navigator.pushReplacementNamed(context, AppRoutes.loginScreen);
+        if (mounted)
+          Navigator.pushReplacementNamed(context, AppRoutes.loginScreen);
       }
     } on FirebaseFunctionsException catch (e) {
       if (e.code == 'unavailable' || e.code == 'deadline-exceeded') {
         _showNoInternetDialog();
       } else {
-        Navigator.pushReplacementNamed(context, AppRoutes.postsHomepage);
+        await _requestLocationPermission();
+        if (mounted)
+          Navigator.pushReplacementNamed(context, AppRoutes.postsHomepage);
       }
     } catch (_) {
       // Network error / socket error
