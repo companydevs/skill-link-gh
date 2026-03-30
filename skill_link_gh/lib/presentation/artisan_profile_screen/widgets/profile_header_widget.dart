@@ -25,7 +25,7 @@ class ProfileHeaderWidget extends StatelessWidget {
     final categories = List<String>.from(
       artisanData['serviceCategories'] as List? ?? [],
     );
-    final hourlyRate = artisanData['hourlyRate'];
+    final dailyRate = artisanData['dailyRate'] ?? artisanData['hourlyRate'];
     final coverPhoto = artisanData['coverPhoto'] as String?;
 
     return Column(
@@ -158,10 +158,10 @@ class ProfileHeaderWidget extends StatelessWidget {
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  if (hourlyRate != null) ...[
+                  if (dailyRate != null) ...[
                     const SizedBox(width: 12),
                     Text(
-                      'GHS $hourlyRate/hr',
+                      'GHS $dailyRate/day',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.primary,
                         fontWeight: FontWeight.w600,

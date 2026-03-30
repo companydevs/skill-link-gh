@@ -53,10 +53,11 @@ class ArtisanRepository {
             // Verified
             data['isVerified'] = data['identityVerified'] ?? false;
 
-            // Price range from hourlyRate
-            final rate = data['hourlyRate'];
+            // Price range from dailyRate (falls back to hourlyRate for existing data)
+            final rate = data['dailyRate'] ?? data['hourlyRate'];
             if (rate != null) {
-              data['priceRange'] = 'GHS $rate/hr';
+              data['dailyRate'] = rate;
+              data['priceRange'] = 'GHS $rate/day';
             } else {
               data['priceRange'] = 'Contact for price';
             }
