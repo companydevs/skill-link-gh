@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -29,7 +29,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _locationController = TextEditingController();
   final _phoneController = TextEditingController();
   final _experienceController = TextEditingController();
-  final _hourlyRateController = TextEditingController();
+  final _dailyRateController = TextEditingController();
   final _languagesController = TextEditingController();
   final _certificationsController = TextEditingController();
 
@@ -105,7 +105,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       _locationController.text = data["location"] as String? ?? '';
       _phoneController.text = data["phoneNumber"] as String? ?? '';
       _experienceController.text = data["experience"] as String? ?? '';
-      _hourlyRateController.text = data["hourlyRate"]?.toString() ?? '';
+      _dailyRateController.text = data["dailyRate"]?.toString() ?? '';
       _languagesController.text =
           (data["languages"] as List?)?.join(', ') ?? '';
       _certificationsController.text =
@@ -131,7 +131,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _locationController.dispose();
     _phoneController.dispose();
     _experienceController.dispose();
-    _hourlyRateController.dispose();
+    _dailyRateController.dispose();
     _languagesController.dispose();
     _certificationsController.dispose();
     _scrollController.dispose();
@@ -370,7 +370,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         'location': _locationController.text.trim(),
         'phoneNumber': _phoneController.text.trim(),
         'experience': _experienceController.text.trim(),
-        'hourlyRate': double.tryParse(_hourlyRateController.text) ?? 0.0,
+        'dailyRate': double.tryParse(_dailyRateController.text) ?? 0.0,
         'languages': _languagesController.text
             .split(',')
             .map((e) => e.trim())
@@ -723,8 +723,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             SizedBox(width: 4.w),
             Expanded(
               child: CustomTextFormField(
-                controller: _hourlyRateController,
-                hintText: 'Hourly Rate (GHS)',
+                controller: _dailyRateController,
+                hintText: 'Daily Rate (GHS)',
                 keyboardType: TextInputType.number,
               ),
             ),
