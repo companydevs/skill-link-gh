@@ -646,6 +646,11 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Contract badge
+            if (_isContractBooking) ...[
+              _buildContractBadge(),
+              const SizedBox(height: 16),
+            ],
             CalendarWidget(
               selectedDate: _selectedDate,
               onDateSelected: _onDateSelected,
@@ -658,6 +663,11 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
                 onTimeSlotSelected: _onTimeSlotSelected,
                 availableTimeSlots: _availableTimeSlots,
               ),
+            // Days selector — only for daily rate bookings
+            if (!_isContractBooking && _selectedDate != null) ...[
+              const SizedBox(height: 24),
+              _buildDaysSelector(),
+            ],
           ],
         );
       case 1:
@@ -728,6 +738,113 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
                 ),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContractBadge() {
+    final theme = Theme.of(context);
+    final pricing = _serviceData?['title'] ?? '';
+    final priceRange = _artisanData?['priceRange'] as String? ?? '';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.handshake_outlined,
+            size: 20,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Contract Booking',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  'Fixed price${priceRange.isNotEmpty ? ': $priceRange' : ''} — covers the full job regardless of days',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDaysSelector() {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Number of Days',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'How many days do you need the artisan?',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              IconButton(
+                onPressed: _numberOfDays > 1
+                    ? () => setState(() => _numberOfDays--)
+                    : null,
+                icon: const Icon(Icons.remove_circle_outline),
+                color: theme.colorScheme.primary,
+              ),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    '$_numberOfDays day${_numberOfDays > 1 ? 's' : ''}',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: _numberOfDays < 30
+                    ? () => setState(() => _numberOfDays++)
+                    : null,
+                icon: const Icon(Icons.add_circle_outline),
+                color: theme.colorScheme.primary,
+              ),
+            ],
           ),
         ],
       ),
