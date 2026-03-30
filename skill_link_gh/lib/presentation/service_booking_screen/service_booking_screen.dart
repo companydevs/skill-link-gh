@@ -475,7 +475,6 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
 
       if (result != null && result['success'] == true) {
         if (mounted) {
-          // Navigate to payment verification screen
           Navigator.pushReplacementNamed(
             context,
             '/payment-verification',
@@ -483,6 +482,7 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
               'paymentUrl': result['paymentUrl'],
               'bookingId': result['bookingId'],
               'reference': result['bookingReference'],
+              'email': FirebaseAuth.instance.currentUser?.email ?? '',
             },
           );
         }
