@@ -427,25 +427,38 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
         }
       }
 
-      // Calculate total amount
+      // Calculate total amount — handle TBD case
       final pricingData = _pricingData;
       final totalPriceString = pricingData['totalPrice'] as String;
+      if (totalPriceString == 'TBD') {
+        throw Exception(
+          'Price not set. Please contact the artisan to confirm pricing.',
+        );
+      }
       final totalAmount = double.parse(
         totalPriceString.replaceAll('GH₵ ', '').replaceAll(',', ''),
       );
+
+      // Use real artisan ID from loaded data
+      final artisanId = _artisanData?['id'] as String? ?? '';
+      if (artisanId.isEmpty) {
+        throw Exception(
+          'Artisan information missing. Please go back and try again.',
+        );
+      }
 
       // Create booking
       final result = await ref
           .read(bookingNotifierProvider.notifier)
           .createBooking(
             clientId: user.uid,
-            artisanId: user.uid, // Using same user as artisan for testing
+            artisanId: artisanId,
             serviceId: _serviceData?['id'] ?? 'service_1',
             serviceTitle: _serviceData?['title'] ?? 'Service',
             serviceDescription: _descriptionController.text.trim(),
             scheduledDate: _selectedDate!.toIso8601String().split('T')[0],
             scheduledTime: _selectedTimeSlot!,
-            duration: _serviceData?['duration'] ?? 2,
+            duration: _isContractBooking ? 1 : _numberOfDays,
             totalAmount: totalAmount,
             clientLocation: _clientLocation!,
             specialRequests: _descriptionController.text.trim(),
