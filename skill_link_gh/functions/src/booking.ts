@@ -260,6 +260,11 @@ export const createBooking = onCall(async (request) => {
     const bookingId = bookingRef.id;
 
     // Initialize Paystack payment
+    if (!PAYSTACK_SECRET_KEY || PAYSTACK_SECRET_KEY === "sk_test_your_secret_key") {
+      throw new HttpsError("failed-precondition",
+        "Payment gateway not configured. Please contact support.");
+    }
+
     const paymentData = {
       email: data.contactEmail,
       amount: totalWithFees * 100, // Paystack expects amount in kobo (cents)
@@ -286,19 +291,27 @@ export const createBooking = onCall(async (request) => {
       channels: ["card", "bank", "ussd", "qr", "mobile_money", "bank_transfer"],
     };
 
-    const paystackResponse = await axios.post<PaystackInitializeResponse>(
-      `${PAYSTACK_BASE_URL}/transaction/initialize`,
-      paymentData,
-      {
-        headers: {
-          "Authorization": `Bearer ${PAYSTACK_SECRET_KEY}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    let paystackResponse;
+    try {
+      paystackResponse = await axios.post<PaystackInitializeResponse>(
+        `${PAYSTACK_BASE_URL}/transaction/initialize`,
+        paymentData,
+        {
+          headers: {
+            "Authorization": `Bearer ${PAYSTACK_SECRET_KEY}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    } catch (paystackError: any) {
+      console.error("Paystack API error:", paystackError?.response?.data || paystackError?.message);
+      throw new HttpsError("internal",
+        `Payment gateway error: ${paystackError?.response?.data?.message || paystackError?.message || "Unknown"}`);
+    }
 
     if (!paystackResponse.data.status) {
-      throw new HttpsError("internal", "Failed to initialize payment");
+      console.error("Paystack returned false status:", paystackResponse.data);
+      throw new HttpsError("internal", `Payment init failed: ${paystackResponse.data.message}`);
     }
 
     // Update booking with payment details
