@@ -538,8 +538,8 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen> {
     return Row(
       children: [
         UserAvatarWidget(
-          imageUrl: null, // You can get this from booking details
-          name: 'Artisan', // You can get this from booking details
+          imageUrl: _artisanAvatar.isNotEmpty ? _artisanAvatar : null,
+          name: _artisanName,
           size: 50,
         ),
         SizedBox(width: 3.w),
@@ -548,7 +548,7 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Your Artisan', // You can get actual name from booking details
+                _artisanName,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -559,13 +559,16 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen> {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              if (_booking!.artisanCurrentLocation != null)
-                Text(
-                  'Distance: ${_booking!.distance.toStringAsFixed(1)} km away',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.primary,
-                  ),
+              Text(
+                _booking!.artisanCurrentLocation != null
+                    ? 'Live: ${_booking!.distance.toStringAsFixed(1)} km away'
+                    : 'Waiting for artisan to start',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: _booking!.artisanCurrentLocation != null
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant,
                 ),
+              ),
             ],
           ),
         ),
