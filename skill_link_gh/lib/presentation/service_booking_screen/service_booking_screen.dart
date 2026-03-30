@@ -111,6 +111,12 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
     }
 
     setState(() {
+      // Contract booking = came from a post (has artisanId/artisanName keys)
+      // Daily rate booking = came from profile/search (has name/fullName keys)
+      _isContractBooking =
+          args != null &&
+          (args.containsKey('artisanId') || args.containsKey('artisanName'));
+
       _artisanData = artisan.isNotEmpty ? artisan : null;
       _serviceData = service.isNotEmpty
           ? service
@@ -279,39 +285,51 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
   ];
 
   Map<String, dynamic> get _pricingData {
-    double? basePrice;
-
-    // Priority: artisan's real hourlyRate > service basePrice > post priceRange lower bound
-    if (_artisanData != null && _artisanData!['dailyRate'] != null) {
-      basePrice = _parseHourlyRate(_artisanData!['dailyRate']);
+    if (_isContractBooking) {
+      // Contract: fixed price from the post — no day multiplier
+      final contractPrice =
+          (_serviceData?['basePrice'] as num?)?.toDouble() ?? 0.0;
+      final platformFee = contractPrice * 0.05;
+      final total = contractPrice + platformFee;
+      return {
+        "basePrice": contractPrice == 0.0
+            ? 'Not set'
+            : 'GH₵ ${contractPrice.toStringAsFixed(2)}',
+        "complexityFee": null,
+        "travelFee": null,
+        "platformFee": "GH₵ ${platformFee.toStringAsFixed(2)}",
+        "totalPrice": contractPrice == 0.0
+            ? 'TBD'
+            : "GH₵ ${total.toStringAsFixed(2)}",
+        "isContract": true,
+      };
+    } else {
+      // Daily rate: dailyRate × numberOfDays
+      double dailyRate = 0.0;
+      if (_artisanData?['dailyRate'] != null) {
+        dailyRate = _parseHourlyRate(_artisanData!['dailyRate']) ?? 0.0;
+      } else if (_serviceData?['basePrice'] != null) {
+        dailyRate = (_serviceData!['basePrice'] as num?)?.toDouble() ?? 0.0;
+      }
+      final subtotal = dailyRate * _numberOfDays;
+      final travelFee = _selectedLocation != null ? 20.0 : 0.0;
+      final platformFee = subtotal * 0.05;
+      final total = subtotal + travelFee + platformFee;
+      final dayLabel = '$_numberOfDays day${_numberOfDays > 1 ? 's' : ''}';
+      return {
+        "basePrice": dailyRate == 0.0
+            ? 'Not set'
+            : 'GH₵ ${dailyRate.toStringAsFixed(2)} × $dayLabel',
+        "complexityFee": null,
+        "travelFee": "GH₵ ${travelFee.toStringAsFixed(2)}",
+        "platformFee": "GH₵ ${platformFee.toStringAsFixed(2)}",
+        "totalPrice": dailyRate == 0.0
+            ? 'TBD'
+            : "GH₵ ${total.toStringAsFixed(2)}",
+        "isContract": false,
+        "numberOfDays": _numberOfDays,
+      };
     }
-    if (basePrice == null &&
-        _serviceData != null &&
-        _serviceData!['basePrice'] != null) {
-      basePrice = (_serviceData!['basePrice'] as num?)?.toDouble();
-    }
-
-    // If still null, show 0 — never use a hardcoded fallback
-    basePrice ??= 0.0;
-
-    final complexityFee = _descriptionController.text.length > 100 ? 30.0 : 0.0;
-    final travelFee = _selectedLocation != null ? 20.0 : 0.0;
-    final platformFee = basePrice * 0.05;
-    final total = basePrice + complexityFee + travelFee + platformFee;
-
-    final label = basePrice == 0.0
-        ? 'Not set'
-        : 'GH₵ ${basePrice.toStringAsFixed(2)}';
-
-    return {
-      "basePrice": label,
-      "complexityFee": "GH₵ ${complexityFee.toStringAsFixed(2)}",
-      "travelFee": "GH₵ ${travelFee.toStringAsFixed(2)}",
-      "platformFee": "GH₵ ${platformFee.toStringAsFixed(2)}",
-      "totalPrice": basePrice == 0.0
-          ? 'TBD'
-          : "GH₵ ${total.toStringAsFixed(2)}",
-    };
   }
 
   void _onDateSelected(DateTime date) {
