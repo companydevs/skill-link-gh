@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 /// Widget displaying pricing breakdown
 class PricingSummaryWidget extends StatelessWidget {
@@ -34,7 +34,7 @@ class PricingSummaryWidget extends StatelessWidget {
           const SizedBox(height: 16),
           _buildPriceRow(
             context,
-            'Base Service Fee',
+            'Daily Rate',
             pricingData['basePrice'] as String,
           ),
           const SizedBox(height: 8),
