@@ -120,8 +120,8 @@ class BookingNotifier extends StateNotifier<BookingState> {
       if (result['success'] == true && result['paymentStatus'] == 'success') {
         state = state.copyWith(isVerifyingPayment: false, paymentUrl: null);
 
-        // Refresh bookings to get updated status
-        await loadUserBookings('client');
+        // Refresh bookings in background — don't block or fail verification if this errors
+        loadUserBookings('client').catchError((_) {});
 
         log('✅ Payment verified successfully');
         return true;

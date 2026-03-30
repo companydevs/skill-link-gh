@@ -643,9 +643,9 @@ export const getUserBookings = onCall(async (request) => {
     const userId = request.auth.uid;
     const field = userType === "client" ? "clientId" : "artisanId";
 
-    let query = db.collection("bookings")
+    // Use simple where query without orderBy to avoid needing a composite index
+    let query: FirebaseFirestore.Query = db.collection("bookings")
       .where(field, "==", userId)
-      .orderBy("createdAt", "desc")
       .limit(limit);
 
     if (status) {
@@ -653,10 +653,14 @@ export const getUserBookings = onCall(async (request) => {
     }
 
     const snapshot = await query.get();
-    const bookings = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const bookings = snapshot.docs
+      .map((doc) => ({id: doc.id, ...doc.data()}))
+      // Sort in memory — no composite index required
+      .sort((a: any, b: any) => {
+        const aTime = a.createdAt?.toMillis?.() ?? 0;
+        const bTime = b.createdAt?.toMillis?.() ?? 0;
+        return bTime - aTime;
+      });
 
     return {
       success: true,
