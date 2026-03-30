@@ -435,9 +435,12 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
           'Price not set. Please contact the artisan to confirm pricing.',
         );
       }
-      final totalAmount = double.parse(
-        totalPriceString.replaceAll('GH₵ ', '').replaceAll(',', ''),
-      );
+      // Extract numeric value robustly — strip all non-numeric chars except dot
+      final numericString = totalPriceString.replaceAll(RegExp(r'[^\d.]'), '');
+      final totalAmount = double.tryParse(numericString);
+      if (totalAmount == null || totalAmount.isNaN || totalAmount <= 0) {
+        throw Exception('Invalid price. Please go back and try again.');
+      }
 
       // Use real artisan ID from loaded data
       final artisanId = _artisanData?['id'] as String? ?? '';

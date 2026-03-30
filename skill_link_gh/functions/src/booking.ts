@@ -203,6 +203,12 @@ export const createBooking = onCall(async (request) => {
       throw new HttpsError("invalid-argument", "Missing required booking data");
     }
 
+    // Guard against NaN totalAmount
+    if (isNaN(data.totalAmount) || data.totalAmount <= 0) {
+      throw new HttpsError("invalid-argument",
+        `Invalid totalAmount: ${data.totalAmount}. Must be a positive number.`);
+    }
+
     // Verify client is the authenticated user
     if (data.clientId !== userId) {
       throw new HttpsError(
