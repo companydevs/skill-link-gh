@@ -33,8 +33,9 @@ class _CalendarWidgetState extends State<CalendarWidget> {
   }
 
   bool _isDayUnavailable(DateTime day) {
-    return widget.unavailableDates
-        .any((unavailableDate) => isSameDay(unavailableDate, day));
+    return widget.unavailableDates.any(
+      (unavailableDate) => isSameDay(unavailableDate, day),
+    );
   }
 
   @override
@@ -56,9 +57,13 @@ class _CalendarWidgetState extends State<CalendarWidget> {
         selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
         calendarFormat: CalendarFormat.month,
         startingDayOfWeek: StartingDayOfWeek.monday,
+        rowHeight: 42,
+        daysOfWeekHeight: 32,
+        availableGestures: AvailableGestures.horizontalSwipe,
         enabledDayPredicate: (day) {
-          return !day
-                  .isBefore(DateTime.now().subtract(const Duration(days: 1))) &&
+          return !day.isBefore(
+                DateTime.now().subtract(const Duration(days: 1)),
+              ) &&
               !_isDayUnavailable(day);
         },
         onDaySelected: (selectedDay, focusedDay) {
@@ -100,12 +105,8 @@ class _CalendarWidgetState extends State<CalendarWidget> {
           disabledTextStyle: TextStyle(
             color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
           ),
-          defaultTextStyle: TextStyle(
-            color: theme.colorScheme.onSurface,
-          ),
-          weekendTextStyle: TextStyle(
-            color: theme.colorScheme.onSurface,
-          ),
+          defaultTextStyle: TextStyle(color: theme.colorScheme.onSurface),
+          weekendTextStyle: TextStyle(color: theme.colorScheme.onSurface),
         ),
         headerStyle: HeaderStyle(
           formatButtonVisible: false,
