@@ -528,10 +528,14 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CalendarWidget(
-              selectedDate: _selectedDate,
-              onDateSelected: _onDateSelected,
-              unavailableDates: _unavailableDates,
+            // Fixed height prevents TableCalendar from blocking scroll
+            SizedBox(
+              height: 380,
+              child: CalendarWidget(
+                selectedDate: _selectedDate,
+                onDateSelected: _onDateSelected,
+                unavailableDates: _unavailableDates,
+              ),
             ),
             const SizedBox(height: 24),
             if (_selectedDate != null)
