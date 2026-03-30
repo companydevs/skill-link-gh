@@ -502,6 +502,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.0.0"
+  flutter_paystack_plus:
+    dependency: "direct main"
+    description:
+      name: flutter_paystack_plus
+      sha256: bf57a1ba971acc35c6c129d245e2bcc828caeee085794b7fdc13aed1f9dda207
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.5.0"
   flutter_plugin_android_lifecycle:
     dependency: transitive
     description:
@@ -1678,7 +1686,7 @@ packages:
     source: hosted
     version: "1.2.1"
   webview_flutter:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: webview_flutter
       sha256: a3da219916aba44947d3a5478b1927876a09781174b5a2b67fa5be0555154bf9
