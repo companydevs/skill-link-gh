@@ -232,13 +232,19 @@ export const createBooking = onCall(async (request) => {
 
     // Calculate distance if both locations are available
     let distance = 0;
-    if (artisanLocation && data.clientLocation) {
-      distance = calculateDistance(
+    if (artisanLocation &&
+        typeof artisanLocation.latitude === "number" &&
+        typeof artisanLocation.longitude === "number" &&
+        data.clientLocation &&
+        typeof data.clientLocation.latitude === "number" &&
+        typeof data.clientLocation.longitude === "number") {
+      const d = calculateDistance(
         data.clientLocation.latitude,
         data.clientLocation.longitude,
         artisanLocation.latitude,
         artisanLocation.longitude
       );
+      distance = isNaN(d) ? 0 : d;
     }
 
     // Calculate fees
@@ -248,8 +254,20 @@ export const createBooking = onCall(async (request) => {
     // Generate booking reference
     const bookingReference = generateBookingReference();
 
-    // Create booking document
-    const bookingData = {
+    // Create booking document — sanitize to remove any NaN/undefined values
+    const sanitize = (obj: any): any => {
+      if (typeof obj !== "object" || obj === null) return obj;
+      const result: any = {};
+      for (const [k, v] of Object.entries(obj)) {
+        if (typeof v === "number" && isNaN(v)) result[k] = 0;
+        else if (v === undefined) result[k] = null;
+        else if (typeof v === "object" && v !== null) result[k] = sanitize(v);
+        else result[k] = v;
+      }
+      return result;
+    };
+
+    const bookingData = sanitize({
       ...data,
       bookingReference,
       status: BookingStatus.PAYMENT_PENDING,
@@ -260,7 +278,7 @@ export const createBooking = onCall(async (request) => {
       artisanLocation,
       createdAt: new Date(),
       updatedAt: new Date(),
-    };
+    });
 
     const bookingRef = await db.collection("bookings").add(bookingData);
     const bookingId = bookingRef.id;
@@ -346,7 +364,7 @@ export const createBooking = onCall(async (request) => {
       paymentUrl: paystackResponse.data.data.authorization_url,
       totalAmount: totalWithFees,
       serviceFee,
-      distance: Math.round(distance * 100) / 100, // Round to 2 decimal places
+      distance: isNaN(distance) ? 0 : Math.round(distance * 100) / 100,
     };
   } catch (error) {
     console.error("Error creating booking:", error);
