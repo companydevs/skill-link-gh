@@ -17,7 +17,7 @@ const db = getFirestore();
 
 // Paystack configuration
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY ||
-  "sk_test_your_secret_key";
+  "sk_test_b85aba8a00d7e9d05a806d08c440af48193823b7";
 const PAYSTACK_BASE_URL = "https://api.paystack.co";
 
 // Booking status enum
