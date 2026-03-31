@@ -158,6 +158,24 @@ class BookingModel {
   });
 
   factory BookingModel.fromJson(Map<String, dynamic> json, String id) {
+    // Helper to safely parse LocationData — Firestore may store it as a Map or String
+    LocationData? safeLocation(dynamic raw) {
+      if (raw == null) return null;
+      if (raw is Map<String, dynamic>) return LocationData.fromJson(raw);
+      if (raw is Map)
+        return LocationData.fromJson(Map<String, dynamic>.from(raw));
+      // Stored as a plain string address — create minimal LocationData
+      if (raw is String)
+        return LocationData(
+          address: raw,
+          latitude: 0,
+          longitude: 0,
+          city: '',
+          state: '',
+        );
+      return null;
+    }
+
     return BookingModel(
       id: id,
       clientId: json['clientId'] ?? '',
@@ -167,32 +185,44 @@ class BookingModel {
       serviceDescription: json['serviceDescription'] ?? '',
       scheduledDate: json['scheduledDate'] ?? '',
       scheduledTime: json['scheduledTime'] ?? '',
-      duration: json['duration'] ?? 0,
-      totalAmount: (json['totalAmount'] ?? 0.0).toDouble(),
-      clientLocation: LocationData.fromJson(json['clientLocation'] ?? {}),
-      artisanLocation: json['artisanLocation'] != null
-          ? LocationData.fromJson(json['artisanLocation'])
-          : null,
-      specialRequests: json['specialRequests'],
+      duration: (json['duration'] as num?)?.toInt() ?? 0,
+      totalAmount: (json['totalAmount'] as num?)?.toDouble() ?? 0.0,
+      clientLocation:
+          safeLocation(json['clientLocation']) ??
+          LocationData(
+            address: '',
+            latitude: 0,
+            longitude: 0,
+            city: '',
+            state: '',
+          ),
+      artisanLocation: safeLocation(json['artisanLocation']),
+      specialRequests: json['specialRequests'] as String?,
       contactPhone: json['contactPhone'] ?? '',
       contactEmail: json['contactEmail'] ?? '',
       bookingReference: json['bookingReference'] ?? '',
-      status: _parseBookingStatus(json['status']),
-      paymentStatus: _parsePaymentStatus(json['paymentStatus']),
-      serviceFee: (json['serviceFee'] ?? 0.0).toDouble(),
-      totalWithFees: (json['totalWithFees'] ?? 0.0).toDouble(),
-      distance: (json['distance'] ?? 0.0).toDouble(),
-      paymentReference: json['paymentReference'],
-      paymentUrl: json['paymentUrl'],
-      paymentAccessCode: json['paymentAccessCode'],
-      paymentData: json['paymentData'] != null
-          ? PaymentData.fromJson(json['paymentData'])
+      status: _parseBookingStatus(json['status'] as String?),
+      paymentStatus: _parsePaymentStatus(json['paymentStatus'] as String?),
+      serviceFee: (json['serviceFee'] as num?)?.toDouble() ?? 0.0,
+      totalWithFees: (json['totalWithFees'] as num?)?.toDouble() ?? 0.0,
+      distance: (json['distance'] as num?)?.toDouble() ?? 0.0,
+      paymentReference: json['paymentReference'] as String?,
+      paymentUrl: json['paymentUrl'] as String?,
+      paymentAccessCode: json['paymentAccessCode'] as String?,
+      paymentData: json['paymentData'] is Map
+          ? PaymentData.fromJson(Map<String, dynamic>.from(json['paymentData']))
           : null,
-      artisanCurrentLocation: json['artisanCurrentLocation'] != null
-          ? LocationData.fromJson(json['artisanCurrentLocation'])
-          : null,
-      createdAt: (json['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      updatedAt: (json['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      artisanCurrentLocation: safeLocation(json['artisanCurrentLocation']),
+      createdAt: json['createdAt'] is Timestamp
+          ? (json['createdAt'] as Timestamp).toDate()
+          : (json['createdAt'] is String
+                ? DateTime.tryParse(json['createdAt']) ?? DateTime.now()
+                : DateTime.now()),
+      updatedAt: json['updatedAt'] is Timestamp
+          ? (json['updatedAt'] as Timestamp).toDate()
+          : (json['updatedAt'] is String
+                ? DateTime.tryParse(json['updatedAt']) ?? DateTime.now()
+                : DateTime.now()),
     );
   }
 
