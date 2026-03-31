@@ -42,3 +42,10 @@ export {
   updateArtisanLocation,
   getUserBookings,
 } from "./booking";
+
+// Wallet functions
+export {
+  initiateWalletTopUp,
+  verifyWalletTopUp,
+  payWithWallet,
+} from "./wallet";
