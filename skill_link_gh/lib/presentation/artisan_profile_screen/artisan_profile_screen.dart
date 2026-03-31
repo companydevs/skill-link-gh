@@ -29,30 +29,24 @@ class ArtisanProfileScreen extends ConsumerStatefulWidget {
       _ArtisanProfileScreenState();
 }
 
-class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
-    with SingleTickerProviderStateMixin {
+class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
   final AuthRepository _authRepository = AuthRepository();
-  late TabController _tabController;
+  int _selectedTab = 0;
   bool _isLoggingOut = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 5, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
+  static const _tabs = [
+    'About',
+    'Portfolio',
+    'Reviews',
+    'Services',
+    'Bookings',
+  ];
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final profileState = ref.watch(profileNotifierProvider);
 
-    // Skeleton on very first load
     if (profileState.isLoading && profileState.profileData == null) {
       return Scaffold(
         appBar: _buildAppBar(theme, null),
@@ -107,63 +101,85 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
         ),
         child: const Icon(Icons.post_add),
       ),
-      body: NestedScrollView(
-        headerSliverBuilder: (context, _) => [
-          SliverToBoxAdapter(child: ProfileHeaderWidget(artisanData: data)),
-          SliverToBoxAdapter(
-            child: ProfileStatsWidget(
-              artisanData: data,
-              followersCount: profileState.followersCount,
-              followingCount: profileState.followingCount,
-              postsCount: profileState.postsCount,
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: 1.5.h),
-              child: VerificationStatusWidget(
-                artisanData: data,
-                onVerifyTap: () =>
-                    Navigator.pushNamed(context, AppRoutes.verificationScreen),
-              ),
-            ),
-          ),
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _TabBarDelegate(
-              TabBar(
-                controller: _tabController,
-                labelColor: theme.colorScheme.primary,
-                unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
-                indicatorColor: theme.colorScheme.primary,
-                indicatorSize: TabBarIndicatorSize.label,
-                tabs: const [
-                  Tab(text: 'About'),
-                  Tab(text: 'Portfolio'),
-                  Tab(text: 'Reviews'),
-                  Tab(text: 'Services'),
-                  Tab(text: 'Bookings'),
-                ],
+      body: Column(
+        children: [
+          // ── Scrollable header ──────────────────────────────────────
+          Expanded(
+            child: NestedScrollView(
+              headerSliverBuilder: (ctx, _) => [
+                SliverToBoxAdapter(
+                  child: ProfileHeaderWidget(artisanData: data),
+                ),
+                SliverToBoxAdapter(
+                  child: ProfileStatsWidget(
+                    artisanData: data,
+                    jobsDone: profileState.jobsDone,
+                    bidsAccepted: profileState.bidsAccepted,
+                    postsCount: profileState.postsCount,
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.only(bottom: 1.h),
+                    child: VerificationStatusWidget(
+                      artisanData: data,
+                      onVerifyTap: () => Navigator.pushNamed(
+                        context,
+                        AppRoutes.verificationScreen,
+                      ),
+                    ),
+                  ),
+                ),
+                // ── Pill tab selector ──────────────────────────────
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _PillTabBarDelegate(
+                    tabs: _tabs,
+                    selectedIndex: _selectedTab,
+                    onTap: (i) => setState(() => _selectedTab = i),
+                    theme: theme,
+                  ),
+                ),
+              ],
+              body: _buildTabBody(
+                selectedTab: _selectedTab,
+                data: data,
+                reviews: reviews,
+                portfolio: portfolio,
+                services: services,
               ),
             ),
           ),
         ],
-        body: TabBarView(
-          controller: _tabController,
-          children: [
-            AboutSectionWidget(artisanData: data),
-            PortfolioSectionWidget(portfolioImages: portfolio),
-            ReviewsSectionWidget(
-              reviews: reviews,
-              averageRating: (data['rating'] as num?)?.toDouble() ?? 0.0,
-              totalReviews: reviews.length,
-            ),
-            ServicesSectionWidget(services: services),
-            const _BookingsTab(),
-          ],
-        ),
       ),
     );
+  }
+
+  Widget _buildTabBody({
+    required int selectedTab,
+    required Map<String, dynamic> data,
+    required List<Map<String, dynamic>> reviews,
+    required List<Map<String, dynamic>> portfolio,
+    required List<Map<String, dynamic>> services,
+  }) {
+    switch (selectedTab) {
+      case 0:
+        return AboutSectionWidget(artisanData: data);
+      case 1:
+        return PortfolioSectionWidget(portfolioImages: portfolio);
+      case 2:
+        return ReviewsSectionWidget(
+          reviews: reviews,
+          averageRating: (data['rating'] as num?)?.toDouble() ?? 0.0,
+          totalReviews: reviews.length,
+        );
+      case 3:
+        return ServicesSectionWidget(services: services);
+      case 4:
+        return const _BookingsTab();
+      default:
+        return const SizedBox.shrink();
+    }
   }
 
   PreferredSizeWidget _buildAppBar(
@@ -194,8 +210,9 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
           onSelected: (v) {
             if (v == 'logout') _handleLogout();
             if (v == 'delete') _handleDeleteAccount();
-            if (v == 'verify')
+            if (v == 'verify') {
               Navigator.pushNamed(context, AppRoutes.verificationScreen);
+            }
           },
           itemBuilder: (_) => [
             const PopupMenuItem(value: 'verify', child: Text('Get Verified')),
@@ -247,7 +264,7 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
           SizedBox(height: 2.h),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(3, (_) => box(20.w, 5.h, r: 8)),
+            children: List.generate(3, (_) => box(25.w, 8.h, r: 14)),
           ),
         ],
       ),
@@ -258,7 +275,7 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => StatefulBuilder(
-        builder: (ctx, setState) => AlertDialog(
+        builder: (ctx, setS) => AlertDialog(
           title: const Text('Log out'),
           content: const Text('Are you sure you want to log out?'),
           actions: [
@@ -270,11 +287,11 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
               onPressed: _isLoggingOut
                   ? null
                   : () async {
-                      setState(() => _isLoggingOut = true);
+                      setS(() => _isLoggingOut = true);
                       try {
                         await _authRepository.signOut();
                       } finally {
-                        if (mounted) Navigator.pop(ctx, true);
+                        if (ctx.mounted) Navigator.pop(ctx, true);
                       }
                     },
               child: _isLoggingOut
@@ -289,7 +306,6 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
         ),
       ),
     );
-
     if (confirmed != true || !mounted) return;
     Navigator.pushNamedAndRemoveUntil(
       context,
@@ -321,11 +337,8 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
         ],
       ),
     );
-
     if (confirmed != true || !mounted) return;
-
     try {
-      if (!mounted) return;
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -365,6 +378,75 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
   }
 }
 
+// ─── Pill tab bar ─────────────────────────────────────────────────────────────
+class _PillTabBarDelegate extends SliverPersistentHeaderDelegate {
+  final List<String> tabs;
+  final int selectedIndex;
+  final ValueChanged<int> onTap;
+  final ThemeData theme;
+
+  const _PillTabBarDelegate({
+    required this.tabs,
+    required this.selectedIndex,
+    required this.onTap,
+    required this.theme,
+  });
+
+  @override
+  double get minExtent => 56;
+  @override
+  double get maxExtent => 56;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Container(
+      color: theme.colorScheme.surface,
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: tabs.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (ctx, i) {
+          final selected = i == selectedIndex;
+          return GestureDetector(
+            onTap: () => onTap(i),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 7),
+              decoration: BoxDecoration(
+                color: selected
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                tabs[i],
+                style: TextStyle(
+                  color: selected
+                      ? Colors.white
+                      : theme.colorScheme.onSurfaceVariant,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(_PillTabBarDelegate old) =>
+      old.selectedIndex != selectedIndex;
+}
+
+// ─── Bookings tab ─────────────────────────────────────────────────────────────
 class _BookingsTab extends StatefulWidget {
   const _BookingsTab();
   @override
@@ -389,11 +471,12 @@ class _BookingsTabState extends State<_BookingsTab>
   Future<void> _load() async {
     try {
       final b = await _repo.getUserBookings(userType: 'client');
-      if (mounted)
+      if (mounted) {
         setState(() {
           _bookings = b;
           _loading = false;
         });
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
@@ -404,9 +487,7 @@ class _BookingsTabState extends State<_BookingsTab>
     super.build(context);
     final theme = Theme.of(context);
 
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    if (_loading) return const Center(child: CircularProgressIndicator());
 
     if (_bookings.isEmpty) {
       return Center(
@@ -443,10 +524,7 @@ class _BookingsTabState extends State<_BookingsTab>
         padding: const EdgeInsets.all(16),
         itemCount: _bookings.length,
         separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (context, i) {
-          final b = _bookings[i];
-          return _BookingCard(booking: b);
-        },
+        itemBuilder: (context, i) => _BookingCard(booking: _bookings[i]),
       ),
     );
   }
@@ -617,29 +695,4 @@ class _BookingCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _TabBarDelegate extends SliverPersistentHeaderDelegate {
-  final TabBar tabBar;
-  _TabBarDelegate(this.tabBar);
-
-  @override
-  double get minExtent => tabBar.preferredSize.height;
-  @override
-  double get maxExtent => tabBar.preferredSize.height;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return Container(
-      color: Theme.of(context).colorScheme.surface,
-      child: tabBar,
-    );
-  }
-
-  @override
-  bool shouldRebuild(_TabBarDelegate old) => false;
 }
