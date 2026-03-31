@@ -3,76 +3,107 @@ import 'package:sizer/sizer.dart';
 
 class ProfileStatsWidget extends StatelessWidget {
   final Map<String, dynamic> artisanData;
-  final int followersCount;
-  final int followingCount;
+  final int jobsDone;
+  final int bidsAccepted;
   final int postsCount;
 
   const ProfileStatsWidget({
     super.key,
     required this.artisanData,
-    this.followersCount = 0,
-    this.followingCount = 0,
+    this.jobsDone = 0,
+    this.bidsAccepted = 0,
     this.postsCount = 0,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final rating = (artisanData['rating'] as num?)?.toDouble() ?? 0.0;
 
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
+      padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 1.h),
       child: Row(
         children: [
-          _stat(context, '$postsCount', 'Posts', theme),
-          _divider(theme),
-          _stat(context, _formatCount(followersCount), 'Followers', theme),
-          _divider(theme),
-          _stat(context, _formatCount(followingCount), 'Following', theme),
+          _StatCard(
+            value: '$jobsDone',
+            label: 'Jobs Done',
+            icon: Icons.check_circle_outline_rounded,
+            iconColor: const Color(0xFF10B981),
+            theme: theme,
+          ),
+          SizedBox(width: 2.w),
+          _StatCard(
+            value: '$bidsAccepted',
+            label: 'Bids Won',
+            icon: Icons.handshake_outlined,
+            iconColor: const Color(0xFF2563EB),
+            theme: theme,
+          ),
+          SizedBox(width: 2.w),
+          _StatCard(
+            value: rating > 0 ? rating.toStringAsFixed(1) : '—',
+            label: 'Rating',
+            icon: Icons.star_rounded,
+            iconColor: const Color(0xFFF59E0B),
+            theme: theme,
+          ),
         ],
       ),
     );
   }
+}
 
-  String _formatCount(int count) {
-    if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
-    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}K';
-    return '$count';
-  }
+class _StatCard extends StatelessWidget {
+  final String value;
+  final String label;
+  final IconData icon;
+  final Color iconColor;
+  final ThemeData theme;
 
-  Widget _stat(
-    BuildContext context,
-    String value,
-    String label,
-    ThemeData theme,
-  ) {
+  const _StatCard({
+    required this.value,
+    required this.label,
+    required this.icon,
+    required this.iconColor,
+    required this.theme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Expanded(
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 1.5.h, horizontal: 2.w),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: theme.colorScheme.outline.withValues(alpha: 0.1),
           ),
-          SizedBox(height: 0.3.h),
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 20, color: iconColor),
+            SizedBox(height: 0.6.h),
+            Text(
+              value,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+            SizedBox(height: 0.2.h),
+            Text(
+              label,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontSize: 10,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
-
-  Widget _divider(ThemeData theme) => Container(
-    width: 1,
-    height: 4.h,
-    color: theme.colorScheme.outline.withValues(alpha: 0.25),
-  );
 }

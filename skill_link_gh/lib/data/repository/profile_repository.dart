@@ -93,22 +93,25 @@ class ProfileRepository {
     }
   }
 
-  /// Get follower count, following count, and post count for a user
+  /// Get jobs done, bids accepted, and post count for a user
   Future<Map<String, int>> getSocialCounts(String userId) async {
     try {
       final results = await Future.wait([
+        // Completed bookings where this user was the artisan
         _firestore
-            .collection('users')
-            .doc(userId)
-            .collection('followers')
+            .collection('bookings')
+            .where('artisanId', isEqualTo: userId)
+            .where('status', isEqualTo: 'completed')
             .count()
             .get(),
+        // Confirmed/accepted bookings where this user was the artisan
         _firestore
-            .collection('users')
-            .doc(userId)
-            .collection('following')
+            .collection('bookings')
+            .where('artisanId', isEqualTo: userId)
+            .where('status', isEqualTo: 'confirmed')
             .count()
             .get(),
+        // Posts by this user
         _firestore
             .collection('posts')
             .where('userId', isEqualTo: userId)
@@ -116,13 +119,13 @@ class ProfileRepository {
             .get(),
       ]);
       return {
-        'followers': results[0].count ?? 0,
-        'following': results[1].count ?? 0,
+        'jobsDone': results[0].count ?? 0,
+        'bidsAccepted': results[1].count ?? 0,
         'posts': results[2].count ?? 0,
       };
     } catch (e) {
-      print('Error fetching social counts: $e');
-      return {'followers': 0, 'following': 0, 'posts': 0};
+      print('Error fetching profile counts: $e');
+      return {'jobsDone': 0, 'bidsAccepted': 0, 'posts': 0};
     }
   }
 

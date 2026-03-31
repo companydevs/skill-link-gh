@@ -11,8 +11,8 @@ class ProfileState {
   final List<Map<String, dynamic>> portfolioImages;
   final List<Map<String, dynamic>> reviews;
   final List<Map<String, dynamic>> services;
-  final int followersCount;
-  final int followingCount;
+  final int jobsDone;
+  final int bidsAccepted;
   final int postsCount;
   final bool isLoading;
   final String? error;
@@ -22,8 +22,8 @@ class ProfileState {
     this.portfolioImages = const [],
     this.reviews = const [],
     this.services = const [],
-    this.followersCount = 0,
-    this.followingCount = 0,
+    this.jobsDone = 0,
+    this.bidsAccepted = 0,
     this.postsCount = 0,
     this.isLoading = false,
     this.error,
@@ -34,8 +34,8 @@ class ProfileState {
     List<Map<String, dynamic>>? portfolioImages,
     List<Map<String, dynamic>>? reviews,
     List<Map<String, dynamic>>? services,
-    int? followersCount,
-    int? followingCount,
+    int? jobsDone,
+    int? bidsAccepted,
     int? postsCount,
     bool? isLoading,
     String? error,
@@ -45,8 +45,8 @@ class ProfileState {
       portfolioImages: portfolioImages ?? this.portfolioImages,
       reviews: reviews ?? this.reviews,
       services: services ?? this.services,
-      followersCount: followersCount ?? this.followersCount,
-      followingCount: followingCount ?? this.followingCount,
+      jobsDone: jobsDone ?? this.jobsDone,
+      bidsAccepted: bidsAccepted ?? this.bidsAccepted,
       postsCount: postsCount ?? this.postsCount,
       isLoading: isLoading ?? this.isLoading,
       error: error ?? this.error,
@@ -90,8 +90,8 @@ class ProfileNotifier extends Notifier<ProfileState> {
         portfolioImages: results[0],
         reviews: results[1],
         services: results[2],
-        followersCount: socialCounts['followers'] ?? 0,
-        followingCount: socialCounts['following'] ?? 0,
+        jobsDone: socialCounts['jobsDone'] ?? 0,
+        bidsAccepted: socialCounts['bidsAccepted'] ?? 0,
         postsCount: socialCounts['posts'] ?? 0,
         isLoading: false,
       );
