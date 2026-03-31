@@ -10,6 +10,8 @@ import 'package:skill_link_gh/widgets/utils/createPost.dart';
 import 'package:skill_link_gh/routes/app_routes.dart';
 
 import '../../core/app_export.dart';
+import '../../data/repository/booking_repository.dart';
+import '../../domain/models/booking_model.dart';
 import '../../widgets/custom_bottom_bar.dart';
 import './widgets/about_section_widget.dart';
 import './widgets/portfolio_section_widget.dart';
@@ -36,7 +38,7 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -133,6 +135,7 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
                   Tab(text: 'Portfolio'),
                   Tab(text: 'Reviews'),
                   Tab(text: 'Services'),
+                  Tab(text: 'Bookings'),
                 ],
               ),
             ),
