@@ -75,6 +75,7 @@ export const initiateWalletTopUp = onCall(async (request) => {
         email,
         amount: amountInKobo,
         reference,
+        callback_url: "skilllink://wallet/topup",
         metadata: {
           uid,
           type: "wallet_topup",

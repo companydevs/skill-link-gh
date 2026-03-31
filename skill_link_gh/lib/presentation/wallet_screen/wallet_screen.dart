@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,26 +29,36 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
   String? _pendingReference;
   bool _awaitingReturn = false;
   bool _balanceVisible = true;
+  StreamSubscription<Uri>? _linkSub;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    _listenForDeepLink();
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    _linkSub?.cancel();
     super.dispose();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed &&
-        _awaitingReturn &&
-        _pendingReference != null) {
-      _verifyTopUp(_pendingReference!);
-    }
+  void _listenForDeepLink() {
+    final appLinks = AppLinks();
+    // Handle link while app is already running (foreground / background)
+    _linkSub = appLinks.uriLinkStream.listen((uri) {
+      if (uri.scheme == 'skilllink' && uri.host == 'wallet') {
+        final ref = uri.queryParameters['reference'] ?? _pendingReference;
+        if (ref != null) _verifyTopUp(ref);
+      }
+    });
+    // Handle link that cold-started the app
+    appLinks.getInitialLink().then((uri) {
+      if (uri != null && uri.scheme == 'skilllink' && uri.host == 'wallet') {
+        final ref = uri.queryParameters['reference'] ?? _pendingReference;
+        if (ref != null) _verifyTopUp(ref);
+      }
+    });
   }
 
   Future<void> _showTopUpSheet() async {

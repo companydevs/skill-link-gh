@@ -293,7 +293,7 @@ export const createBooking = onCall(async (request) => {
       email: data.contactEmail,
       amount: totalWithFees * 100, // Paystack expects amount in kobo (cents)
       reference: bookingReference,
-      callback_url: "https://your-app.com/payment-callback",
+      callback_url: "skilllink://booking/payment",
       metadata: {
         bookingId,
         clientId: data.clientId,
