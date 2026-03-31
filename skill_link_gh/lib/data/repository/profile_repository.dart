@@ -93,6 +93,39 @@ class ProfileRepository {
     }
   }
 
+  /// Get follower count, following count, and post count for a user
+  Future<Map<String, int>> getSocialCounts(String userId) async {
+    try {
+      final results = await Future.wait([
+        _firestore
+            .collection('users')
+            .doc(userId)
+            .collection('followers')
+            .count()
+            .get(),
+        _firestore
+            .collection('users')
+            .doc(userId)
+            .collection('following')
+            .count()
+            .get(),
+        _firestore
+            .collection('posts')
+            .where('userId', isEqualTo: userId)
+            .count()
+            .get(),
+      ]);
+      return {
+        'followers': results[0].count ?? 0,
+        'following': results[1].count ?? 0,
+        'posts': results[2].count ?? 0,
+      };
+    } catch (e) {
+      print('Error fetching social counts: $e');
+      return {'followers': 0, 'following': 0, 'posts': 0};
+    }
+  }
+
   /// Update profile data
   Future<void> updateProfile(Map<String, dynamic> data) async {
     final user = _auth.currentUser;

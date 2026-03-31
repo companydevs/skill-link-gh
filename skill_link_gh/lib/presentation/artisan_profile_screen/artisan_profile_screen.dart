@@ -110,7 +110,14 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
       body: NestedScrollView(
         headerSliverBuilder: (context, _) => [
           SliverToBoxAdapter(child: ProfileHeaderWidget(artisanData: data)),
-          SliverToBoxAdapter(child: ProfileStatsWidget(artisanData: data)),
+          SliverToBoxAdapter(
+            child: ProfileStatsWidget(
+              artisanData: data,
+              followersCount: profileState.followersCount,
+              followingCount: profileState.followingCount,
+              postsCount: profileState.postsCount,
+            ),
+          ),
           SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.only(bottom: 1.5.h),

@@ -3,28 +3,40 @@ import 'package:sizer/sizer.dart';
 
 class ProfileStatsWidget extends StatelessWidget {
   final Map<String, dynamic> artisanData;
+  final int followersCount;
+  final int followingCount;
+  final int postsCount;
 
-  const ProfileStatsWidget({super.key, required this.artisanData});
+  const ProfileStatsWidget({
+    super.key,
+    required this.artisanData,
+    this.followersCount = 0,
+    this.followingCount = 0,
+    this.postsCount = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final totalJobs = artisanData['totalJobs'] ?? 0;
-    final responseTime = artisanData['responseTime'] as String? ?? 'N/A';
-    final experience = artisanData['experience'] as String? ?? 'N/A';
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
       child: Row(
         children: [
-          _stat(context, '$totalJobs', 'Jobs', theme),
+          _stat(context, '$postsCount', 'Posts', theme),
           _divider(theme),
-          _stat(context, responseTime, 'Response', theme),
+          _stat(context, _formatCount(followersCount), 'Followers', theme),
           _divider(theme),
-          _stat(context, experience, 'Experience', theme),
+          _stat(context, _formatCount(followingCount), 'Following', theme),
         ],
       ),
     );
+  }
+
+  String _formatCount(int count) {
+    if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
+    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}K';
+    return '$count';
   }
 
   Widget _stat(

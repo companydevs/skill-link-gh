@@ -11,6 +11,9 @@ class ProfileState {
   final List<Map<String, dynamic>> portfolioImages;
   final List<Map<String, dynamic>> reviews;
   final List<Map<String, dynamic>> services;
+  final int followersCount;
+  final int followingCount;
+  final int postsCount;
   final bool isLoading;
   final String? error;
 
@@ -19,6 +22,9 @@ class ProfileState {
     this.portfolioImages = const [],
     this.reviews = const [],
     this.services = const [],
+    this.followersCount = 0,
+    this.followingCount = 0,
+    this.postsCount = 0,
     this.isLoading = false,
     this.error,
   });
@@ -28,6 +34,9 @@ class ProfileState {
     List<Map<String, dynamic>>? portfolioImages,
     List<Map<String, dynamic>>? reviews,
     List<Map<String, dynamic>>? services,
+    int? followersCount,
+    int? followingCount,
+    int? postsCount,
     bool? isLoading,
     String? error,
   }) {
@@ -36,6 +45,9 @@ class ProfileState {
       portfolioImages: portfolioImages ?? this.portfolioImages,
       reviews: reviews ?? this.reviews,
       services: services ?? this.services,
+      followersCount: followersCount ?? this.followersCount,
+      followingCount: followingCount ?? this.followingCount,
+      postsCount: postsCount ?? this.postsCount,
       isLoading: isLoading ?? this.isLoading,
       error: error ?? this.error,
     );
@@ -71,11 +83,16 @@ class ProfileNotifier extends Notifier<ProfileState> {
         _repository.getServices(userId),
       ]);
 
+      final socialCounts = await _repository.getSocialCounts(userId);
+
       state = ProfileState(
         profileData: profileData,
         portfolioImages: results[0],
         reviews: results[1],
         services: results[2],
+        followersCount: socialCounts['followers'] ?? 0,
+        followingCount: socialCounts['following'] ?? 0,
+        postsCount: socialCounts['posts'] ?? 0,
         isLoading: false,
       );
     } catch (e) {
