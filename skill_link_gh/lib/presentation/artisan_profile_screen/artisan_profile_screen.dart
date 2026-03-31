@@ -119,11 +119,14 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
                   ),
                 ),
                 SliverToBoxAdapter(
-                  child: VerificationStatusWidget(
-                    artisanData: data,
-                    onVerifyTap: () => Navigator.pushNamed(
-                      context,
-                      AppRoutes.verificationScreen,
+                  child: Padding(
+                    padding: EdgeInsets.only(bottom: 1.h),
+                    child: VerificationStatusWidget(
+                      artisanData: data,
+                      onVerifyTap: () => Navigator.pushNamed(
+                        context,
+                        AppRoutes.verificationScreen,
+                      ),
                     ),
                   ),
                 ),

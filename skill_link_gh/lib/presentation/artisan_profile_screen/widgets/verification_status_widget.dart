@@ -15,40 +15,48 @@ class VerificationStatusWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final badges = artisanData['verificationBadges'] as Map?;
-    final isVerified = badges?['identityVerified'] == true;
+    final isIdentityVerified = badges?['identityVerified'] == true;
 
-    if (isVerified) return const SizedBox.shrink();
+    if (isIdentityVerified) return const SizedBox.shrink();
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(4.w, 0, 4.w, 1.5.h),
-      child: GestureDetector(
+      padding: EdgeInsets.symmetric(horizontal: 4.w),
+      child: InkWell(
         onTap: onVerifyTap,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.shield_outlined,
-              size: 14,
-              color: theme.colorScheme.primary,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: theme.colorScheme.primary.withValues(alpha: 0.3),
             ),
-            const SizedBox(width: 5),
-            Text(
-              'Get verified',
-              style: theme.textTheme.labelMedium?.copyWith(
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.verified_user_outlined,
+                size: 20,
                 color: theme.colorScheme.primary,
-                fontWeight: FontWeight.w600,
-                decoration: TextDecoration.underline,
-                decorationColor: theme.colorScheme.primary,
               ),
-            ),
-            const SizedBox(width: 3),
-            Text(
-              '· boost your bookings',
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+              SizedBox(width: 3.w),
+              Expanded(
+                child: Text(
+                  'Get verified to boost your bookings',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
-            ),
-          ],
+              Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: theme.colorScheme.primary,
+              ),
+            ],
+          ),
         ),
       ),
     );

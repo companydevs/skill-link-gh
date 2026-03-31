@@ -18,59 +18,92 @@ class ProfileStatsWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final rating = (artisanData['rating'] as num?)?.toDouble() ?? 0.0;
 
-    return Transform.translate(
-      offset: const Offset(0, -12),
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 4.w),
-        child: Container(
-          padding: EdgeInsets.symmetric(vertical: 1.4.h),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerLowest,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: theme.colorScheme.outline.withValues(alpha: 0.1),
+    return Padding(
+      padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 1.h),
+      child: Row(
+        children: [
+          _StatCard(
+            value: '$jobsDone',
+            label: 'Jobs Done',
+            icon: Icons.check_circle_outline_rounded,
+            iconColor: const Color(0xFF10B981),
+            theme: theme,
+          ),
+          SizedBox(width: 2.w),
+          _StatCard(
+            value: '$bidsAccepted',
+            label: 'Bids Won',
+            icon: Icons.handshake_outlined,
+            iconColor: const Color(0xFF2563EB),
+            theme: theme,
+          ),
+          SizedBox(width: 2.w),
+          _StatCard(
+            value: rating > 0 ? rating.toStringAsFixed(1) : '—',
+            label: 'Rating',
+            icon: Icons.star_rounded,
+            iconColor: const Color(0xFFF59E0B),
+            theme: theme,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String value;
+  final String label;
+  final IconData icon;
+  final Color iconColor;
+  final ThemeData theme;
+
+  const _StatCard({
+    required this.value,
+    required this.label,
+    required this.icon,
+    required this.iconColor,
+    required this.theme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 1.5.h, horizontal: 2.w),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: theme.colorScheme.outline.withValues(alpha: 0.1),
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 20, color: iconColor),
+            SizedBox(height: 0.6.h),
+            Text(
+              value,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-          ),
-          child: Row(
-            children: [
-              _stat('$jobsDone', 'Jobs Done', theme),
-              _vDivider(theme),
-              _stat('$bidsAccepted', 'Bids Won', theme),
-              _vDivider(theme),
-              _stat('$postsCount', 'Posts', theme),
-            ],
-          ),
+            SizedBox(height: 0.2.h),
+            Text(
+              label,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontSize: 10,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );
   }
-
-  Widget _stat(String value, String label, ThemeData theme) => Expanded(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          value,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-            fontSize: 11,
-          ),
-        ),
-      ],
-    ),
-  );
-
-  Widget _vDivider(ThemeData theme) => Container(
-    width: 1,
-    height: 32,
-    color: theme.colorScheme.outline.withValues(alpha: 0.15),
-  );
 }
