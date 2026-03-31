@@ -140,8 +140,69 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
     final artisanId = artisan['id'] as String? ?? '';
     if (artisanId.isNotEmpty) {
       _fetchArtisanProfile(artisanId);
+      // Check for existing active booking with this artisan
+      _checkExistingBooking(artisanId);
     } else {
       _buildDefaultTimeSlots();
+    }
+  }
+
+  Future<void> _checkExistingBooking(String artisanId) async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('bookings')
+          .where('clientId', isEqualTo: uid)
+          .where('artisanId', isEqualTo: artisanId)
+          .get();
+
+      // Find any active booking (not cancelled/completed/failed)
+      final active = snapshot.docs.where((doc) {
+        final status = doc.data()['status'] as String? ?? '';
+        return status == 'confirmed' ||
+            status == 'payment_pending' ||
+            status == 'in_progress';
+      }).toList();
+
+      if (active.isNotEmpty && mounted) {
+        final bookingId = active.first.id;
+        // Show dialog and redirect
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => AlertDialog(
+            title: const Text('Active Booking Found'),
+            content: const Text(
+              'You already have an active booking with this artisan. '
+              'Would you like to view it?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context); // close dialog
+                  Navigator.pop(context); // close booking screen
+                },
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context); // close dialog
+                  Navigator.pushReplacementNamed(
+                    context,
+                    '/booking-tracking-screen',
+                    arguments: {'bookingId': bookingId},
+                  );
+                },
+                child: const Text('View Booking'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (_) {
+      // Silent — don't block booking if check fails
     }
   }
 
