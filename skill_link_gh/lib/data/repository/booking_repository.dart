@@ -1,5 +1,7 @@
 import 'dart:developer';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:skill_link_gh/domain/models/booking_model.dart';
@@ -131,7 +133,7 @@ class BookingRepository {
     }
   }
 
-  /// Get user bookings (client or artisan)
+  /// Get user bookings — reads directly from Firestore (no Cloud Function needed)
   Future<List<BookingModel>> getUserBookings({
     required String userType, // 'client' or 'artisan'
     BookingStatus? status,
@@ -140,21 +142,26 @@ class BookingRepository {
     try {
       log('🔄 Getting user bookings: $userType');
 
-      final callable = _functions.httpsCallable('getUserBookings');
-      final result = await callable.call({
-        'userType': userType,
-        if (status != null) 'status': status.name,
-        if (limit != null) 'limit': limit,
-      });
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return [];
 
-      final data = Map<String, dynamic>.from(result.data);
-      final bookingsData = List<Map<String, dynamic>>.from(
-        data['bookings'] ?? [],
-      );
+      final field = userType == 'client' ? 'clientId' : 'artisanId';
 
-      final bookings = bookingsData.map((bookingJson) {
-        return BookingModel.fromJson(bookingJson, bookingJson['id']);
-      }).toList();
+      Query query = FirebaseFirestore.instance
+          .collection('bookings')
+          .where(field, isEqualTo: uid)
+          .limit(limit ?? 50);
+
+      if (status != null) {
+        query = query.where('status', isEqualTo: status.name);
+      }
+
+      final snapshot = await query.get();
+      final bookings = snapshot.docs.map((doc) {
+        final data = Map<String, dynamic>.from(doc.data() as Map);
+        data['id'] = doc.id;
+        return BookingModel.fromJson(data, doc.id);
+      }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       log('✅ Retrieved ${bookings.length} bookings');
       return bookings;
