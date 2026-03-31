@@ -411,13 +411,13 @@ class _RequiredBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: theme.colorScheme.errorContainer,
+        color: theme.colorScheme.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         'Required',
         style: theme.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.error,
+          color: theme.colorScheme.primary,
           fontWeight: FontWeight.w600,
         ),
       ),
