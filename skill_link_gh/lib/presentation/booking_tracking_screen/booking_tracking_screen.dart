@@ -77,9 +77,14 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen> {
             .getBookingDetails(_bookingId!);
         final currentBooking = ref.read(bookingNotifierProvider).currentBooking;
         if (currentBooking != null && mounted) {
-          setState(() => _booking = currentBooking);
+          setState(() {
+            _booking = currentBooking;
+            _isLoadingBooking = false;
+          });
           await _loadArtisanProfile(currentBooking.artisanId);
           _updateMapMarkers();
+        } else if (mounted) {
+          setState(() => _isLoadingBooking = false);
         }
         return;
       }
@@ -87,12 +92,16 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen> {
       final data = doc.data()!;
       final booking = BookingModel.fromJson({...data, 'id': doc.id}, doc.id);
       if (mounted) {
-        setState(() => _booking = booking);
+        setState(() {
+          _booking = booking;
+          _isLoadingBooking = false;
+        });
         await _loadArtisanProfile(booking.artisanId);
         _updateMapMarkers();
       }
     } catch (e) {
       if (mounted) {
+        setState(() => _isLoadingBooking = false);
         AppToast.show(
           context,
           message: 'Failed to load booking: $e',
@@ -303,12 +312,12 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final bookingState = ref.watch(bookingNotifierProvider);
+    ref.watch(bookingNotifierProvider); // keep watching for updates
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: CustomAppBar(title: 'Track Booking'),
-      body: bookingState.isLoading
+      body: _isLoadingBooking
           ? const Center(child: CircularProgressIndicator())
           : _booking == null
           ? _buildErrorState(theme)
@@ -579,38 +588,81 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen> {
 
   Widget _buildActionButtons(ThemeData theme) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: _callArtisan,
-            icon: const Icon(Icons.phone),
-            label: const Text('Call'),
-          ),
+        _actionBtn(
+          theme,
+          icon: Icons.phone_outlined,
+          label: 'Call',
+          onTap: _callArtisan,
+          outlined: true,
         ),
-        SizedBox(width: 3.w),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: _messageArtisan,
-            icon: const Icon(Icons.message),
-            label: const Text('Message'),
-          ),
+        _actionBtn(
+          theme,
+          icon: Icons.chat_bubble_outline,
+          label: 'Message',
+          onTap: _messageArtisan,
+          outlined: true,
         ),
-        SizedBox(width: 3.w),
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: () {
-              // Navigate to booking details
-              Navigator.pushNamed(
-                context,
-                '/booking-details-screen',
-                arguments: {'bookingId': _booking!.id},
-              );
-            },
-            icon: const Icon(Icons.info),
-            label: const Text('Details'),
+        _actionBtn(
+          theme,
+          icon: Icons.receipt_long_outlined,
+          label: 'Details',
+          onTap: () => Navigator.pushNamed(
+            context,
+            '/booking-tracking-screen',
+            arguments: {'bookingId': _booking!.id},
           ),
+          outlined: false,
         ),
       ],
+    );
+  }
+
+  Widget _actionBtn(
+    ThemeData theme, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    required bool outlined,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 28.w,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: outlined ? Colors.transparent : theme.colorScheme.primary,
+          borderRadius: BorderRadius.circular(12),
+          border: outlined
+              ? Border.all(
+                  color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                )
+              : null,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 22,
+              color: outlined
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onPrimary,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: outlined
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
