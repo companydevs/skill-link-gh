@@ -28,6 +28,7 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen> {
   BookingModel? _booking;
   Set<Marker> _markers = {};
   Set<Polyline> _polylines = {};
+  bool _isLoadingBooking = true; // start true — show spinner, not error
   String _artisanName = 'Artisan';
   String _artisanAvatar = '';
   LatLng? _artisanStaticLocation; // from artisan's profile
