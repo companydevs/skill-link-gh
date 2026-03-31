@@ -152,6 +152,7 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
               totalReviews: reviews.length,
             ),
             ServicesSectionWidget(services: services),
+            const _BookingsTab(),
           ],
         ),
       ),
@@ -349,6 +350,260 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
         type: ToastType.error,
       );
     }
+  }
+}
+
+class _BookingsTab extends StatefulWidget {
+  const _BookingsTab();
+  @override
+  State<_BookingsTab> createState() => _BookingsTabState();
+}
+
+class _BookingsTabState extends State<_BookingsTab>
+    with AutomaticKeepAliveClientMixin {
+  final _repo = BookingRepository();
+  List<BookingModel> _bookings = [];
+  bool _loading = true;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final b = await _repo.getUserBookings(userType: 'client');
+      if (mounted)
+        setState(() {
+          _bookings = b;
+          _loading = false;
+        });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final theme = Theme.of(context);
+
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_bookings.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.receipt_long_outlined,
+              size: 56,
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No bookings yet',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Your booking history will appear here',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: _bookings.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (context, i) {
+          final b = _bookings[i];
+          return _BookingCard(booking: b);
+        },
+      ),
+    );
+  }
+}
+
+class _BookingCard extends StatelessWidget {
+  final BookingModel booking;
+  const _BookingCard({required this.booking});
+
+  Color _statusColor(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    switch (booking.status) {
+      case BookingStatus.confirmed:
+        return c.primary;
+      case BookingStatus.inProgress:
+        return Colors.orange;
+      case BookingStatus.completed:
+        return Colors.green;
+      case BookingStatus.cancelled:
+      case BookingStatus.paymentFailed:
+        return c.error;
+      default:
+        return c.onSurfaceVariant;
+    }
+  }
+
+  String _statusLabel() {
+    switch (booking.status) {
+      case BookingStatus.confirmed:
+        return 'Confirmed';
+      case BookingStatus.inProgress:
+        return 'In Progress';
+      case BookingStatus.completed:
+        return 'Completed';
+      case BookingStatus.cancelled:
+        return 'Cancelled';
+      case BookingStatus.paymentPending:
+        return 'Payment Pending';
+      case BookingStatus.paymentFailed:
+        return 'Payment Failed';
+      default:
+        return 'Pending';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final statusColor = _statusColor(context);
+    final canTrack =
+        booking.status == BookingStatus.confirmed ||
+        booking.status == BookingStatus.inProgress;
+
+    return GestureDetector(
+      onTap: canTrack
+          ? () => Navigator.pushNamed(
+              context,
+              '/booking-tracking-screen',
+              arguments: {'bookingId': booking.id},
+            )
+          : null,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: theme.colorScheme.outline.withValues(alpha: 0.15),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    booking.serviceTitle.isNotEmpty
+                        ? booking.serviceTitle
+                        : 'Service Booking',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    _statusLabel(),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: statusColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  Icons.calendar_today_outlined,
+                  size: 13,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  booking.scheduledDate,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Icon(
+                  Icons.access_time_outlined,
+                  size: 13,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  booking.scheduledTime,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  'GH₵ ${booking.totalWithFees.toStringAsFixed(2)}',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            if (canTrack) ...[
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Icon(
+                    Icons.location_on,
+                    size: 13,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Tap to track',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }
 
