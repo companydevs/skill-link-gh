@@ -181,6 +181,11 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen>
           : null,
       actions: [
         IconButton(
+          icon: const Icon(Icons.account_balance_wallet_outlined),
+          tooltip: 'Wallet',
+          onPressed: () => Navigator.pushNamed(context, AppRoutes.walletScreen),
+        ),
+        IconButton(
           icon: const Icon(Icons.edit_outlined),
           onPressed: () =>
               Navigator.pushNamed(context, AppRoutes.editProfileScreen),

@@ -21,6 +21,7 @@ import '../presentation/service_booking_screen/service_booking_screen.dart';
 import '../presentation/registration_screen/registration_screen.dart';
 import '../presentation/search_and_discovery_screen/search_and_discovery_screen.dart';
 import '../presentation/posts_homepage/posts_homepage.dart';
+import 'package:skill_link_gh/presentation/wallet_screen/wallet_screen.dart';
 
 class AppRoutes {
   // TODO: Add your routes here
@@ -48,6 +49,7 @@ class AppRoutes {
       '/payment-verification'; // alias used by booking function
   static const String bookingTrackingScreen = '/booking-tracking-screen';
   static const String fixDataScreen = '/fix-data-screen';
+  static const String walletScreen = '/wallet-screen';
   static const String cleanupVideosScreen = '/cleanup-videos-screen';
 
   static Map<String, WidgetBuilder> routes = {
@@ -90,5 +92,6 @@ class AppRoutes {
     bookingTrackingScreen: (context) => const BookingTrackingScreen(),
     fixDataScreen: (context) => const FixDataScreen(),
     cleanupVideosScreen: (context) => const CleanupVideosScreen(),
+    walletScreen: (context) => const WalletScreen(),
   };
 }
