@@ -42,8 +42,7 @@ export const resendVerificationCode = onCall(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: "Skill Link Gh Support <hello@resend.dev>",
-          // temp verified sender
+          from: "SkillLink GH <onboarding@resend.dev>",
           to: email,
           subject: "Your OTP code - SkillLinkGh",
           html: `<div style="padding:32px; text-align:center;
