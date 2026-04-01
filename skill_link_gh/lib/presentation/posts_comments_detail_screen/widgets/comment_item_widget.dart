@@ -1,13 +1,10 @@
-import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:sizer/sizer.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
-/// Comment Item Widget
-/// Displays individual comment with user info, text, and interaction buttons
 class CommentItemWidget extends StatelessWidget {
   final String commentId;
-  final String commentOwnerId; // ✅ UID of the user who posted
+  final String commentOwnerId;
   final String userName;
   final String userAvatar;
   final bool isVerified;
@@ -26,7 +23,7 @@ class CommentItemWidget extends StatelessWidget {
   const CommentItemWidget({
     super.key,
     required this.commentId,
-    required this.commentOwnerId, // ✅ added
+    required this.commentOwnerId,
     required this.userName,
     required this.userAvatar,
     required this.isVerified,
@@ -45,241 +42,204 @@ class CommentItemWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.only(
-        left: (level * 8.w) + 3.w,
-        right: 3.w,
-        bottom: 1.h,
-      ),
-      child: Column(
+    final theme = Theme.of(context);
+    final indent = level * 40.0;
+
+    return Padding(
+      padding: EdgeInsets.only(left: indent, right: 0, top: 4, bottom: 4),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor:
-                    Theme.of(context).colorScheme.surfaceContainerHighest,
-                backgroundImage: CachedNetworkImageProvider(userAvatar),
-              ),
-              SizedBox(width: 3.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          // ── Avatar ────────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.only(left: 14, right: 10, top: 2),
+            child: CircleAvatar(
+              radius: level == 0 ? 18 : 14,
+              backgroundColor: theme.colorScheme.surfaceContainerHighest,
+              backgroundImage: CachedNetworkImageProvider(userAvatar),
+            ),
+          ),
+
+          // ── Content ───────────────────────────────────────────────────────
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Username + text inline (Instagram style)
+                RichText(
+                  text: TextSpan(
+                    style: theme.textTheme.bodyMedium,
+                    children: [
+                      TextSpan(
+                        text: '$userName  ',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      ..._buildTextSpans(context, commentText),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 5),
+                // Timestamp · Reply · Hide
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  userName,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleSmall
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurface,
-                                      ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              if (isVerified) ...[
-                                SizedBox(width: 1.w),
-                                Icon(
-                                  Icons.verified,
-                                  size: 16,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        SizedBox(width: 2.w),
-                        Text(
-                          timestamp,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(
-                                color:
-                                    Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
-                        ),
-                        const Spacer(),
-                        IconButton(
-                          icon: Icon(
-                            Icons.more_vert,
-                            size: 20,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () => _showOptionsMenu(context),
-                        ),
-                      ],
+                    Text(
+                      timestamp,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
                     ),
-                    SizedBox(height: 0.5.h),
-                    _buildFormattedText(context, commentText),
-                    SizedBox(height: 1.h),
-                    Row(
-                      children: [
-                        InkWell(
-                          onTap: onLike,
-                          child: Row(
-                            children: [
-                              Icon(
-                                isLiked ? Icons.favorite : Icons.favorite_border,
-                                size: 18,
-                                color: isLiked
-                                    ? Colors.red
-                                    : Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                              ),
-                              SizedBox(width: 1.w),
-                              Text(
-                                likes.toString(),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: isLiked
-                                          ? Colors.red
-                                          : Theme.of(context)
-                                              .colorScheme
-                                              .onSurfaceVariant,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                              ),
-                            ],
-                          ),
+                    if (likes > 0) ...[
+                      const SizedBox(width: 10),
+                      Text(
+                        '$likes ${likes == 1 ? 'like' : 'likes'}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
                         ),
-                        SizedBox(width: 4.w),
-                        InkWell(
-                          onTap: onReply,
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.reply,
-                                size: 18,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
-                              SizedBox(width: 1.w),
-                              Text(
-                                'Reply',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                              ),
-                            ],
-                          ),
+                      ),
+                    ],
+                    const SizedBox(width: 10),
+                    GestureDetector(
+                      onTap: onReply,
+                      child: Text(
+                        'Reply',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
                         ),
-                        if (replies > 0 && onToggleReplies != null) ...[
-                          SizedBox(width: 4.w),
-                          InkWell(
-                            onTap: onToggleReplies,
-                            child: Text(
-                              '$replies ${replies == 1 ? 'reply' : 'replies'}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: Theme.of(context).colorScheme.primary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                            ),
-                          ),
-                        ],
-                      ],
+                      ),
                     ),
+                    if (onDelete != null) ...[
+                      const SizedBox(width: 10),
+                      GestureDetector(
+                        onTap: onDelete,
+                        child: Text(
+                          'Delete',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.error,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
+                // View replies
+                if (replies > 0 && onToggleReplies != null) ...[
+                  const SizedBox(height: 6),
+                  GestureDetector(
+                    onTap: onToggleReplies,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 24,
+                          height: 1,
+                          color: theme.colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.4,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'View $replies ${replies == 1 ? 'reply' : 'replies'}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          // ── Heart (right side, Instagram style) ───────────────────────────
+          Padding(
+            padding: const EdgeInsets.only(right: 14, top: 2),
+            child: GestureDetector(
+              onTap: onLike,
+              child: Column(
+                children: [
+                  Icon(
+                    isLiked ? Icons.favorite : Icons.favorite_border,
+                    size: 16,
+                    color: isLiked
+                        ? const Color(0xFFED4956)
+                        : theme.colorScheme.onSurfaceVariant,
+                  ),
+                  if (likes > 0)
+                    Text(
+                      '$likes',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isLiked
+                            ? const Color(0xFFED4956)
+                            : theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                ],
               ),
-            ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFormattedText(BuildContext context, String text) {
-    final List<TextSpan> spans = [];
+  List<TextSpan> _buildTextSpans(BuildContext context, String text) {
+    final theme = Theme.of(context);
+    final spans = <TextSpan>[];
     final words = text.split(' ');
-
     for (int i = 0; i < words.length; i++) {
       final word = words[i];
-
-      if (word.startsWith('@')) {
+      if (word.startsWith('@') || word.startsWith('#')) {
         spans.add(
           TextSpan(
             text: word,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-        );
-      } else if (word.startsWith('#')) {
-        spans.add(
-          TextSpan(
-            text: word,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.w500,
-                ),
+            style: TextStyle(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         );
       } else {
-        spans.add(
-          TextSpan(
-            text: word,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-          ),
-        );
+        spans.add(TextSpan(text: word));
       }
-
       if (i < words.length - 1) spans.add(const TextSpan(text: ' '));
     }
-
-    return RichText(text: TextSpan(children: spans));
+    return spans;
   }
 
   void _showOptionsMenu(BuildContext context) {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-
+    final theme = Theme.of(context);
     showModalBottomSheet(
       context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: theme.colorScheme.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (context) => SafeArea(
+      builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // ✅ Only show delete if current user is comment owner
-          if (onDelete != null && currentUserId != null && currentUserId == commentOwnerId)
+            if (onDelete != null &&
+                currentUserId != null &&
+                currentUserId == commentOwnerId)
               ListTile(
                 leading: Icon(
-                  Icons.delete,
-                  color: Theme.of(context).colorScheme.error,
+                  Icons.delete_outline,
+                  color: theme.colorScheme.error,
                 ),
                 title: Text(
-                  'Delete Comment',
-                  style: Theme.of(context).textTheme.bodyLarge,
+                  'Delete',
+                  style: TextStyle(color: theme.colorScheme.error),
                 ),
                 onTap: () {
                   Navigator.pop(context);
@@ -288,35 +248,13 @@ class CommentItemWidget extends StatelessWidget {
               ),
             ListTile(
               leading: Icon(
-                Icons.flag,
-                color: Theme.of(context).colorScheme.error,
+                Icons.flag_outlined,
+                color: theme.colorScheme.onSurface,
               ),
-              title: Text(
-                'Report Comment',
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
+              title: const Text('Report'),
               onTap: () {
                 Navigator.pop(context);
                 onReport();
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.block,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              title: Text(
-                'Block User',
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('User blocked'),
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                  ),
-                );
               },
             ),
           ],

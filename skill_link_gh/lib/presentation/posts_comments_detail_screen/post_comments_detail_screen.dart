@@ -5,7 +5,6 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:sizer/sizer.dart';
 
 import 'package:skill_link_gh/domain/models/local_comment.dart';
 import 'package:skill_link_gh/domain/models/post_model.dart';
