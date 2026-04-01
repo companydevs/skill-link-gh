@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sizer/sizer.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:skill_link_gh/domain/models/post_model.dart';
@@ -419,10 +420,14 @@ class _PostCardWidgetState extends State<PostCardWidget>
                   children: [
                     Padding(
                       padding: const EdgeInsets.all(6),
-                      child: Icon(
-                        Icons.chat_bubble_outline_rounded,
-                        size: 26,
-                        color: theme.colorScheme.onSurface,
+                      child: SvgPicture.asset(
+                        'assets/icons/comment.svg',
+                        width: 26,
+                        height: 26,
+                        colorFilter: ColorFilter.mode(
+                          theme.colorScheme.onSurface,
+                          BlendMode.srcIn,
+                        ),
                       ),
                     ),
                     if (count > 0) ...[
