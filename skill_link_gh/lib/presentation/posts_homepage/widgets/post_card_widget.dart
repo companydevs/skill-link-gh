@@ -392,21 +392,55 @@ class _PostCardWidgetState extends State<PostCardWidget>
                 : theme.colorScheme.onSurface,
             onTap: _handleLike,
           ),
-          const SizedBox(width: 2),
-          // Comment — Instagram speech bubble
-          StreamBuilder<int>(
-            stream: _commentsCountStream,
-            builder: (_, snap) => _ActionBtn(
-              icon: Icons.chat_bubble_outline_rounded,
-              color: theme.colorScheme.onSurface,
-              onTap: () => Navigator.pushNamed(
-                context,
-                '/post-comment-screen',
-                arguments: widget.post,
+          if (_likes > 0) ...[
+            const SizedBox(width: 2),
+            Text(
+              '$_likes',
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface,
               ),
             ),
+          ],
+          const SizedBox(width: 12),
+          // Comment — with live count next to icon
+          StreamBuilder<int>(
+            stream: _commentsCountStream,
+            builder: (_, snap) {
+              final count = snap.data ?? 0;
+              return GestureDetector(
+                onTap: () => Navigator.pushNamed(
+                  context,
+                  '/post-comment-screen',
+                  arguments: widget.post,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        size: 26,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    if (count > 0) ...[
+                      const SizedBox(width: 2),
+                      Text(
+                        '$count',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            },
           ),
-          const SizedBox(width: 2),
+          const SizedBox(width: 12),
           // Share — Instagram paper plane (tilted send)
           _ActionBtn(
             icon: Icons.near_me_outlined,
