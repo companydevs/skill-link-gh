@@ -160,24 +160,39 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (credential.user == null) {
-        throw Exception('Google sign-in failed');
+        throw Exception('Google sign-in returned no user');
       }
 
-      await FirebaseFunctions.instance.httpsCallable('signInUser').call({
-        'email': credential.user!.email,
-        'provider': 'google',
-      });
+      try {
+        await FirebaseFunctions.instance.httpsCallable('signInUser').call({
+          'email': credential.user!.email,
+          'provider': 'google',
+        });
+      } catch (fnErr) {
+        // signInUser function failed but Firebase Auth succeeded — still proceed
+        debugPrint('signInUser function error (non-fatal): $fnErr');
+      }
 
       HapticFeedback.mediumImpact();
 
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/posts-homepage');
-    } catch (_) {
-      AppToast.show(
-        context,
-        message: 'Google sign-in failed',
-        type: ToastType.error,
-      );
+    } catch (e) {
+      debugPrint('Google Sign-In error: $e');
+      String msg = 'Google sign-in failed';
+      final err = e.toString().toLowerCase();
+      if (err.contains('network') || err.contains('socket')) {
+        msg = 'No internet connection. Please try again.';
+      } else if (err.contains('cancelled') || err.contains('canceled')) {
+        msg = 'Sign-in cancelled';
+      } else if (err.contains('sign_in_failed') || err.contains('10:')) {
+        msg = 'Google sign-in not configured. Check SHA-1 in Firebase.';
+      } else if (err.contains('api_not_connected') || err.contains('12500')) {
+        msg = 'Google Play Services error. Please update Google Play.';
+      }
+      if (mounted) {
+        AppToast.show(context, message: msg, type: ToastType.error);
+      }
     } finally {
       if (mounted) setState(() => _isGoogleLoading = false);
     }
