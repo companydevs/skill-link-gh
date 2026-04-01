@@ -49,6 +49,7 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
   void initState() {
     super.initState();
     _loadComments();
+    _loadCurrentUserAvatar();
     _scrollController.addListener(_onScroll);
   }
 
@@ -58,6 +59,22 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
     _commentController.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  // ── Load current user avatar from Firestore ───────────────────────────────
+  Future<void> _loadCurrentUserAvatar() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      final url =
+          doc.data()?['profileImage'] as String? ??
+          doc.data()?['photoUrl'] as String? ??
+          user.photoURL;
+      if (mounted && url != null && url.isNotEmpty) {
+        setState(() => _currentUserAvatar = url);
+      }
+    } catch (_) {}
   }
 
   // ── Load ──────────────────────────────────────────────────────────────────
