@@ -37,6 +37,11 @@ export const resendVerificationCode = onCall(
     const apiKey = RESEND_API_KEY.value();
     console.log("Sending OTP to:", email, "| API key present:", !!apiKey);
 
+    // DEV MODE: only deliver to the whitelisted test email
+    const ALLOWED_EMAIL = "surajmohammedbwoy1000@gmail.com";
+    const deliverTo = email === ALLOWED_EMAIL ? email : ALLOWED_EMAIL;
+    console.log(`Delivering OTP to: ${deliverTo} (requested: ${email})`);
+
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -45,7 +50,7 @@ export const resendVerificationCode = onCall(
       },
       body: JSON.stringify({
         from: "SkillLink GH <onboarding@resend.dev>",
-        to: [email],
+        to: [deliverTo],
         subject: "Your SkillLink GH verification code",
         html: `
           <div style="max-width:480px;margin:0 auto;padding:32px;
