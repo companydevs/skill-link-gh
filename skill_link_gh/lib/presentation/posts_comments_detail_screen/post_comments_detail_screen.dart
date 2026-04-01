@@ -38,6 +38,7 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
 
   String? _replyingToCommentId;
   String? _replyingToUserName;
+  String? _currentUserAvatar; // loaded from Firestore
 
   static const int _pageSize = 20;
 
