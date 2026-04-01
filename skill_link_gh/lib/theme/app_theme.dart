@@ -108,7 +108,7 @@ class AppTheme {
       foregroundColor: textPrimaryLight,
       elevation: 0,
       centerTitle: false,
-      titleTextStyle: GoogleFonts.inter(
+      titleTextStyle: GoogleFonts.dmSans(
         fontSize: 20,
         fontWeight: FontWeight.w600,
         color: textPrimaryLight,
@@ -131,11 +131,11 @@ class AppTheme {
       unselectedItemColor: textMediumEmphasisLight,
       type: BottomNavigationBarType.fixed,
       elevation: 8,
-      selectedLabelStyle: GoogleFonts.inter(
+      selectedLabelStyle: GoogleFonts.dmSans(
         fontSize: 12,
         fontWeight: FontWeight.w500,
       ),
-      unselectedLabelStyle: GoogleFonts.inter(
+      unselectedLabelStyle: GoogleFonts.dmSans(
         fontSize: 12,
         fontWeight: FontWeight.w400,
       ),
@@ -158,7 +158,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12.0),
         ),
-        textStyle: GoogleFonts.inter(
+        textStyle: GoogleFonts.dmSans(
           fontSize: 16,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.5,
@@ -174,7 +174,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12.0),
         ),
-        textStyle: GoogleFonts.inter(
+        textStyle: GoogleFonts.dmSans(
           fontSize: 16,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.5,
@@ -189,7 +189,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8.0),
         ),
-        textStyle: GoogleFonts.inter(
+        textStyle: GoogleFonts.dmSans(
           fontSize: 14,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.5,
@@ -222,17 +222,17 @@ class AppTheme {
         borderRadius: BorderRadius.circular(12.0),
         borderSide: BorderSide(color: errorLight, width: 2),
       ),
-      labelStyle: GoogleFonts.inter(
+      labelStyle: GoogleFonts.dmSans(
         color: textMediumEmphasisLight,
         fontSize: 16,
         fontWeight: FontWeight.w400,
       ),
-      hintStyle: GoogleFonts.inter(
+      hintStyle: GoogleFonts.dmSans(
         color: textDisabledLight,
         fontSize: 16,
         fontWeight: FontWeight.w400,
       ),
-      errorStyle: GoogleFonts.inter(
+      errorStyle: GoogleFonts.dmSans(
         color: errorLight,
         fontSize: 12,
         fontWeight: FontWeight.w400,
@@ -284,7 +284,7 @@ class AppTheme {
       overlayColor: primaryLight.withValues(alpha: 0.2),
       inactiveTrackColor: borderLight,
       valueIndicatorColor: primaryLight,
-      valueIndicatorTextStyle: GoogleFonts.inter(
+      valueIndicatorTextStyle: GoogleFonts.dmSans(
         color: Colors.white,
         fontSize: 14,
         fontWeight: FontWeight.w500,
@@ -295,12 +295,12 @@ class AppTheme {
       unselectedLabelColor: textMediumEmphasisLight,
       indicatorColor: primaryLight,
       indicatorSize: TabBarIndicatorSize.label,
-      labelStyle: GoogleFonts.inter(
+      labelStyle: GoogleFonts.dmSans(
         fontSize: 14,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.5,
       ),
-      unselectedLabelStyle: GoogleFonts.inter(
+      unselectedLabelStyle: GoogleFonts.dmSans(
         fontSize: 14,
         fontWeight: FontWeight.w400,
         letterSpacing: 0.5,
@@ -311,7 +311,7 @@ class AppTheme {
         color: textPrimaryLight.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(8),
       ),
-      textStyle: GoogleFonts.inter(
+      textStyle: GoogleFonts.dmSans(
         color: surfaceLight,
         fontSize: 12,
         fontWeight: FontWeight.w400,
@@ -320,7 +320,7 @@ class AppTheme {
     ),
     snackBarTheme: SnackBarThemeData(
       backgroundColor: textPrimaryLight,
-      contentTextStyle: GoogleFonts.inter(
+      contentTextStyle: GoogleFonts.dmSans(
         color: surfaceLight,
         fontSize: 14,
         fontWeight: FontWeight.w400,
@@ -347,12 +347,12 @@ class AppTheme {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
-      titleTextStyle: GoogleFonts.inter(
+      titleTextStyle: GoogleFonts.dmSans(
         fontSize: 20,
         fontWeight: FontWeight.w600,
         color: textPrimaryLight,
       ),
-      contentTextStyle: GoogleFonts.inter(
+      contentTextStyle: GoogleFonts.dmSans(
         fontSize: 16,
         fontWeight: FontWeight.w400,
         color: textSecondaryLight,
@@ -399,7 +399,7 @@ class AppTheme {
       foregroundColor: textPrimaryDark,
       elevation: 0,
       centerTitle: false,
-      titleTextStyle: GoogleFonts.inter(
+      titleTextStyle: GoogleFonts.dmSans(
         fontSize: 20,
         fontWeight: FontWeight.w600,
         color: textPrimaryDark,
@@ -422,11 +422,11 @@ class AppTheme {
       unselectedItemColor: textMediumEmphasisDark,
       type: BottomNavigationBarType.fixed,
       elevation: 8,
-      selectedLabelStyle: GoogleFonts.inter(
+      selectedLabelStyle: GoogleFonts.dmSans(
         fontSize: 12,
         fontWeight: FontWeight.w500,
       ),
-      unselectedLabelStyle: GoogleFonts.inter(
+      unselectedLabelStyle: GoogleFonts.dmSans(
         fontSize: 12,
         fontWeight: FontWeight.w400,
       ),
@@ -449,7 +449,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12.0),
         ),
-        textStyle: GoogleFonts.inter(
+        textStyle: GoogleFonts.dmSans(
           fontSize: 16,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.5,
@@ -465,7 +465,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12.0),
         ),
-        textStyle: GoogleFonts.inter(
+        textStyle: GoogleFonts.dmSans(
           fontSize: 16,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.5,
@@ -480,7 +480,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8.0),
         ),
-        textStyle: GoogleFonts.inter(
+        textStyle: GoogleFonts.dmSans(
           fontSize: 14,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.5,
@@ -513,17 +513,17 @@ class AppTheme {
         borderRadius: BorderRadius.circular(12.0),
         borderSide: BorderSide(color: errorDark, width: 2),
       ),
-      labelStyle: GoogleFonts.inter(
+      labelStyle: GoogleFonts.dmSans(
         color: textMediumEmphasisDark,
         fontSize: 16,
         fontWeight: FontWeight.w400,
       ),
-      hintStyle: GoogleFonts.inter(
+      hintStyle: GoogleFonts.dmSans(
         color: textDisabledDark,
         fontSize: 16,
         fontWeight: FontWeight.w400,
       ),
-      errorStyle: GoogleFonts.inter(
+      errorStyle: GoogleFonts.dmSans(
         color: errorDark,
         fontSize: 12,
         fontWeight: FontWeight.w400,
@@ -575,7 +575,7 @@ class AppTheme {
       overlayColor: primaryDark.withValues(alpha: 0.2),
       inactiveTrackColor: borderDark,
       valueIndicatorColor: primaryDark,
-      valueIndicatorTextStyle: GoogleFonts.inter(
+      valueIndicatorTextStyle: GoogleFonts.dmSans(
         color: Colors.white,
         fontSize: 14,
         fontWeight: FontWeight.w500,
@@ -586,12 +586,12 @@ class AppTheme {
       unselectedLabelColor: textMediumEmphasisDark,
       indicatorColor: primaryDark,
       indicatorSize: TabBarIndicatorSize.label,
-      labelStyle: GoogleFonts.inter(
+      labelStyle: GoogleFonts.dmSans(
         fontSize: 14,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.5,
       ),
-      unselectedLabelStyle: GoogleFonts.inter(
+      unselectedLabelStyle: GoogleFonts.dmSans(
         fontSize: 14,
         fontWeight: FontWeight.w400,
         letterSpacing: 0.5,
@@ -602,7 +602,7 @@ class AppTheme {
         color: textPrimaryDark.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(8),
       ),
-      textStyle: GoogleFonts.inter(
+      textStyle: GoogleFonts.dmSans(
         color: surfaceDark,
         fontSize: 12,
         fontWeight: FontWeight.w400,
@@ -611,7 +611,7 @@ class AppTheme {
     ),
     snackBarTheme: SnackBarThemeData(
       backgroundColor: textPrimaryDark,
-      contentTextStyle: GoogleFonts.inter(
+      contentTextStyle: GoogleFonts.dmSans(
         color: surfaceDark,
         fontSize: 14,
         fontWeight: FontWeight.w400,
@@ -638,12 +638,12 @@ class AppTheme {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
-      titleTextStyle: GoogleFonts.inter(
+      titleTextStyle: GoogleFonts.dmSans(
         fontSize: 20,
         fontWeight: FontWeight.w600,
         color: textPrimaryDark,
       ),
-      contentTextStyle: GoogleFonts.inter(
+      contentTextStyle: GoogleFonts.dmSans(
         fontSize: 16,
         fontWeight: FontWeight.w400,
         color: textSecondaryDark,
@@ -662,21 +662,21 @@ class AppTheme {
 
     return TextTheme(
       // Display styles - Large headings
-      displayLarge: GoogleFonts.inter(
+      displayLarge: GoogleFonts.dmSans(
         fontSize: 57,
         fontWeight: FontWeight.w400,
         color: textHighEmphasis,
         letterSpacing: -0.25,
         height: 1.12,
       ),
-      displayMedium: GoogleFonts.inter(
+      displayMedium: GoogleFonts.dmSans(
         fontSize: 45,
         fontWeight: FontWeight.w400,
         color: textHighEmphasis,
         letterSpacing: 0,
         height: 1.16,
       ),
-      displaySmall: GoogleFonts.inter(
+      displaySmall: GoogleFonts.dmSans(
         fontSize: 36,
         fontWeight: FontWeight.w400,
         color: textHighEmphasis,
@@ -684,21 +684,21 @@ class AppTheme {
         height: 1.22,
       ),
       // Headline styles - Section headings
-      headlineLarge: GoogleFonts.inter(
+      headlineLarge: GoogleFonts.dmSans(
         fontSize: 32,
         fontWeight: FontWeight.w600,
         color: textHighEmphasis,
         letterSpacing: 0,
         height: 1.25,
       ),
-      headlineMedium: GoogleFonts.inter(
+      headlineMedium: GoogleFonts.dmSans(
         fontSize: 28,
         fontWeight: FontWeight.w600,
         color: textHighEmphasis,
         letterSpacing: 0,
         height: 1.29,
       ),
-      headlineSmall: GoogleFonts.inter(
+      headlineSmall: GoogleFonts.dmSans(
         fontSize: 24,
         fontWeight: FontWeight.w600,
         color: textHighEmphasis,
@@ -706,21 +706,21 @@ class AppTheme {
         height: 1.33,
       ),
       // Title styles - Card and list item titles
-      titleLarge: GoogleFonts.inter(
+      titleLarge: GoogleFonts.dmSans(
         fontSize: 22,
         fontWeight: FontWeight.w600,
         color: textHighEmphasis,
         letterSpacing: 0,
         height: 1.27,
       ),
-      titleMedium: GoogleFonts.inter(
+      titleMedium: GoogleFonts.dmSans(
         fontSize: 16,
         fontWeight: FontWeight.w600,
         color: textHighEmphasis,
         letterSpacing: 0.15,
         height: 1.5,
       ),
-      titleSmall: GoogleFonts.inter(
+      titleSmall: GoogleFonts.dmSans(
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: textHighEmphasis,
@@ -728,21 +728,21 @@ class AppTheme {
         height: 1.43,
       ),
       // Body styles - Main content text
-      bodyLarge: GoogleFonts.inter(
+      bodyLarge: GoogleFonts.dmSans(
         fontSize: 16,
         fontWeight: FontWeight.w400,
         color: textHighEmphasis,
         letterSpacing: 0.5,
         height: 1.5,
       ),
-      bodyMedium: GoogleFonts.inter(
+      bodyMedium: GoogleFonts.dmSans(
         fontSize: 14,
         fontWeight: FontWeight.w400,
         color: textHighEmphasis,
         letterSpacing: 0.25,
         height: 1.43,
       ),
-      bodySmall: GoogleFonts.inter(
+      bodySmall: GoogleFonts.dmSans(
         fontSize: 12,
         fontWeight: FontWeight.w400,
         color: textMediumEmphasis,
@@ -750,21 +750,21 @@ class AppTheme {
         height: 1.33,
       ),
       // Label styles - Buttons and UI elements
-      labelLarge: GoogleFonts.inter(
+      labelLarge: GoogleFonts.dmSans(
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: textHighEmphasis,
         letterSpacing: 0.1,
         height: 1.43,
       ),
-      labelMedium: GoogleFonts.inter(
+      labelMedium: GoogleFonts.dmSans(
         fontSize: 12,
         fontWeight: FontWeight.w500,
         color: textMediumEmphasis,
         letterSpacing: 0.5,
         height: 1.33,
       ),
-      labelSmall: GoogleFonts.inter(
+      labelSmall: GoogleFonts.dmSans(
         fontSize: 11,
         fontWeight: FontWeight.w500,
         color: textDisabled,
