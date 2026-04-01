@@ -1,5 +1,4 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class CommentItemWidget extends StatelessWidget {
@@ -214,52 +213,5 @@ class CommentItemWidget extends StatelessWidget {
       if (i < words.length - 1) spans.add(const TextSpan(text: ' '));
     }
     return spans;
-  }
-
-  void _showOptionsMenu(BuildContext context) {
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    final theme = Theme.of(context);
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: theme.colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (onDelete != null &&
-                currentUserId != null &&
-                currentUserId == commentOwnerId)
-              ListTile(
-                leading: Icon(
-                  Icons.delete_outline,
-                  color: theme.colorScheme.error,
-                ),
-                title: Text(
-                  'Delete',
-                  style: TextStyle(color: theme.colorScheme.error),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  onDelete!();
-                },
-              ),
-            ListTile(
-              leading: Icon(
-                Icons.flag_outlined,
-                color: theme.colorScheme.onSurface,
-              ),
-              title: const Text('Report'),
-              onTap: () {
-                Navigator.pop(context);
-                onReport();
-              },
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
