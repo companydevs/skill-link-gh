@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:sizer/sizer.dart';
 import 'package:skill_link_gh/domain/models/post_model.dart';
 import 'package:skill_link_gh/presentation/posts_homepage/widgets/filter_bottom_sheet_widget.dart';
 import 'package:skill_link_gh/provider/post_provider.dart';
+import 'package:skill_link_gh/widgets/custom_app_toast.dart';
 import 'package:skill_link_gh/widgets/post_shimmer_widget.dart';
 
 import '../../core/app_export.dart';
@@ -104,8 +106,9 @@ class _PostsHomepageState extends ConsumerState<PostsHomepage> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) {
-        final theme = Theme.of(context);
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        final isSaved = post.isSaved;
         return Container(
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
@@ -120,38 +123,62 @@ class _PostsHomepageState extends ConsumerState<PostsHomepage> {
                   height: 4,
                   margin: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.3),
+                    color: theme.colorScheme.onSurfaceVariant.withValues(
+                      alpha: 0.3,
+                    ),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
+                // Save Post
                 ListTile(
-                  leading: CustomIconWidget(
-                    iconName: 'bookmark_border',
-                    color: theme.colorScheme.onSurface,
-                    size: 24,
+                  leading: Icon(
+                    isSaved ? Icons.bookmark : Icons.bookmark_border,
+                    color: isSaved
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurface,
                   ),
-                  title: Text('Save Post', style: theme.textTheme.bodyLarge),
-                  onTap: () {
-                    Navigator.pop(context);
-                    ref
+                  title: Text(
+                    isSaved ? 'Unsave Post' : 'Save Post',
+                    style: theme.textTheme.bodyLarge,
+                  ),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    await ref
                         .read(postsNotifierProvider.notifier)
                         .toggleSave(post.id);
+                    if (mounted) {
+                      AppToast.show(
+                        context,
+                        message: isSaved
+                            ? 'Post removed from saved'
+                            : 'Post saved',
+                        type: ToastType.success,
+                      );
+                    }
                   },
                 ),
+                // Share
                 ListTile(
-                  leading: CustomIconWidget(
-                    iconName: 'share',
+                  leading: Icon(
+                    Icons.share,
                     color: theme.colorScheme.onSurface,
-                    size: 24,
                   ),
                   title: Text('Share', style: theme.textTheme.bodyLarge),
-                  onTap: () => Navigator.pop(context),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    final text =
+                        '${post.artisanName} — ${post.serviceCategory}\n${post.description}\n\nBooked via SkillLink GH';
+                    Share.share(
+                      text,
+                      subject: '${post.artisanName} on SkillLink GH',
+                    );
+                  },
                 ),
+                // Report
                 ListTile(
-                  leading: CustomIconWidget(
-                    iconName: 'report',
+                  leading: Icon(
+                    Icons.flag_outlined,
                     color: theme.colorScheme.error,
-                    size: 24,
                   ),
                   title: Text(
                     'Report',
@@ -159,7 +186,10 @@ class _PostsHomepageState extends ConsumerState<PostsHomepage> {
                       color: theme.colorScheme.error,
                     ),
                   ),
-                  onTap: () => Navigator.pop(context),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showReportDialog(post);
+                  },
                 ),
                 SizedBox(height: 2.h),
               ],
@@ -167,6 +197,65 @@ class _PostsHomepageState extends ConsumerState<PostsHomepage> {
           ),
         );
       },
+    );
+  }
+
+  void _showReportDialog(PostModel post) {
+    final reasons = [
+      'Spam or misleading',
+      'Inappropriate content',
+      'Fake profile',
+      'Harassment',
+      'Other',
+    ];
+    String? selected;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          title: const Text('Report Post'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: reasons
+                .map(
+                  (r) => RadioListTile<String>(
+                    value: r,
+                    groupValue: selected,
+                    title: Text(r),
+                    onChanged: (v) => setS(() => selected = v),
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                  ),
+                )
+                .toList(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: selected == null
+                  ? null
+                  : () async {
+                      Navigator.pop(ctx);
+                      await ref
+                          .read(postsNotifierProvider.notifier)
+                          .reportPost(post.id, selected!);
+                      if (mounted) {
+                        AppToast.show(
+                          context,
+                          message: 'Post reported. Thanks for letting us know.',
+                          type: ToastType.success,
+                        );
+                      }
+                    },
+              child: const Text('Submit'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
