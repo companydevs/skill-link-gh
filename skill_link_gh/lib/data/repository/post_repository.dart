@@ -123,4 +123,17 @@ class PostRepository {
 
     return snapshot.docs.map((doc) => doc.id).toList();
   }
+
+  /// Report a post
+  Future<void> reportPost(String postId, String reason) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    await _firestore.collection('reports').add({
+      'postId': postId,
+      'reportedBy': user.uid,
+      'reason': reason,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
 }
