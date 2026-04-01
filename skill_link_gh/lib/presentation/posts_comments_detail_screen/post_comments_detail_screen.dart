@@ -441,7 +441,7 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
             controller: _commentController,
             focusNode: _focusNode,
             isPosting: _isPosting,
-            currentUserAvatar: currentUser?.photoURL,
+            currentUserAvatar: _currentUserAvatar,
             onPost: _onPostComment,
           ),
         ],
@@ -460,6 +460,8 @@ class _PostCaptionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final hasImage = post.artisanImage.isNotEmpty;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Row(
@@ -467,11 +469,18 @@ class _PostCaptionHeader extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 18,
-            backgroundImage: post.artisanImage.isNotEmpty
-                ? NetworkImage(post.artisanImage)
-                : null,
-            child: post.artisanImage.isEmpty
-                ? const Icon(Icons.person, size: 18)
+            backgroundColor: theme.colorScheme.surfaceContainerHighest,
+            backgroundImage: hasImage ? NetworkImage(post.artisanImage) : null,
+            child: !hasImage
+                ? Text(
+                    post.artisanName.isNotEmpty
+                        ? post.artisanName[0].toUpperCase()
+                        : '?',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.primary,
+                    ),
+                  )
                 : null,
           ),
           const SizedBox(width: 10),
