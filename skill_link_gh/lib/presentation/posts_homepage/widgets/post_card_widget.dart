@@ -421,7 +421,7 @@ class _PostCardWidgetState extends State<PostCardWidget>
                     Padding(
                       padding: const EdgeInsets.all(6),
                       child: SvgPicture.asset(
-                        'assets/icons/comment.svg',
+                        'assets/images/comment-1-svgrepo-com.svg',
                         width: 26,
                         height: 26,
                         colorFilter: ColorFilter.mode(
