@@ -154,12 +154,18 @@ class _PostCardWidgetState extends State<PostCardWidget>
 
   String _getTimeAgo(DateTime dateTime) {
     final now = DateTime.now();
-    final difference = now.difference(dateTime);
+    final diff = now.difference(dateTime);
 
-    if (difference.inDays > 0) return '${difference.inDays}d ago';
-    if (difference.inHours > 0) return '${difference.inHours}h ago';
-    if (difference.inMinutes > 0) return '${difference.inMinutes}m ago';
-    return 'Just now';
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    if (diff.inDays < 14) return 'Last week';
+    if (diff.inDays < 30) return '${(diff.inDays / 7).floor()} weeks ago';
+    if (diff.inDays < 60) return 'A month ago';
+    if (diff.inDays < 365) return '${(diff.inDays / 30).floor()} months ago';
+    if (diff.inDays < 730) return 'A year ago';
+    return '${(diff.inDays / 365).floor()} years ago';
   }
 
   @override
