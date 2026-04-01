@@ -258,37 +258,34 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
     }
   }
 
-  // ── Delete ────────────────────────────────────────────────────────────────
+  // ── Delete — optimistic removal for instant UX ───────────────────────────
   Future<void> _deleteComment(String commentId) async {
+    // Remove from UI immediately
+    final idx = _comments.indexWhere((c) => c.id == commentId);
+    if (idx == -1) return;
+    final removed = _comments[idx];
+    setState(() => _comments.removeAt(idx));
+
     try {
       final result = await FirebaseFunctions.instance
           .httpsCallable('deleteComment')
           .call({'postId': widget.post.id, 'commentId': commentId});
 
-      if (result.data['success'] == true) {
-        _comments.removeWhere((c) => c.id == commentId);
-        if (mounted) {
-          setState(() {});
-          AppToast.show(
-            context,
-            message: result.data['message'] ?? 'Comment deleted',
-            type: ToastType.success,
-          );
-        }
-      } else {
-        if (mounted) {
-          AppToast.show(
-            context,
-            message: result.data['message'] ?? 'Failed to delete',
-            type: ToastType.error,
-          );
-        }
+      if (result.data['success'] != true && mounted) {
+        // Restore on failure
+        setState(() => _comments.insert(idx, removed));
+        AppToast.show(
+          context,
+          message: result.data['message'] ?? 'Failed to delete',
+          type: ToastType.error,
+        );
       }
     } catch (e) {
       if (mounted) {
+        setState(() => _comments.insert(idx, removed));
         AppToast.show(
           context,
-          message: 'Failed to delete comment: $e',
+          message: 'Failed to delete comment',
           type: ToastType.error,
         );
       }
