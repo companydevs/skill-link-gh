@@ -382,18 +382,22 @@ class _PostCardWidgetState extends State<PostCardWidget>
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
         children: [
-          // Like
+          // Like — Instagram red heart
           _ActionBtn(
-            icon: _isLiked ? Icons.favorite : Icons.favorite_border,
-            color: _isLiked ? Colors.red : theme.colorScheme.onSurface,
+            icon: _isLiked
+                ? Icons.favorite_rounded
+                : Icons.favorite_border_rounded,
+            color: _isLiked
+                ? const Color(0xFFED4956)
+                : theme.colorScheme.onSurface,
             onTap: _handleLike,
           ),
-          const SizedBox(width: 4),
-          // Comment
+          const SizedBox(width: 2),
+          // Comment — Instagram speech bubble
           StreamBuilder<int>(
             stream: _commentsCountStream,
             builder: (_, snap) => _ActionBtn(
-              icon: Icons.chat_bubble_outline,
+              icon: Icons.chat_bubble_outline_rounded,
               color: theme.colorScheme.onSurface,
               onTap: () => Navigator.pushNamed(
                 context,
@@ -402,20 +406,20 @@ class _PostCardWidgetState extends State<PostCardWidget>
               ),
             ),
           ),
-          const SizedBox(width: 4),
-          // Share (paper plane)
+          const SizedBox(width: 2),
+          // Share — Instagram paper plane (tilted send)
           _ActionBtn(
-            icon: Icons.send_outlined,
+            icon: Icons.near_me_outlined,
             color: theme.colorScheme.onSurface,
-            onTap: widget.onLongPress, // opens bottom sheet where share lives
+            onTap: widget.onLongPress,
           ),
           const Spacer(),
-          // Bookmark
+          // Bookmark — Instagram ribbon bookmark
           _ActionBtn(
-            icon: _isSaved ? Icons.bookmark : Icons.bookmark_border,
-            color: _isSaved
-                ? theme.colorScheme.primary
-                : theme.colorScheme.onSurface,
+            icon: _isSaved
+                ? Icons.bookmark_rounded
+                : Icons.bookmark_border_rounded,
+            color: theme.colorScheme.onSurface,
             onTap: _handleSave,
           ),
         ],
