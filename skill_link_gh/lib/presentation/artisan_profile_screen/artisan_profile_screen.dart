@@ -1,5 +1,6 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
@@ -11,8 +12,11 @@ import 'package:skill_link_gh/routes/app_routes.dart';
 
 import '../../core/app_export.dart';
 import '../../data/repository/booking_repository.dart';
+import '../../data/repository/post_repository.dart';
 import '../../domain/models/booking_model.dart';
+import '../../domain/models/post_model.dart';
 import '../../widgets/custom_bottom_bar.dart';
+import '../../widgets/user_avatar_widget.dart';
 import './widgets/about_section_widget.dart';
 import './widgets/portfolio_section_widget.dart';
 import './widgets/profile_header_widget.dart';
@@ -40,6 +44,7 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
     'Reviews',
     'Services',
     'Bookings',
+    'Saved',
   ];
 
   @override
@@ -177,6 +182,8 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
         return ServicesSectionWidget(services: services);
       case 4:
         return const _BookingsTab();
+      case 5:
+        return const _SavedPostsTab();
       default:
         return const SizedBox.shrink();
     }
@@ -692,6 +699,152 @@ class _BookingCard extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── Saved Posts tab ──────────────────────────────────────────────────────────
+class _SavedPostsTab extends StatefulWidget {
+  const _SavedPostsTab();
+  @override
+  State<_SavedPostsTab> createState() => _SavedPostsTabState();
+}
+
+class _SavedPostsTabState extends State<_SavedPostsTab>
+    with AutomaticKeepAliveClientMixin {
+  final _repo = PostRepository();
+  List<PostModel> _savedPosts = [];
+  bool _loading = true;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final ids = await _repo.fetchSavedPostIds();
+      if (ids.isEmpty) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
+      // Fetch full post data for each saved post
+      final posts = <PostModel>[];
+      for (final id in ids) {
+        try {
+          final doc = await FirebaseFirestore.instance
+              .collection('posts')
+              .doc(id)
+              .get();
+          if (doc.exists) {
+            posts.add(PostModel.fromFirestore(doc));
+          }
+        } catch (_) {}
+      }
+      if (mounted) {
+        setState(() {
+          _savedPosts = posts;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final theme = Theme.of(context);
+
+    if (_loading) return const Center(child: CircularProgressIndicator());
+
+    if (_savedPosts.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.bookmark_border,
+              size: 56,
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No saved posts yet',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Posts you save will appear here',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: GridView.builder(
+        padding: const EdgeInsets.all(2),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 2,
+          mainAxisSpacing: 2,
+          childAspectRatio: 1,
+        ),
+        itemCount: _savedPosts.length,
+        itemBuilder: (context, i) {
+          final post = _savedPosts[i];
+          return GestureDetector(
+            onTap: () {
+              // Navigate to post detail or open in a dialog
+              // For now, just show a snackbar
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Tapped: ${post.artisanName}')),
+              );
+            },
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                CustomImageWidget(
+                  imageUrl: post.postImages.isNotEmpty
+                      ? post.postImages[0].url
+                      : kDefaultMaleAvatar,
+                  fit: BoxFit.cover,
+                  semanticLabel: post.description,
+                ),
+                if (post.postImages.length > 1)
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.collections,
+                        color: Colors.white,
+                        size: 14,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

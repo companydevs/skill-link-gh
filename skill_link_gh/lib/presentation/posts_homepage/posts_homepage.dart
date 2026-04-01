@@ -340,11 +340,23 @@ class _PostsHomepageState extends ConsumerState<PostsHomepage> {
                   return PostCardWidget(
                     post: post,
                     onLike: () => notifier.toggleLikeSafe(post.id),
-                    // onComment: () => _navigateToPostDetail(post),
                     onBookNow: () => _navigateToBooking(post),
                     onArtisanTap: () => _navigateToArtisanProfile(post),
-                    // onPostTap: () => _navigateToPostDetail(post),
                     onLongPress: () => _showPostOptions(post),
+                    onSave: () async {
+                      await ref
+                          .read(postsNotifierProvider.notifier)
+                          .toggleSave(post.id);
+                      if (mounted) {
+                        AppToast.show(
+                          context,
+                          message: post.isSaved
+                              ? 'Post removed from saved'
+                              : 'Post saved',
+                          type: ToastType.success,
+                        );
+                      }
+                    },
                   );
                 },
               ),

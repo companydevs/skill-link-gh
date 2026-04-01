@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:skill_link_gh/domain/models/post_model.dart';
-import 'package:skill_link_gh/widgets/user_avatar_widget.dart';
 
 import '../../../core/app_export.dart';
+import '../../../widgets/user_avatar_widget.dart';
 
 class PostCardWidget extends StatefulWidget {
   final PostModel post;
@@ -14,6 +14,7 @@ class PostCardWidget extends StatefulWidget {
   final VoidCallback onBookNow;
   final VoidCallback onArtisanTap;
   final VoidCallback onLongPress;
+  final VoidCallback? onSave;
 
   const PostCardWidget({
     super.key,
@@ -22,6 +23,7 @@ class PostCardWidget extends StatefulWidget {
     required this.onBookNow,
     required this.onArtisanTap,
     required this.onLongPress,
+    this.onSave,
   });
 
   @override
@@ -33,34 +35,32 @@ class _PostCardWidgetState extends State<PostCardWidget>
   int _currentImageIndex = 0;
   late int _likes;
   late bool _isLiked;
+  late bool _isSaved;
 
-  // Heart animation
   late AnimationController _likeAnimationController;
   late Animation<double> _likeAnimation;
   bool _showLikeAnimation = false;
 
-  // Floating hearts
   final List<_FloatingHeart> _hearts = [];
 
-  // Firestore comment count stream
   Stream<int> get _commentsCountStream => FirebaseFirestore.instance
       .collection('posts')
       .doc(widget.post.id)
       .collection('comments')
       .snapshots()
-      .map((snapshot) => snapshot.docs.length);
+      .map((s) => s.docs.length);
 
   @override
   void initState() {
     super.initState();
     _isLiked = widget.post.isLiked;
+    _isSaved = widget.post.isSaved;
     _likes = widget.post.likes;
 
     _likeAnimationController = AnimationController(
       duration: const Duration(milliseconds: 400),
       vsync: this,
     );
-
     _likeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _likeAnimationController,
@@ -72,7 +72,6 @@ class _PostCardWidgetState extends State<PostCardWidget>
   @override
   void didUpdateWidget(PostCardWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Update local state when post data changes from provider
     if (oldWidget.post.isLiked != widget.post.isLiked ||
         oldWidget.post.likes != widget.post.likes) {
       setState(() {
@@ -80,13 +79,16 @@ class _PostCardWidgetState extends State<PostCardWidget>
         _likes = widget.post.likes;
       });
     }
+    if (oldWidget.post.isSaved != widget.post.isSaved) {
+      setState(() => _isSaved = widget.post.isSaved);
+    }
   }
 
   @override
   void dispose() {
     _likeAnimationController.dispose();
-    for (var heart in _hearts) {
-      heart.controller.dispose();
+    for (final h in _hearts) {
+      h.controller.dispose();
     }
     super.dispose();
   }
@@ -96,22 +98,16 @@ class _PostCardWidgetState extends State<PostCardWidget>
       _isLiked = !_isLiked;
       _likes += _isLiked ? 1 : -1;
       _showLikeAnimation = _isLiked;
-
       if (_isLiked) _addFloatingHearts();
     });
-
     _likeAnimationController.forward(from: 0).then((_) {
       Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted) {
           _likeAnimationController.reverse();
-          setState(() {
-            _showLikeAnimation = false;
-          });
+          setState(() => _showLikeAnimation = false);
         }
       });
     });
-
-    // Firestore update
     widget.onLike();
   }
 
@@ -119,9 +115,13 @@ class _PostCardWidgetState extends State<PostCardWidget>
     if (!_isLiked) _handleLike();
   }
 
+  void _handleSave() {
+    setState(() => _isSaved = !_isSaved);
+    widget.onSave?.call();
+  }
+
   void _addFloatingHearts() {
-    final heartCount = 6;
-    for (int i = 0; i < heartCount; i++) {
+    for (int i = 0; i < 6; i++) {
       final controller = AnimationController(
         vsync: this,
         duration: Duration(milliseconds: 800 + Random().nextInt(400)),
@@ -143,9 +143,7 @@ class _PostCardWidgetState extends State<PostCardWidget>
       controller.addStatusListener((status) {
         if (status == AnimationStatus.completed) {
           controller.dispose();
-          setState(() {
-            _hearts.remove(heart);
-          });
+          if (mounted) setState(() => _hearts.remove(heart));
         }
       });
       _hearts.add(heart);
@@ -153,9 +151,7 @@ class _PostCardWidgetState extends State<PostCardWidget>
   }
 
   String _getTimeAgo(DateTime dateTime) {
-    final now = DateTime.now();
-    final diff = now.difference(dateTime);
-
+    final diff = DateTime.now().difference(dateTime);
     if (diff.inMinutes < 1) return 'Just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';
@@ -172,428 +168,379 @@ class _PostCardWidgetState extends State<PostCardWidget>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final postImages = widget.post.postImages;
-    final hasMultipleImages = postImages.length > 1;
+    final hasMultiple = postImages.length > 1;
 
-    return GestureDetector(
-      onLongPress: widget.onLongPress,
-      child: Container(
-        margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.colorScheme.outline.withOpacity(0.2)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(theme),
-            _buildImageCarousel(theme, postImages, hasMultipleImages),
-            _buildContent(theme),
-            _buildActions(theme),
-          ],
-        ),
+    return Container(
+      color: theme.colorScheme.surface,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(theme),
+          _buildImageArea(theme, postImages, hasMultiple),
+          _buildActionBar(theme),
+          _buildLikesRow(theme),
+          _buildCaption(theme),
+          _buildCommentPreview(theme),
+          _buildTimestamp(theme),
+          const SizedBox(height: 8),
+          Divider(
+            height: 1,
+            color: theme.colorScheme.outline.withValues(alpha: 0.12),
+          ),
+        ],
       ),
     );
   }
 
+  // ── Header ──────────────────────────────────────────────────────────────────
   Widget _buildHeader(ThemeData theme) {
-    return InkWell(
-      onTap: widget.onArtisanTap,
-      child: Padding(
-        padding: EdgeInsets.all(4.w),
-        child: Row(
-          children: [
-            ClipOval(
-              child: CustomImageWidget(
-                imageUrl: widget.post.artisanImage.isNotEmpty
-                    ? widget.post.artisanImage
-                    : kDefaultMaleAvatar,
-                width: 40,
-                height: 40,
-                fit: BoxFit.cover,
-                semanticLabel: widget.post.artisanName,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: widget.onArtisanTap,
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: theme.colorScheme.primary, width: 2),
+              ),
+              padding: const EdgeInsets.all(2),
+              child: ClipOval(
+                child: CustomImageWidget(
+                  imageUrl: widget.post.artisanImage.isNotEmpty
+                      ? widget.post.artisanImage
+                      : kDefaultMaleAvatar,
+                  width: 36,
+                  height: 36,
+                  fit: BoxFit.cover,
+                  semanticLabel: widget.post.artisanName,
+                ),
               ),
             ),
-            SizedBox(width: 3.w),
-            Expanded(
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: GestureDetector(
+              onTap: widget.onArtisanTap,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     widget.post.artisanName,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  SizedBox(height: 0.5.h),
-                  Row(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 2.w,
-                          vertical: 0.5.h,
-                        ),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          widget.post.serviceCategory,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 2.w),
-                      Text(
-                        _getTimeAgo(widget.post.createdAt),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    widget.post.serviceCategory,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
             ),
-            IconButton(
-              icon: CustomIconWidget(
-                iconName: 'more_vert',
-                color: theme.colorScheme.onSurfaceVariant,
-                size: 20,
-              ),
-              onPressed: widget.onLongPress,
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.more_horiz,
+              color: theme.colorScheme.onSurface,
+              size: 22,
             ),
-          ],
-        ),
+            onPressed: widget.onLongPress,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildImageCarousel(
+  // ── Image area ───────────────────────────────────────────────────────────────
+  Widget _buildImageArea(
     ThemeData theme,
-    List<PostImage> postImages,
-    bool hasMultipleImages,
+    List<PostImage> images,
+    bool hasMultiple,
   ) {
     return GestureDetector(
       onDoubleTap: _handleDoubleTap,
       child: Stack(
         alignment: Alignment.center,
         children: [
-          hasMultipleImages
+          hasMultiple
               ? CarouselSlider(
                   options: CarouselOptions(
-                    height: 250,
+                    height: 100.w, // square like Instagram
                     viewportFraction: 1.0,
                     enableInfiniteScroll: false,
-                    onPageChanged: (index, reason) {
-                      setState(() {
-                        _currentImageIndex = index;
-                      });
-                    },
+                    onPageChanged: (i, _) =>
+                        setState(() => _currentImageIndex = i),
                   ),
-                  items: postImages.map((image) {
-                    return CustomImageWidget(
-                      imageUrl: image.url,
-                      width: double.infinity,
-                      height: 250,
-                      fit: BoxFit.cover,
-                      semanticLabel: image.label,
-                    );
-                  }).toList(),
+                  items: images
+                      .map(
+                        (img) => CustomImageWidget(
+                          imageUrl: img.url,
+                          width: double.infinity,
+                          height: 100.w,
+                          fit: BoxFit.cover,
+                          semanticLabel: img.label,
+                        ),
+                      )
+                      .toList(),
                 )
               : CustomImageWidget(
-                  imageUrl: postImages[0].url,
+                  imageUrl: images[0].url,
                   width: double.infinity,
-                  height: 250,
+                  height: 100.w,
                   fit: BoxFit.cover,
-                  semanticLabel: postImages[0].label,
+                  semanticLabel: images[0].label,
                 ),
-          if (hasMultipleImages)
+
+          // Dot indicators
+          if (hasMultiple)
             Positioned(
-              bottom: 12,
+              bottom: 10,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
-                  postImages.length,
-                  (index) => Container(
-                    width: 6,
+                  images.length,
+                  (i) => AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: _currentImageIndex == i ? 16 : 6,
                     height: 6,
-                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _currentImageIndex == index
+                      color: _currentImageIndex == i
                           ? Colors.white
-                          : Colors.white.withOpacity(0.5),
+                          : Colors.white.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(3),
                     ),
                   ),
                 ),
               ),
             ),
+
+          // Multi-image counter badge
+          if (hasMultiple)
+            Positioned(
+              top: 10,
+              right: 10,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${_currentImageIndex + 1}/${images.length}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+
+          // Double-tap heart animation
           if (_showLikeAnimation)
             ScaleTransition(
               scale: _likeAnimation,
-              child: CustomIconWidget(
-                iconName: 'favorite',
-                color: Colors.white,
-                size: 80,
-              ),
+              child: const Icon(Icons.favorite, color: Colors.white, size: 90),
             ),
-          ..._hearts.map((heart) {
-            return Positioned(
+
+          // Floating hearts
+          ..._hearts.map(
+            (heart) => Positioned(
               left: MediaQuery.of(context).size.width * heart.startPosition.dx,
               top: MediaQuery.of(context).size.height * heart.startPosition.dy,
               child: FadeTransition(
                 opacity: heart.animation,
                 child: Transform.translate(
                   offset: Offset(0, -150 * heart.animation.value),
-                  child: CustomIconWidget(
-                    iconName: 'favorite',
+                  child: const Icon(
+                    Icons.favorite,
                     color: Colors.pinkAccent,
                     size: 24,
                   ),
                 ),
               ),
-            );
-          }).toList(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContent(ThemeData theme) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            widget.post.description,
-            style: theme.textTheme.bodyMedium,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-          ),
-          SizedBox(height: 1.h),
-          Row(
-            children: [
-              CustomIconWidget(
-                iconName: 'payments',
-                color: theme.colorScheme.secondary,
-                size: 16,
-              ),
-              SizedBox(width: 1.w),
-              Text(
-                widget.post.pricing,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: theme.colorScheme.secondary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActions(ThemeData theme) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              // Likes
-              InkWell(
-                onTap: _handleLike,
-                borderRadius: BorderRadius.circular(20),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.h),
-                  child: Row(
-                    children: [
-                      CustomIconWidget(
-                        iconName: _isLiked ? 'favorite' : 'favorite_border',
-                        color: _isLiked
-                            ? theme.colorScheme.error
-                            : theme.colorScheme.onSurfaceVariant,
-                        size: 20,
-                      ),
-                      SizedBox(width: 1.w),
-                      Text(
-                        _likes.toString(),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              SizedBox(width: 4.w),
-
-              // Comments - Real-time count
-              StreamBuilder<int>(
-                stream: _commentsCountStream,
-                builder: (context, snapshot) {
-                  final count = snapshot.data ?? 0;
-                  return InkWell(
-                    onTap: () => Navigator.pushNamed(
-                      context,
-                      '/post-comment-screen',
-                      arguments: widget.post,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 2.w,
-                        vertical: 1.h,
-                      ),
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Row(
-                            children: [
-                              CustomIconWidget(
-                                iconName: 'chat_bubble_outline',
-                                color: theme.colorScheme.onSurfaceVariant,
-                                size: 20,
-                              ),
-                            ],
-                          ),
-                          if (count > 0)
-                            Positioned(
-                              right: -6,
-                              top: -6,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                  vertical: 1,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.red,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  count.toString(),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-
-              const Spacer(),
-
-              ElevatedButton(
-                onPressed: widget.onBookNow,
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 6.w,
-                    vertical: 1.5.h,
-                  ),
-                  minimumSize: Size(0, 5.h),
-                ),
-                child: Text(
-                  'Book Now',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          // Liked by section
-          if (widget.post.likedBy.isNotEmpty) ...[
-            SizedBox(height: 1.h),
-            _buildLikedBySection(theme),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLikedBySection(ThemeData theme) {
-    final likedBy = widget.post.likedBy;
-    final totalLikes = widget.post.likes;
-    final othersCount = totalLikes - likedBy.length;
-
-    return Padding(
-      padding: EdgeInsets.only(left: 2.w, top: 0.5.h),
-      child: Row(
-        children: [
-          // Profile images stack
-          SizedBox(
-            height: 24,
-            width: likedBy.length > 1 ? 40 : 24,
-            child: Stack(
-              children: List.generate(likedBy.length > 2 ? 2 : likedBy.length, (
-                index,
-              ) {
-                return Positioned(
-                  left: index * 16.0,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: theme.colorScheme.surface,
-                        width: 2,
-                      ),
-                    ),
-                    child: ClipOval(
-                      child: CustomImageWidget(
-                        imageUrl: likedBy[index].userImage.isNotEmpty
-                            ? likedBy[index].userImage
-                            : 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
-                        width: 24,
-                        height: 24,
-                        fit: BoxFit.cover,
-                        semanticLabel: likedBy[index].userName,
-                      ),
-                    ),
-                  ),
-                );
-              }),
             ),
           ),
-          SizedBox(width: likedBy.length > 1 ? 3.w : 2.w),
+        ],
+      ),
+    );
+  }
 
-          // Liked by text
-          Expanded(
-            child: RichText(
-              text: TextSpan(
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                children: [
-                  const TextSpan(text: 'Liked by '),
-                  TextSpan(
-                    text: likedBy[0].userName,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  if (othersCount > 0)
-                    TextSpan(
-                      text:
-                          ' and $othersCount ${othersCount == 1 ? 'other' : 'others'}',
-                    ),
-                ],
+  // ── Action bar (Instagram-style) ─────────────────────────────────────────────
+  Widget _buildActionBar(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Row(
+        children: [
+          // Like
+          _ActionBtn(
+            icon: _isLiked ? Icons.favorite : Icons.favorite_border,
+            color: _isLiked ? Colors.red : theme.colorScheme.onSurface,
+            onTap: _handleLike,
+          ),
+          const SizedBox(width: 4),
+          // Comment
+          StreamBuilder<int>(
+            stream: _commentsCountStream,
+            builder: (_, snap) => _ActionBtn(
+              icon: Icons.chat_bubble_outline,
+              color: theme.colorScheme.onSurface,
+              onTap: () => Navigator.pushNamed(
+                context,
+                '/post-comment-screen',
+                arguments: widget.post,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 4),
+          // Share (paper plane)
+          _ActionBtn(
+            icon: Icons.send_outlined,
+            color: theme.colorScheme.onSurface,
+            onTap: widget.onLongPress, // opens bottom sheet where share lives
+          ),
+          const Spacer(),
+          // Bookmark
+          _ActionBtn(
+            icon: _isSaved ? Icons.bookmark : Icons.bookmark_border,
+            color: _isSaved
+                ? theme.colorScheme.primary
+                : theme.colorScheme.onSurface,
+            onTap: _handleSave,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Likes row ────────────────────────────────────────────────────────────────
+  Widget _buildLikesRow(ThemeData theme) {
+    if (_likes == 0) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+      child: Text(
+        '$_likes ${_likes == 1 ? 'like' : 'likes'}',
+        style: theme.textTheme.titleSmall?.copyWith(
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  // ── Caption ──────────────────────────────────────────────────────────────────
+  Widget _buildCaption(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
+      child: RichText(
+        text: TextSpan(
+          style: theme.textTheme.bodySmall,
+          children: [
+            TextSpan(
+              text: '${widget.post.artisanName}  ',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            TextSpan(text: widget.post.description),
+          ],
+        ),
+        maxLines: 3,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
+  // ── Comment preview ──────────────────────────────────────────────────────────
+  Widget _buildCommentPreview(ThemeData theme) {
+    return StreamBuilder<int>(
+      stream: _commentsCountStream,
+      builder: (_, snap) {
+        final count = snap.data ?? 0;
+        if (count == 0) return const SizedBox.shrink();
+        return GestureDetector(
+          onTap: () => Navigator.pushNamed(
+            context,
+            '/post-comment-screen',
+            arguments: widget.post,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+            child: Text(
+              'View all $count comments',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ── Pricing + Book Now + Timestamp ───────────────────────────────────────────
+  Widget _buildTimestamp(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      child: Row(
+        children: [
+          // Pricing chip
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.secondaryContainer,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.payments_outlined,
+                  size: 12,
+                  color: theme.colorScheme.secondary,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  widget.post.pricing,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.secondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Book Now
+          GestureDetector(
+            onTap: widget.onBookNow,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                'Book Now',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+          const Spacer(),
+          Text(
+            _getTimeAgo(widget.post.createdAt),
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -602,7 +549,31 @@ class _PostCardWidgetState extends State<PostCardWidget>
   }
 }
 
-// Floating heart model
+// ── Small action button ───────────────────────────────────────────────────────
+class _ActionBtn extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ActionBtn({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: Icon(icon, size: 26, color: color),
+      ),
+    );
+  }
+}
+
+// ── Floating heart model ──────────────────────────────────────────────────────
 class _FloatingHeart {
   final Animation<double> animation;
   final AnimationController controller;
