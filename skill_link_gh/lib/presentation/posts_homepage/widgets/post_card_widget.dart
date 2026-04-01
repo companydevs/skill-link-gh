@@ -446,11 +446,21 @@ class _PostCardWidgetState extends State<PostCardWidget>
             },
           ),
           const SizedBox(width: 12),
-          // Share — Instagram paper plane (tilted send)
-          _ActionBtn(
-            icon: Icons.near_me_outlined,
-            color: theme.colorScheme.onSurface,
+          // Share — custom SVG
+          GestureDetector(
             onTap: widget.onLongPress,
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: SvgPicture.asset(
+                'assets/images/send-svgrepo-com.svg',
+                width: 26,
+                height: 26,
+                colorFilter: ColorFilter.mode(
+                  theme.colorScheme.onSurface,
+                  BlendMode.srcIn,
+                ),
+              ),
+            ),
           ),
           const Spacer(),
           // Bookmark — Instagram ribbon bookmark
