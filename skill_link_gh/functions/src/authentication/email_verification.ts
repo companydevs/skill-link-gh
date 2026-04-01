@@ -37,9 +37,12 @@ export const resendVerificationCode = onCall(
     const apiKey = RESEND_API_KEY.value();
     console.log("Sending OTP to:", email, "| API key present:", !!apiKey);
 
-    // DEV MODE: only deliver to the whitelisted test email
-    const ALLOWED_EMAIL = "surajmohammedbwoy1000@gmail.com";
-    const deliverTo = email === ALLOWED_EMAIL ? email : ALLOWED_EMAIL;
+    // DEV MODE: whitelist — onboarding@resend.dev only delivers to verified emails
+    const ALLOWED_EMAILS = [
+      "surajmohammedbwoy@gmail.com",
+      "surajmohammedbwoy1000@gmail.com",
+    ];
+    const deliverTo = ALLOWED_EMAILS.includes(email) ? email : ALLOWED_EMAILS[0];
     console.log(`Delivering OTP to: ${deliverTo} (requested: ${email})`);
 
     const response = await fetch("https://api.resend.com/emails", {
