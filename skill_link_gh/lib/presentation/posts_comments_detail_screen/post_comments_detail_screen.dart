@@ -467,18 +467,11 @@ class _PostCaptionHeader extends StatelessWidget {
           CircleAvatar(
             radius: 18,
             backgroundColor: theme.colorScheme.surfaceContainerHighest,
-            backgroundImage: hasImage ? NetworkImage(post.artisanImage) : null,
-            child: !hasImage
-                ? Text(
-                    post.artisanName.isNotEmpty
-                        ? post.artisanName[0].toUpperCase()
-                        : '?',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.primary,
-                    ),
-                  )
-                : null,
+            backgroundImage: NetworkImage(
+              hasImage
+                  ? post.artisanImage
+                  : 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -601,12 +594,12 @@ class _IGComposerState extends State<_IGComposer> {
             // Current user avatar
             CircleAvatar(
               radius: 17,
-              backgroundImage: widget.currentUserAvatar != null
-                  ? NetworkImage(widget.currentUserAvatar!)
-                  : null,
-              child: widget.currentUserAvatar == null
-                  ? const Icon(Icons.person, size: 16)
-                  : null,
+              backgroundImage: NetworkImage(
+                widget.currentUserAvatar != null &&
+                        widget.currentUserAvatar!.isNotEmpty
+                    ? widget.currentUserAvatar!
+                    : 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
+              ),
             ),
             const SizedBox(width: 10),
             // Input field
