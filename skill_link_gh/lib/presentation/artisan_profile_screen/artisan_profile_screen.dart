@@ -757,6 +757,16 @@ class _SavedPostsTabState extends State<_SavedPostsTab>
     }
   }
 
+  void _showPostDetail(BuildContext context, PostModel post, int index) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) =>
+          _SavedPostDetailSheet(posts: _savedPosts, initialIndex: index),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -807,13 +817,7 @@ class _SavedPostsTabState extends State<_SavedPostsTab>
         itemBuilder: (context, i) {
           final post = _savedPosts[i];
           return GestureDetector(
-            onTap: () {
-              // Navigate to post detail or open in a dialog
-              // For now, just show a snackbar
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Tapped: ${post.artisanName}')),
-              );
-            },
+            onTap: () => _showPostDetail(context, post, i),
             child: Stack(
               fit: StackFit.expand,
               children: [
@@ -845,6 +849,269 @@ class _SavedPostsTabState extends State<_SavedPostsTab>
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+// ─── Saved Post Detail Sheet ──────────────────────────────────────────────────
+class _SavedPostDetailSheet extends StatefulWidget {
+  final List<PostModel> posts;
+  final int initialIndex;
+
+  const _SavedPostDetailSheet({
+    required this.posts,
+    required this.initialIndex,
+  });
+
+  @override
+  State<_SavedPostDetailSheet> createState() => _SavedPostDetailSheetState();
+}
+
+class _SavedPostDetailSheetState extends State<_SavedPostDetailSheet> {
+  late PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final h = MediaQuery.of(context).size.height;
+
+    return Container(
+      height: h * 0.92,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          // drag handle
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          // page counter
+          Text(
+            '${_currentIndex + 1} / ${widget.posts.length}',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Expanded(
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: widget.posts.length,
+              onPageChanged: (i) => setState(() => _currentIndex = i),
+              itemBuilder: (_, i) => _PostDetailCard(post: widget.posts[i]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PostDetailCard extends StatelessWidget {
+  final PostModel post;
+  const _PostDetailCard({required this.post});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header — tap avatar/name to go to their profile ──────────────
+          GestureDetector(
+            onTap: () {
+              Navigator.pop(context); // close sheet first
+              Navigator.pushNamed(context, AppRoutes.artisanProfile);
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Row(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: theme.colorScheme.primary,
+                        width: 2,
+                      ),
+                    ),
+                    padding: const EdgeInsets.all(2),
+                    child: ClipOval(
+                      child: CustomImageWidget(
+                        imageUrl: post.artisanImage.isNotEmpty
+                            ? post.artisanImage
+                            : kDefaultMaleAvatar,
+                        width: 38,
+                        height: 38,
+                        fit: BoxFit.cover,
+                        semanticLabel: post.artisanName,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          post.artisanName,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          post.serviceCategory,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // View profile chip
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, AppRoutes.artisanProfile);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: theme.colorScheme.primary),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        'View profile',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Images ────────────────────────────────────────────────────────
+          if (post.postImages.isNotEmpty)
+            post.postImages.length > 1
+                ? SizedBox(
+                    height: MediaQuery.of(context).size.width,
+                    child: PageView(
+                      children: post.postImages
+                          .map(
+                            (img) => CustomImageWidget(
+                              imageUrl: img.url,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              semanticLabel: img.label,
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  )
+                : CustomImageWidget(
+                    imageUrl: post.postImages[0].url,
+                    width: double.infinity,
+                    height: MediaQuery.of(context).size.width,
+                    fit: BoxFit.cover,
+                    semanticLabel: post.postImages[0].label,
+                  ),
+
+          // ── Caption ───────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+            child: RichText(
+              text: TextSpan(
+                style: theme.textTheme.bodyMedium,
+                children: [
+                  TextSpan(
+                    text: '${post.artisanName}  ',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  TextSpan(text: post.description),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Pricing + Book Now ────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 8, 14, 16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.secondaryContainer,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    post.pricing,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.secondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(
+                      context,
+                      AppRoutes.serviceBooking,
+                      arguments: {'artisanId': post.artisanId},
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: const Text('Book Now'),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
