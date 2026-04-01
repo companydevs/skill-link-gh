@@ -245,4 +245,9 @@ class PostsNotifier extends StateNotifier<PostsState> {
 
     state = state.copyWith(posts: updatedPosts);
   }
+
+  /// Report a post
+  Future<void> reportPost(String postId, String reason) async {
+    await repository.reportPost(postId, reason);
+  }
 }
