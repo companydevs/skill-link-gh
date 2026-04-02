@@ -1,5 +1,5 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:skill_link_gh/widgets/user_avatar_widget.dart';
 
 class CommentItemWidget extends StatelessWidget {
   final String commentId;
@@ -52,10 +52,10 @@ class CommentItemWidget extends StatelessWidget {
           // ── Avatar ────────────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.only(left: 14, right: 10, top: 2),
-            child: CircleAvatar(
-              radius: level == 0 ? 18 : 14,
-              backgroundColor: theme.colorScheme.surfaceContainerHighest,
-              backgroundImage: CachedNetworkImageProvider(userAvatar),
+            child: UserAvatarWidget(
+              imageUrl: userAvatar.isNotEmpty ? userAvatar : null,
+              name: userName,
+              size: (level == 0 ? 18 : 14) * 2,
             ),
           ),
 
