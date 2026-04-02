@@ -103,7 +103,33 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
       _hasMore = false;
     } else {
       _lastDoc = snapshot.docs.last;
-      _comments.addAll(snapshot.docs.map(LocalComment.fromDoc));
+      final loaded = snapshot.docs.map(LocalComment.fromDoc).toList();
+
+      // Batch-fetch latest profileImage for all unique userIds
+      final userIds = loaded.map((c) => c.userId).toSet().toList();
+      final Map<String, String> avatarMap = {};
+      if (userIds.isNotEmpty) {
+        final userDocs = await Future.wait(
+          userIds.map((uid) => _firestore.collection('users').doc(uid).get()),
+        );
+        for (final doc in userDocs) {
+          if (doc.exists) {
+            final d = doc.data()!;
+            final img = (d['profileImage'] as String? ?? '').isNotEmpty
+                ? d['profileImage'] as String
+                : (d['photoUrl'] as String? ?? '');
+            if (img.isNotEmpty) avatarMap[doc.id] = img;
+          }
+        }
+      }
+
+      // Override stored userAvatar with the live one if available
+      _comments.addAll(
+        loaded.map((c) {
+          final liveAvatar = avatarMap[c.userId];
+          return liveAvatar != null ? c.copyWith(userAvatar: liveAvatar) : c;
+        }),
+      );
     }
 
     setState(() {
