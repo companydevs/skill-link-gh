@@ -214,6 +214,21 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
     }
 
     try {
+      // Always fetch the latest profileImage from Firestore so it stays in sync
+      String avatarUrl = _currentUserAvatar ?? '';
+      if (avatarUrl.isEmpty) {
+        final userDoc = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        avatarUrl =
+            userDoc.data()?['profileImage'] as String? ??
+            userDoc.data()?['photoUrl'] as String? ??
+            user.photoURL ??
+            'https://cdn-icons-png.flaticon.com/512/3135/3135715.png';
+        if (mounted) setState(() => _currentUserAvatar = avatarUrl);
+      }
+
       final ref = _firestore
           .collection('posts')
           .doc(widget.post.id)
@@ -224,9 +239,7 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
         'id': ref.id,
         'userId': user.uid,
         'userName': user.displayName ?? 'Anonymous',
-        'userAvatar':
-            user.photoURL ??
-            'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
+        'userAvatar': avatarUrl,
         'isVerified': false,
         'commentText': text,
         'likes': [],
