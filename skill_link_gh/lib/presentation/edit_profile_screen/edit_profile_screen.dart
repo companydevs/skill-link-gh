@@ -365,10 +365,23 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       final profileImageUrl = uploads[0];
       final coverPhotoUrl = uploads[1];
 
+      // Geocode location text to lat/lng for map display
+      double? lat, lng;
+      final locationText = _locationController.text.trim();
+      if (locationText.isNotEmpty) {
+        try {
+          final locations = await locationFromAddress(locationText);
+          if (locations.isNotEmpty) {
+            lat = locations.first.latitude;
+            lng = locations.first.longitude;
+          }
+        } catch (_) {}
+      }
+
       final profileData = {
         'fullName': _fullNameController.text.trim(),
         'bio': _bioController.text.trim(),
-        'location': _locationController.text.trim(),
+        'location': locationText,
         'phoneNumber': _phoneController.text.trim(),
         'experience': _experienceController.text.trim(),
         'dailyRate': double.tryParse(_dailyRateController.text) ?? 0.0,
@@ -393,6 +406,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         },
         if (profileImageUrl != null) 'profileImage': profileImageUrl,
         if (coverPhotoUrl != null) 'coverPhoto': coverPhotoUrl,
+        if (lat != null) 'latitude': lat,
+        if (lng != null) 'longitude': lng,
       };
 
       await ref
