@@ -135,7 +135,6 @@ class _MapViewWidgetState extends State<MapViewWidget> {
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
       const double cx = size / 2;
-      const double pinTail = 16;
       const double circleTop = 0;
       const double circleRadius = imgSize / 2 + borderWidth;
 
