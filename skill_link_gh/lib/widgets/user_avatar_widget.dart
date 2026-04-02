@@ -48,7 +48,14 @@ class UserAvatarWidget extends StatelessWidget {
           if (progress == null) return child;
           return _placeholder(context);
         },
-        errorBuilder: (context, _, __) => _initialsAvatar(),
+        // On error, fall back to the flaticon default (never show initials)
+        errorBuilder: (context, _, __) => Image.network(
+          _defaultAvatar,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _placeholder(context),
+        ),
       ),
     );
   }
@@ -63,38 +70,6 @@ class UserAvatarWidget extends StatelessWidget {
           width: size * 0.4,
           height: size * 0.4,
           child: const CircularProgressIndicator(strokeWidth: 2),
-        ),
-      ),
-    );
-  }
-
-  Widget _initialsAvatar() {
-    final initials = name.trim().isEmpty
-        ? '?'
-        : name.trim().split(' ').take(2).map((w) => w[0].toUpperCase()).join();
-    final colors = [
-      Colors.blue,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.teal,
-      Colors.indigo,
-      Colors.pink,
-      Colors.cyan,
-    ];
-    final color = colors[name.hashCode.abs() % colors.length];
-    return Container(
-      width: size,
-      height: size,
-      color: color,
-      child: Center(
-        child: Text(
-          initials,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: size * 0.38,
-            fontWeight: FontWeight.w600,
-          ),
         ),
       ),
     );
