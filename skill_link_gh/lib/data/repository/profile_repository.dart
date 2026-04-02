@@ -22,6 +22,16 @@ class ProfileRepository {
           (data['createdAt'] as Timestamp?)?.toDate().toIso8601String() ??
           DateTime.now().toIso8601String();
 
+      // Use Firebase Auth photoURL as fallback if no profileImage stored in Firestore
+      if ((data['profileImage'] as String?)?.isEmpty ?? true) {
+        final firestorePhoto = data['photoUrl'] as String? ?? '';
+        final authPhoto = user.photoURL ?? '';
+        final fallback = firestorePhoto.isNotEmpty ? firestorePhoto : authPhoto;
+        if (fallback.isNotEmpty) {
+          data['profileImage'] = fallback;
+        }
+      }
+
       return data;
     } catch (e) {
       print('Error fetching profile: $e');
