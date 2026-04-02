@@ -80,15 +80,7 @@ class _MapViewWidgetState extends State<MapViewWidget> {
       );
     }
 
-    // Current location marker
-    markers.add(
-      Marker(
-        markerId: const MarkerId('current_location'),
-        position: widget.currentLocation,
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-        infoWindow: const InfoWindow(title: 'Your Location'),
-      ),
-    );
+    // Current location marker — skip, myLocationEnabled already shows blue dot
 
     if (mounted) setState(() => _markers = markers);
   }
