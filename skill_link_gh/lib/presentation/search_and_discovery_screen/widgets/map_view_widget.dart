@@ -233,9 +233,9 @@ class _MapViewWidgetState extends State<MapViewWidget> {
 
     return Column(
       children: [
-        // ── Map (55% of screen) ──────────────────────────────────────────
-        SizedBox(
-          height: 55.h,
+        // ── Map (flexible ~55%) ──────────────────────────────────────────
+        Flexible(
+          flex: 55,
           child: GoogleMap(
             initialCameraPosition: CameraPosition(
               target: widget.currentLocation,

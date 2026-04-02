@@ -16,6 +16,9 @@ class UserAvatarWidget extends StatelessWidget {
   /// Pass 'female' to use the female default. Defaults to male.
   final String? gender;
 
+  /// Shows a green online indicator dot when true.
+  final bool isOnline;
+
   const UserAvatarWidget({
     super.key,
     this.imageUrl,
@@ -23,6 +26,7 @@ class UserAvatarWidget extends StatelessWidget {
     this.size = 40,
     this.semanticLabel,
     this.gender,
+    this.isOnline = false,
   });
 
   String get _defaultAvatar {
@@ -37,15 +41,13 @@ class UserAvatarWidget extends StatelessWidget {
     final hasRealUrl = imageUrl != null && imageUrl!.isNotEmpty;
     final effectiveUrl = hasRealUrl ? imageUrl! : _defaultAvatar;
 
-    return ClipOval(
+    final avatar = ClipOval(
       child: CachedNetworkImage(
         imageUrl: effectiveUrl,
         width: size,
         height: size,
         fit: BoxFit.cover,
-        // While loading
         placeholder: (context, _) => _placeholder(context),
-        // If the real URL fails, try the flaticon default
         errorWidget: (context, url, _) {
           if (url != _defaultAvatar) {
             return CachedNetworkImage(
@@ -60,6 +62,30 @@ class UserAvatarWidget extends StatelessWidget {
           return _placeholder(context);
         },
       ),
+    );
+
+    if (!isOnline) return avatar;
+
+    // Wrap with a Stack to overlay the green dot
+    final dotSize = (size * 0.26).clamp(8.0, 16.0);
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        avatar,
+        Positioned(
+          right: 0,
+          bottom: 0,
+          child: Container(
+            width: dotSize,
+            height: dotSize,
+            decoration: BoxDecoration(
+              color: const Color(0xFF4CAF50),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: dotSize * 0.2),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

@@ -22,6 +22,7 @@ class ProfileHeaderWidget extends StatelessWidget {
     final isVerified =
         (artisanData['verificationBadges'] as Map?)?['identityVerified'] ==
         true;
+    final isOnline = artisanData['isOnline'] as bool? ?? false;
     final categories = List<String>.from(
       artisanData['serviceCategories'] as List? ?? [],
     );
@@ -78,6 +79,7 @@ class ProfileHeaderWidget extends StatelessWidget {
                       : artisanData['photoUrl'] as String?,
                   name: name,
                   size: _avatarRadius * 2,
+                  isOnline: isOnline,
                   semanticLabel: 'Profile picture of $name',
                 ),
               ),
