@@ -95,9 +95,10 @@ class _MapViewWidgetState extends State<MapViewWidget> {
 
   /// Renders a circular avatar with a white border + pin tail as a BitmapDescriptor
   Future<BitmapDescriptor> _buildCircularMarkerIcon(String imageUrl) async {
-    const int size = 120;
-    const int imgSize = 96;
-    const double borderWidth = 4;
+    const int size = 80;
+    const int imgSize = 60;
+    const double borderWidth = 3;
+    const double pinTail = 10;
 
     try {
       // Fetch image bytes
