@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../widgets/user_avatar_widget.dart';
 
 /// Artisan card widget displaying profile information and quick actions
 class ArtisanCardWidget extends StatelessWidget {
@@ -25,9 +26,7 @@ class ArtisanCardWidget extends StatelessWidget {
     return Card(
       margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: onViewProfile,
         borderRadius: BorderRadius.circular(12),
@@ -40,12 +39,10 @@ class ArtisanCardWidget extends StatelessWidget {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: CustomImageWidget(
-                      imageUrl: artisan['profileImage'] as String,
-                      width: 15.w,
-                      height: 15.w,
-                      fit: BoxFit.cover,
-                      semanticLabel: artisan['semanticLabel'] as String,
+                    child: UserAvatarWidget(
+                      imageUrl: artisan['profileImage'] as String?,
+                      name: artisan['name'] as String,
+                      size: 15.w,
                     ),
                   ),
                   SizedBox(width: 3.w),
@@ -128,8 +125,10 @@ class ArtisanCardWidget extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    padding:
-                        EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 2.w,
+                      vertical: 0.5.h,
+                    ),
                     decoration: BoxDecoration(
                       color: artisan['isAvailable'] == true
                           ? theme.colorScheme.tertiary.withValues(alpha: 0.1)
@@ -172,8 +171,10 @@ class ArtisanCardWidget extends StatelessWidget {
                     ),
                     label: Text('Message'),
                     style: OutlinedButton.styleFrom(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 3.w,
+                        vertical: 1.h,
+                      ),
                       minimumSize: Size(20.w, 5.h),
                     ),
                   ),
@@ -181,8 +182,10 @@ class ArtisanCardWidget extends StatelessWidget {
                   ElevatedButton(
                     onPressed: onBookNow,
                     style: ElevatedButton.styleFrom(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 3.w,
+                        vertical: 1.h,
+                      ),
                       minimumSize: Size(20.w, 5.h),
                     ),
                     child: Text('Book Now'),
