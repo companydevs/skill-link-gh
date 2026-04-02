@@ -108,19 +108,6 @@ class AuthRepository {
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
-
-        await registerUser(
-          UserModel(
-            fullName: user.displayName ?? '',
-            email: user.email ?? '',
-            userType: (userType == 'artisan')
-                ? UserType.artisan
-                : UserType.client,
-            password: '',
-            phone: '',
-          ),
-          provider: 'google',
-        );
       }
 
       return userCredential;
