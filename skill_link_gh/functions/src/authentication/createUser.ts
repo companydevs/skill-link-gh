@@ -68,6 +68,7 @@ export const registerUser = onCall(async (request) => {
         email,
         phone,
         role,
+        provider,
         businessName: role === "artisan" ? businessName ?? null : null,
         description: role === "artisan" ? description ?? null : null,
         category: role === "artisan" ? category ?? null : null,

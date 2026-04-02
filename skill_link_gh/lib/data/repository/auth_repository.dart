@@ -125,6 +125,14 @@ class AuthRepository {
 
       return userCredential;
     } catch (e) {
+      // Re-throw clean messages directly without wrapping
+      if (e is Exception) {
+        final msg = e.toString();
+        if (msg.contains('already exists') ||
+            msg.contains('already registered')) {
+          rethrow;
+        }
+      }
       throw Exception("Google Sign-Up failed: $e");
     }
   }

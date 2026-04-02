@@ -138,26 +138,25 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   }
 
   String normalizePhoneNumber(String input) {
-  String phone = input.trim().replaceAll(' ', '');
+    String phone = input.trim().replaceAll(' ', '');
 
-  // Already international
-  if (phone.startsWith('+')) {
-    return phone;
+    // Already international
+    if (phone.startsWith('+')) {
+      return phone;
+    }
+
+    // Ghana numbers
+    if (phone.startsWith('0')) {
+      return '+233${phone.substring(1)}';
+    }
+
+    // If user typed without 0 (e.g. 551234567)
+    if (phone.length == 9) {
+      return '+233$phone';
+    }
+
+    return phone; // fallback
   }
-
-  // Ghana numbers
-  if (phone.startsWith('0')) {
-    return '+233${phone.substring(1)}';
-  }
-
-  // If user typed without 0 (e.g. 551234567)
-  if (phone.length == 9) {
-    return '+233$phone';
-  }
-
-  return phone; // fallback
-}
-
 
   void _navigateToLogin() =>
       Navigator.pushReplacementNamed(context, '/login-screen');
@@ -294,9 +293,14 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                             successMessage: 'Google Sign-Up successful!',
                           );
                         } catch (e) {
+                          // Strip nested "Exception:" prefixes for clean display
+                          String msg = e.toString();
+                          msg = msg
+                              .replaceAll(RegExp(r'Exception:\s*'), '')
+                              .trim();
                           AppToast.show(
                             context,
-                            message: e.toString(),
+                            message: msg,
                             type: ToastType.error,
                           );
                         }
