@@ -11,7 +11,6 @@ import 'package:sizer/sizer.dart';
 const kDefaultMaleAvatarUrl =
     'https://cdn-icons-png.flaticon.com/512/3135/3135715.png';
 
-/// Map view widget displaying artisan locations with circular profile image markers
 class MapViewWidget extends StatefulWidget {
   final List<Map<String, dynamic>> artisans;
   final LatLng currentLocation;
@@ -31,7 +30,9 @@ class MapViewWidget extends StatefulWidget {
 class _MapViewWidgetState extends State<MapViewWidget> {
   GoogleMapController? _mapController;
   Set<Marker> _markers = {};
+  Set<Polyline> _polylines = {};
   Map<String, dynamic>? _selectedArtisan;
+  final ScrollController _listScrollController = ScrollController();
 
   @override
   void initState() {
@@ -55,19 +56,26 @@ class _MapViewWidgetState extends State<MapViewWidget> {
       var lat = (artisan['latitude'] as num?)?.toDouble();
       var lng = (artisan['longitude'] as num?)?.toDouble();
 
-      // No stored location — scatter around current location so they show on map
       if (lat == null || lng == null) {
         final offsetLat = (rng.nextDouble() - 0.5) * 0.04;
         final offsetLng = (rng.nextDouble() - 0.5) * 0.04;
         lat = widget.currentLocation.latitude + offsetLat;
         lng = widget.currentLocation.longitude + offsetLng;
+        artisan['_lat'] = lat;
+        artisan['_lng'] = lng;
+      } else {
+        artisan['_lat'] = lat;
+        artisan['_lng'] = lng;
       }
+
+      final isSelected =
+          _selectedArtisan != null && _selectedArtisan!['id'] == artisan['id'];
 
       final imageUrl = (artisan['profileImage'] as String?)?.isNotEmpty == true
           ? artisan['profileImage'] as String
           : kDefaultMaleAvatarUrl;
 
-      final icon = await _buildCircularMarkerIcon(imageUrl);
+      final icon = await _buildCircularMarkerIcon(imageUrl, isSelected);
 
       markers.add(
         Marker(
@@ -75,25 +83,50 @@ class _MapViewWidgetState extends State<MapViewWidget> {
           position: LatLng(lat, lng),
           icon: icon,
           anchor: const Offset(0.5, 1.0),
-          onTap: () => setState(() => _selectedArtisan = artisan),
+          onTap: () => _selectArtisan(artisan),
         ),
       );
     }
 
-    // Current location marker — skip, myLocationEnabled already shows blue dot
-
     if (mounted) setState(() => _markers = markers);
   }
 
-  /// Renders a circular avatar with a white border + pin tail as a BitmapDescriptor
-  Future<BitmapDescriptor> _buildCircularMarkerIcon(String imageUrl) async {
-    const int size = 80;
-    const int imgSize = 60;
+  void _selectArtisan(Map<String, dynamic> artisan) {
+    setState(() {
+      _selectedArtisan = artisan;
+      _polylines = {
+        Polyline(
+          polylineId: const PolylineId('route'),
+          points: [
+            widget.currentLocation,
+            LatLng(
+              (artisan['_lat'] as double?) ??
+                  (artisan['latitude'] as num).toDouble(),
+              (artisan['_lng'] as double?) ??
+                  (artisan['longitude'] as num).toDouble(),
+            ),
+          ],
+          color: const Color(0xFF4CAF50),
+          width: 3,
+          patterns: [PatternItem.dash(20), PatternItem.gap(8)],
+        ),
+      };
+    });
+    _buildMarkers();
+  }
+
+  Future<BitmapDescriptor> _buildCircularMarkerIcon(
+    String imageUrl,
+    bool isSelected,
+  ) async {
+    const int imgSize = 56;
     const double borderWidth = 3;
     const double pinTail = 10;
+    final double circleRadius = imgSize / 2 + borderWidth;
+    final int canvasW = (circleRadius * 2).ceil();
+    final int canvasH = (circleRadius * 2 + pinTail).ceil();
 
     try {
-      // Fetch image bytes
       Uint8List? imageBytes;
       try {
         final response = await http
@@ -102,7 +135,6 @@ class _MapViewWidgetState extends State<MapViewWidget> {
         if (response.statusCode == 200) imageBytes = response.bodyBytes;
       } catch (_) {}
 
-      // Fall back to default if fetch failed
       if (imageBytes == null) {
         try {
           final response = await http
@@ -114,7 +146,6 @@ class _MapViewWidgetState extends State<MapViewWidget> {
 
       if (imageBytes == null) return BitmapDescriptor.defaultMarker;
 
-      // Decode image
       final codec = await ui.instantiateImageCodec(
         imageBytes,
         targetWidth: imgSize,
@@ -123,28 +154,36 @@ class _MapViewWidgetState extends State<MapViewWidget> {
       final frame = await codec.getNextFrame();
       final srcImage = frame.image;
 
-      // Draw onto canvas
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
-      const double cx = size / 2;
-      const double circleTop = 0;
-      const double circleRadius = imgSize / 2 + borderWidth;
+      final double cx = canvasW / 2;
+      final borderColor = isSelected ? const Color(0xFF4CAF50) : Colors.white;
 
-      // White border circle
+      // Shadow
       canvas.drawCircle(
-        const Offset(cx, circleTop + circleRadius),
-        circleRadius,
-        Paint()..color = Colors.white,
+        Offset(cx, circleRadius),
+        circleRadius + 1,
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.2)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
       );
 
-      // Clip to circle and draw image
+      // Border circle
+      canvas.drawCircle(
+        Offset(cx, circleRadius),
+        circleRadius,
+        Paint()..color = borderColor,
+      );
+
+      // Clip and draw image
       final clipPath = Path()
         ..addOval(
           Rect.fromCircle(
-            center: Offset(cx, circleTop + circleRadius),
+            center: Offset(cx, circleRadius),
             radius: imgSize / 2,
           ),
         );
+      canvas.save();
       canvas.clipPath(clipPath);
       canvas.drawImageRect(
         srcImage,
@@ -156,213 +195,153 @@ class _MapViewWidgetState extends State<MapViewWidget> {
         ),
         Rect.fromLTWH(
           cx - imgSize / 2,
-          circleTop,
+          borderWidth,
           imgSize.toDouble(),
           imgSize.toDouble(),
         ),
         Paint(),
       );
-
-      // Pin tail triangle (drawn outside clip — need new layer)
-      final recorder2 = ui.PictureRecorder();
-      final canvas2 = Canvas(recorder2);
-
-      // Redraw white border
-      canvas2.drawCircle(
-        const Offset(cx, circleTop + circleRadius),
-        circleRadius,
-        Paint()..color = Colors.white,
-      );
-
-      // Clip and draw image again
-      canvas2.save();
-      canvas2.clipPath(clipPath);
-      canvas2.drawImageRect(
-        srcImage,
-        Rect.fromLTWH(
-          0,
-          0,
-          srcImage.width.toDouble(),
-          srcImage.height.toDouble(),
-        ),
-        Rect.fromLTWH(
-          cx - imgSize / 2,
-          circleTop,
-          imgSize.toDouble(),
-          imgSize.toDouble(),
-        ),
-        Paint(),
-      );
-      canvas2.restore();
+      canvas.restore();
 
       // Pin tail
       final tailPath = Path()
-        ..moveTo(cx - 10, circleTop + circleRadius * 2 - 4)
-        ..lineTo(cx + 10, circleTop + circleRadius * 2 - 4)
-        ..lineTo(cx, circleTop + circleRadius * 2 + pinTail)
+        ..moveTo(cx - 8, circleRadius * 2 - 4)
+        ..lineTo(cx + 8, circleRadius * 2 - 4)
+        ..lineTo(cx, circleRadius * 2 + pinTail)
         ..close();
-      canvas2.drawPath(tailPath, Paint()..color = Colors.white);
+      canvas.drawPath(tailPath, Paint()..color = borderColor);
 
-      final picture2 = recorder2.endRecording();
-      final img = await picture2.toImage(
-        size,
-        (circleRadius * 2 + pinTail).ceil(),
-      );
+      final picture = recorder.endRecording();
+      final img = await picture.toImage(canvasW, canvasH);
       final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
       if (byteData == null) return BitmapDescriptor.defaultMarker;
 
-      return BitmapDescriptor.fromBytes(byteData.buffer.asUint8List());
+      return BitmapDescriptor.bytes(byteData.buffer.asUint8List());
     } catch (_) {
       return BitmapDescriptor.defaultMarker;
     }
+  }
+
+  String _distanceLabel(double km) {
+    final minutes = (km * 3).round().clamp(1, 999);
+    return '$minutes min${minutes == 1 ? '' : 's'} away';
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Stack(
+    return Column(
       children: [
-        GoogleMap(
-          initialCameraPosition: CameraPosition(
-            target: widget.currentLocation,
-            zoom: 13,
+        // ── Map (55% of screen) ──────────────────────────────────────────
+        SizedBox(
+          height: 55.h,
+          child: GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: widget.currentLocation,
+              zoom: 13,
+            ),
+            markers: _markers,
+            polylines: _polylines,
+            myLocationEnabled: true,
+            myLocationButtonEnabled: true,
+            zoomControlsEnabled: false,
+            mapToolbarEnabled: false,
+            onMapCreated: (c) => _mapController = c,
+            onTap: (_) {
+              setState(() {
+                _selectedArtisan = null;
+                _polylines = {};
+              });
+              _buildMarkers();
+            },
           ),
-          markers: _markers,
-          myLocationEnabled: true,
-          myLocationButtonEnabled: true,
-          zoomControlsEnabled: false,
-          mapToolbarEnabled: false,
-          onMapCreated: (controller) => _mapController = controller,
-          onTap: (_) => setState(() => _selectedArtisan = null),
         ),
-        if (_selectedArtisan != null)
-          Positioned(
-            bottom: 2.h,
-            left: 4.w,
-            right: 4.w,
-            child: Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: EdgeInsets.all(3.w),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+
+        // ── List section ─────────────────────────────────────────────────
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header row
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: CachedNetworkImage(
-                            imageUrl:
-                                (_selectedArtisan!['profileImage'] as String?)
-                                        ?.isNotEmpty ==
-                                    true
-                                ? _selectedArtisan!['profileImage'] as String
-                                : kDefaultMaleAvatarUrl,
-                            width: 15.w,
-                            height: 15.w,
-                            fit: BoxFit.cover,
-                          ),
+                    Expanded(
+                      child: Text(
+                        'These are the available artisans',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
                         ),
-                        SizedBox(width: 3.w),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _selectedArtisan!['name'] as String,
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              SizedBox(height: 0.5.h),
-                              Text(
-                                (_selectedArtisan!['services'] as List).join(
-                                  ', ',
-                                ),
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              SizedBox(height: 0.5.h),
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.star,
-                                    color: Colors.amber,
-                                    size: 14,
-                                  ),
-                                  SizedBox(width: 1.w),
-                                  Text(
-                                    '${_selectedArtisan!['rating']}',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  SizedBox(width: 2.w),
-                                  Icon(
-                                    Icons.location_on,
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                    size: 14,
-                                  ),
-                                  SizedBox(width: 1.w),
-                                  Text(
-                                    '${_selectedArtisan!['distance']} km',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          icon: Icon(
-                            Icons.close,
-                            color: theme.colorScheme.onSurfaceVariant,
-                            size: 20,
-                          ),
-                          onPressed: () =>
-                              setState(() => _selectedArtisan = null),
-                        ),
-                      ],
+                      ),
                     ),
-                    SizedBox(height: 2.h),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () =>
-                                widget.onArtisanSelected(_selectedArtisan!),
-                            child: const Text('View Profile'),
-                          ),
-                        ),
-                        SizedBox(width: 2.w),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () => Navigator.pushNamed(
-                              context,
-                              '/service-booking-screen',
-                              arguments: _selectedArtisan,
-                            ),
-                            child: const Text('Book Now'),
-                          ),
-                        ),
-                      ],
+                    Icon(
+                      Icons.tune,
+                      color: theme.colorScheme.onSurfaceVariant,
+                      size: 22,
                     ),
                   ],
                 ),
               ),
-            ),
+
+              // Artisan cards
+              Expanded(
+                child: widget.artisans.isEmpty
+                    ? Center(
+                        child: Text(
+                          'No artisans found nearby',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        controller: _listScrollController,
+                        padding: EdgeInsets.symmetric(horizontal: 4.w).copyWith(
+                          bottom: MediaQuery.of(context).padding.bottom + 1.h,
+                        ),
+                        itemCount: widget.artisans.length,
+                        separatorBuilder: (_, __) => SizedBox(height: 1.2.h),
+                        itemBuilder: (context, index) {
+                          final artisan = widget.artisans[index];
+                          final isSelected =
+                              _selectedArtisan != null &&
+                              _selectedArtisan!['id'] == artisan['id'];
+                          return _ArtisanMapCard(
+                            artisan: artisan,
+                            isSelected: isSelected,
+                            distanceLabel: _distanceLabel(
+                              (artisan['distance'] as num).toDouble(),
+                            ),
+                            onTap: () {
+                              _selectArtisan(artisan);
+                              _mapController?.animateCamera(
+                                CameraUpdate.newLatLng(
+                                  LatLng(
+                                    (artisan['_lat'] as double?) ??
+                                        (artisan['latitude'] as num).toDouble(),
+                                    (artisan['_lng'] as double?) ??
+                                        (artisan['longitude'] as num)
+                                            .toDouble(),
+                                  ),
+                                ),
+                              );
+                            },
+                            onBookNow: () => Navigator.pushNamed(
+                              context,
+                              '/service-booking-screen',
+                              arguments: artisan,
+                            ),
+                            onViewProfile: () =>
+                                widget.onArtisanSelected(artisan),
+                          );
+                        },
+                      ),
+              ),
+            ],
           ),
+        ),
       ],
     );
   }
@@ -370,6 +349,225 @@ class _MapViewWidgetState extends State<MapViewWidget> {
   @override
   void dispose() {
     _mapController?.dispose();
+    _listScrollController.dispose();
     super.dispose();
   }
+}
+
+// ── Artisan card for map list ─────────────────────────────────────────────────
+class _ArtisanMapCard extends StatelessWidget {
+  final Map<String, dynamic> artisan;
+  final bool isSelected;
+  final String distanceLabel;
+  final VoidCallback onTap;
+  final VoidCallback onBookNow;
+  final VoidCallback onViewProfile;
+
+  const _ArtisanMapCard({
+    required this.artisan,
+    required this.isSelected,
+    required this.distanceLabel,
+    required this.onTap,
+    required this.onBookNow,
+    required this.onViewProfile,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isVerified = artisan['isVerified'] as bool? ?? false;
+    final rating = (artisan['rating'] as num?)?.toDouble() ?? 0.0;
+    final services = (artisan['services'] as List?)?.cast<String>() ?? [];
+    final imageUrl = (artisan['profileImage'] as String?)?.isNotEmpty == true
+        ? artisan['profileImage'] as String
+        : kDefaultMaleAvatarUrl;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF4CAF50)
+                : theme.colorScheme.outline.withValues(alpha: 0.2),
+            width: isSelected ? 1.5 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(3.w),
+          child: Row(
+            children: [
+              // Avatar
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  width: 14.w,
+                  height: 14.w,
+                  fit: BoxFit.cover,
+                  errorWidget: (_, __, ___) => Container(
+                    width: 14.w,
+                    height: 14.w,
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    child: Icon(
+                      Icons.person,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: 3.w),
+
+              // Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Name + badge
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            artisan['name'] as String,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isVerified) ...[
+                          SizedBox(width: 2.w),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 2.w,
+                              vertical: 0.3.h,
+                            ),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: const Color(0xFF4CAF50),
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              'Recommended',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: const Color(0xFF4CAF50),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 9,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    SizedBox(height: 0.5.h),
+
+                    // Distance · experience · rating
+                    Row(
+                      children: [
+                        Text(
+                          distanceLabel,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        _dot(theme),
+                        Text(
+                          services.isNotEmpty ? services.first : 'Artisan',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        _dot(theme),
+                        const Icon(Icons.star, color: Colors.amber, size: 12),
+                        SizedBox(width: 0.5.w),
+                        Text(
+                          rating.toStringAsFixed(1),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 0.5.h),
+
+                    // Book / View row
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: onViewProfile,
+                            style: OutlinedButton.styleFrom(
+                              padding: EdgeInsets.symmetric(vertical: 0.6.h),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              side: BorderSide(
+                                color: theme.colorScheme.primary,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Text(
+                              'View Profile',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 2.w),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: onBookNow,
+                            style: ElevatedButton.styleFrom(
+                              padding: EdgeInsets.symmetric(vertical: 0.6.h),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Text(
+                              'Book Now',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _dot(ThemeData theme) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 4),
+    child: Text(
+      '·',
+      style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+    ),
+  );
 }
