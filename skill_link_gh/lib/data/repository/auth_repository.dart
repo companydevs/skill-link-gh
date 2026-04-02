@@ -59,6 +59,8 @@ class AuthRepository {
 
   Future<UserCredential> signUpWithGoogle({required String userType}) async {
     try {
+      await _googleSignIn.signOut();
+      await _auth.signOut();
       final googleUser = await _googleSignIn.authenticate();
       final googleAuth = googleUser.authentication;
 
@@ -107,6 +109,8 @@ class AuthRepository {
 
   Future<UserCredential> signInWithGoogle({required String userType}) async {
     try {
+      await _googleSignIn.signOut();
+      await _auth.signOut();
       final googleUser = await _googleSignIn.authenticate();
       final googleAuth = googleUser.authentication;
 
