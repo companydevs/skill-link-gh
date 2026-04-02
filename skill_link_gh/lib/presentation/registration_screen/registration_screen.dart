@@ -286,7 +286,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                               if (userCredential.user != null) {
                                 Navigator.pushReplacementNamed(
                                   context,
-                                  '/login-screen',
+                                  '/posts-homepage',
                                 );
                               }
                             },
