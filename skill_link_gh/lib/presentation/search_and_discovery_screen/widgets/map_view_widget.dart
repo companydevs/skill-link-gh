@@ -407,24 +407,43 @@ class _ArtisanMapCard extends StatelessWidget {
           padding: EdgeInsets.all(3.w),
           child: Row(
             children: [
-              // Avatar
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: CachedNetworkImage(
-                  imageUrl: imageUrl,
-                  width: 14.w,
-                  height: 14.w,
-                  fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => Container(
-                    width: 14.w,
-                    height: 14.w,
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    child: Icon(
-                      Icons.person,
-                      color: theme.colorScheme.onSurfaceVariant,
+              // Avatar with online dot
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      width: 14.w,
+                      height: 14.w,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => Container(
+                        width: 14.w,
+                        height: 14.w,
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        child: Icon(
+                          Icons.person,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  if (artisan['isAvailable'] as bool? ?? false)
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4CAF50),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               SizedBox(width: 3.w),
 
