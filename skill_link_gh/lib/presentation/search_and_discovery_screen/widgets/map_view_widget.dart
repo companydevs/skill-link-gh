@@ -34,6 +34,9 @@ class _MapViewWidgetState extends State<MapViewWidget> {
   Map<String, dynamic>? _selectedArtisan;
   final ScrollController _listScrollController = ScrollController();
 
+  // Cache: artisanId -> {normal: BitmapDescriptor, selected: BitmapDescriptor}
+  final Map<String, Map<String, BitmapDescriptor>> _iconCache = {};
+
   @override
   void initState() {
     super.initState();
@@ -44,6 +47,7 @@ class _MapViewWidgetState extends State<MapViewWidget> {
   void didUpdateWidget(MapViewWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.artisans != widget.artisans) {
+      _iconCache.clear();
       _buildMarkers();
     }
   }
@@ -57,29 +61,44 @@ class _MapViewWidgetState extends State<MapViewWidget> {
       var lng = (artisan['longitude'] as num?)?.toDouble();
 
       if (lat == null || lng == null) {
-        final offsetLat = (rng.nextDouble() - 0.5) * 0.04;
-        final offsetLng = (rng.nextDouble() - 0.5) * 0.04;
-        lat = widget.currentLocation.latitude + offsetLat;
-        lng = widget.currentLocation.longitude + offsetLng;
-        artisan['_lat'] = lat;
-        artisan['_lng'] = lng;
+        // Reuse previously assigned offset so markers don't jump on rebuild
+        if (artisan['_lat'] != null) {
+          lat = artisan['_lat'] as double;
+          lng = artisan['_lng'] as double;
+        } else {
+          final offsetLat = (rng.nextDouble() - 0.5) * 0.04;
+          final offsetLng = (rng.nextDouble() - 0.5) * 0.04;
+          lat = widget.currentLocation.latitude + offsetLat;
+          lng = widget.currentLocation.longitude + offsetLng;
+          artisan['_lat'] = lat;
+          artisan['_lng'] = lng;
+        }
       } else {
         artisan['_lat'] = lat;
         artisan['_lng'] = lng;
       }
 
+      final id = artisan['id'].toString();
       final isSelected =
           _selectedArtisan != null && _selectedArtisan!['id'] == artisan['id'];
-
       final imageUrl = (artisan['profileImage'] as String?)?.isNotEmpty == true
           ? artisan['profileImage'] as String
           : kDefaultMaleAvatarUrl;
 
-      final icon = await _buildCircularMarkerIcon(imageUrl, isSelected);
+      // Build icon only if not cached
+      if (_iconCache[id] == null) {
+        final normal = await _buildCircularMarkerIcon(imageUrl, false);
+        final selected = await _buildCircularMarkerIcon(imageUrl, true);
+        _iconCache[id] = {'normal': normal, 'selected': selected};
+      }
+
+      final icon = isSelected
+          ? _iconCache[id]!['selected']!
+          : _iconCache[id]!['normal']!;
 
       markers.add(
         Marker(
-          markerId: MarkerId(artisan['id'].toString()),
+          markerId: MarkerId(id),
           position: LatLng(lat, lng),
           icon: icon,
           anchor: const Offset(0.5, 1.0),
@@ -92,27 +111,45 @@ class _MapViewWidgetState extends State<MapViewWidget> {
   }
 
   void _selectArtisan(Map<String, dynamic> artisan) {
+    final lat =
+        (artisan['_lat'] as double?) ??
+        (artisan['latitude'] as num?)?.toDouble() ??
+        widget.currentLocation.latitude;
+    final lng =
+        (artisan['_lng'] as double?) ??
+        (artisan['longitude'] as num?)?.toDouble() ??
+        widget.currentLocation.longitude;
+
     setState(() {
       _selectedArtisan = artisan;
       _polylines = {
         Polyline(
           polylineId: const PolylineId('route'),
-          points: [
-            widget.currentLocation,
-            LatLng(
-              (artisan['_lat'] as double?) ??
-                  (artisan['latitude'] as num).toDouble(),
-              (artisan['_lng'] as double?) ??
-                  (artisan['longitude'] as num).toDouble(),
-            ),
-          ],
+          points: [widget.currentLocation, LatLng(lat, lng)],
           color: const Color(0xFF4CAF50),
           width: 3,
           patterns: [PatternItem.dash(20), PatternItem.gap(8)],
         ),
       };
     });
-    _buildMarkers();
+
+    // Only swap marker icons — no full rebuild needed
+    _swapMarkerIcon(artisan['id'].toString());
+
+    _mapController?.animateCamera(CameraUpdate.newLatLng(LatLng(lat, lng)));
+  }
+
+  /// Swaps just the selected/normal icon without re-fetching images
+  void _swapMarkerIcon(String selectedId) {
+    final updated = _markers.map((m) {
+      final cache = _iconCache[m.markerId.value];
+      if (cache == null) return m;
+      final isSelected = m.markerId.value == selectedId;
+      return m.copyWith(
+        iconParam: isSelected ? cache['selected'] : cache['normal'],
+      );
+    }).toSet();
+    if (mounted) setState(() => _markers = updated);
   }
 
   Future<BitmapDescriptor> _buildCircularMarkerIcon(
@@ -121,7 +158,7 @@ class _MapViewWidgetState extends State<MapViewWidget> {
   ) async {
     const int imgSize = 56;
     const double borderWidth = 3;
-    const double pinTail = 10;
+    const double pinTail = 12;
     final double circleRadius = imgSize / 2 + borderWidth;
     final int canvasW = (circleRadius * 2).ceil();
     final int canvasH = (circleRadius * 2 + pinTail).ceil();
@@ -159,16 +196,7 @@ class _MapViewWidgetState extends State<MapViewWidget> {
       final double cx = canvasW / 2;
       final borderColor = isSelected ? const Color(0xFF4CAF50) : Colors.white;
 
-      // Shadow
-      canvas.drawCircle(
-        Offset(cx, circleRadius),
-        circleRadius + 1,
-        Paint()
-          ..color = Colors.black.withValues(alpha: 0.2)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-      );
-
-      // Border circle
+      // Sharp border circle (no blur/shadow)
       canvas.drawCircle(
         Offset(cx, circleRadius),
         circleRadius,
@@ -203,10 +231,10 @@ class _MapViewWidgetState extends State<MapViewWidget> {
       );
       canvas.restore();
 
-      // Pin tail
+      // Sharp pin tail
       final tailPath = Path()
-        ..moveTo(cx - 8, circleRadius * 2 - 4)
-        ..lineTo(cx + 8, circleRadius * 2 - 4)
+        ..moveTo(cx - 7, circleRadius * 2 - 3)
+        ..lineTo(cx + 7, circleRadius * 2 - 3)
         ..lineTo(cx, circleRadius * 2 + pinTail)
         ..close();
       canvas.drawPath(tailPath, Paint()..color = borderColor);
@@ -231,118 +259,115 @@ class _MapViewWidgetState extends State<MapViewWidget> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Column(
-      children: [
-        // ── Map (flexible ~55%) ──────────────────────────────────────────
-        Flexible(
-          flex: 55,
-          child: GoogleMap(
-            initialCameraPosition: CameraPosition(
-              target: widget.currentLocation,
-              zoom: 13,
-            ),
-            markers: _markers,
-            polylines: _polylines,
-            myLocationEnabled: true,
-            myLocationButtonEnabled: true,
-            zoomControlsEnabled: false,
-            mapToolbarEnabled: false,
-            onMapCreated: (c) => _mapController = c,
-            onTap: (_) {
-              setState(() {
-                _selectedArtisan = null;
-                _polylines = {};
-              });
-              _buildMarkers();
-            },
-          ),
-        ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Map gets 50% of available height, list gets the rest
+        final mapHeight = constraints.maxHeight * 0.50;
 
-        // ── List section ─────────────────────────────────────────────────
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header row
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'These are the available artisans',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    Icon(
-                      Icons.tune,
-                      color: theme.colorScheme.onSurfaceVariant,
-                      size: 22,
-                    ),
-                  ],
+        return Column(
+          children: [
+            // ── Map ──────────────────────────────────────────────────────
+            SizedBox(
+              height: mapHeight,
+              child: GoogleMap(
+                initialCameraPosition: CameraPosition(
+                  target: widget.currentLocation,
+                  zoom: 13,
                 ),
+                markers: _markers,
+                polylines: _polylines,
+                myLocationEnabled: true,
+                myLocationButtonEnabled: true,
+                zoomControlsEnabled: false,
+                mapToolbarEnabled: false,
+                onMapCreated: (c) => _mapController = c,
+                onTap: (_) {
+                  setState(() {
+                    _selectedArtisan = null;
+                    _polylines = {};
+                  });
+                  _swapMarkerIcon('');
+                },
               ),
+            ),
 
-              // Artisan cards
-              Expanded(
-                child: widget.artisans.isEmpty
-                    ? Center(
-                        child: Text(
-                          'No artisans found nearby',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+            // ── List section ─────────────────────────────────────────────
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 4.w,
+                      vertical: 1.2.h,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'These are the available artisans',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
-                      )
-                    : ListView.separated(
-                        controller: _listScrollController,
-                        padding: EdgeInsets.symmetric(horizontal: 4.w).copyWith(
-                          bottom: MediaQuery.of(context).padding.bottom + 1.h,
+                        Icon(
+                          Icons.tune,
+                          color: theme.colorScheme.onSurfaceVariant,
+                          size: 22,
                         ),
-                        itemCount: widget.artisans.length,
-                        separatorBuilder: (_, __) => SizedBox(height: 1.2.h),
-                        itemBuilder: (context, index) {
-                          final artisan = widget.artisans[index];
-                          final isSelected =
-                              _selectedArtisan != null &&
-                              _selectedArtisan!['id'] == artisan['id'];
-                          return _ArtisanMapCard(
-                            artisan: artisan,
-                            isSelected: isSelected,
-                            distanceLabel: _distanceLabel(
-                              (artisan['distance'] as num).toDouble(),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: widget.artisans.isEmpty
+                        ? Center(
+                            child: Text(
+                              'No artisans found nearby',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
                             ),
-                            onTap: () {
-                              _selectArtisan(artisan);
-                              _mapController?.animateCamera(
-                                CameraUpdate.newLatLng(
-                                  LatLng(
-                                    (artisan['_lat'] as double?) ??
-                                        (artisan['latitude'] as num).toDouble(),
-                                    (artisan['_lng'] as double?) ??
-                                        (artisan['longitude'] as num)
-                                            .toDouble(),
-                                  ),
+                          )
+                        : ListView.separated(
+                            controller: _listScrollController,
+                            padding: EdgeInsets.symmetric(horizontal: 4.w)
+                                .copyWith(
+                                  bottom:
+                                      MediaQuery.of(context).padding.bottom +
+                                      1.h,
                                 ),
+                            itemCount: widget.artisans.length,
+                            separatorBuilder: (_, __) => SizedBox(height: 1.h),
+                            itemBuilder: (context, index) {
+                              final artisan = widget.artisans[index];
+                              final isSelected =
+                                  _selectedArtisan != null &&
+                                  _selectedArtisan!['id'] == artisan['id'];
+                              return _ArtisanMapCard(
+                                artisan: artisan,
+                                isSelected: isSelected,
+                                distanceLabel: _distanceLabel(
+                                  (artisan['distance'] as num).toDouble(),
+                                ),
+                                onTap: () => _selectArtisan(artisan),
+                                onBookNow: () => Navigator.pushNamed(
+                                  context,
+                                  '/service-booking-screen',
+                                  arguments: artisan,
+                                ),
+                                onViewProfile: () =>
+                                    widget.onArtisanSelected(artisan),
                               );
                             },
-                            onBookNow: () => Navigator.pushNamed(
-                              context,
-                              '/service-booking-screen',
-                              arguments: artisan,
-                            ),
-                            onViewProfile: () =>
-                                widget.onArtisanSelected(artisan),
-                          );
-                        },
-                      ),
+                          ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-      ],
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -354,7 +379,7 @@ class _MapViewWidgetState extends State<MapViewWidget> {
   }
 }
 
-// ── Artisan card for map list ─────────────────────────────────────────────────
+// ── Artisan card ──────────────────────────────────────────────────────────────
 class _ArtisanMapCard extends StatelessWidget {
   final Map<String, dynamic> artisan;
   final bool isSelected;
@@ -376,6 +401,7 @@ class _ArtisanMapCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isVerified = artisan['isVerified'] as bool? ?? false;
+    final isAvailable = artisan['isAvailable'] as bool? ?? false;
     final rating = (artisan['rating'] as num?)?.toDouble() ?? 0.0;
     final services = (artisan['services'] as List?)?.cast<String>() ?? [];
     final imageUrl = (artisan['profileImage'] as String?)?.isNotEmpty == true
@@ -385,7 +411,7 @@ class _ArtisanMapCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: const Duration(milliseconds: 180),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(14),
@@ -397,17 +423,18 @@ class _ArtisanMapCard extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 1),
             ),
           ],
         ),
         child: Padding(
           padding: EdgeInsets.all(3.w),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Avatar with online dot
+              // Avatar + online dot
               Stack(
                 clipBehavior: Clip.none,
                 children: [
@@ -415,12 +442,12 @@ class _ArtisanMapCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                     child: CachedNetworkImage(
                       imageUrl: imageUrl,
-                      width: 14.w,
-                      height: 14.w,
+                      width: 13.w,
+                      height: 13.w,
                       fit: BoxFit.cover,
                       errorWidget: (_, __, ___) => Container(
-                        width: 14.w,
-                        height: 14.w,
+                        width: 13.w,
+                        height: 13.w,
                         color: theme.colorScheme.surfaceContainerHighest,
                         child: Icon(
                           Icons.person,
@@ -429,7 +456,7 @@ class _ArtisanMapCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (artisan['isAvailable'] as bool? ?? false)
+                  if (isAvailable)
                     Positioned(
                       right: 0,
                       bottom: 0,
@@ -451,13 +478,14 @@ class _ArtisanMapCard extends StatelessWidget {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     // Name + badge
                     Row(
                       children: [
                         Expanded(
                           child: Text(
-                            artisan['name'] as String,
+                            artisan['name'] as String? ?? '',
                             style: theme.textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w700,
                             ),
@@ -466,15 +494,16 @@ class _ArtisanMapCard extends StatelessWidget {
                           ),
                         ),
                         if (isVerified) ...[
-                          SizedBox(width: 2.w),
+                          SizedBox(width: 1.w),
                           Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 2.w,
-                              vertical: 0.3.h,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
                             ),
                             decoration: BoxDecoration(
                               border: Border.all(
                                 color: const Color(0xFF4CAF50),
+                                width: 1,
                               ),
                               borderRadius: BorderRadius.circular(20),
                             ),
@@ -490,29 +519,34 @@ class _ArtisanMapCard extends StatelessWidget {
                         ],
                       ],
                     ),
-                    SizedBox(height: 0.5.h),
+                    const SizedBox(height: 3),
 
-                    // Distance · experience · rating
+                    // Distance · service · rating
                     Row(
                       children: [
-                        Text(
-                          distanceLabel,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+                        Flexible(
+                          child: Text(
+                            distanceLabel,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         _dot(theme),
-                        Text(
-                          services.isNotEmpty ? services.first : 'Artisan',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+                        Flexible(
+                          child: Text(
+                            services.isNotEmpty ? services.first : 'Artisan',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
                         _dot(theme),
                         const Icon(Icons.star, color: Colors.amber, size: 12),
-                        SizedBox(width: 0.5.w),
+                        const SizedBox(width: 2),
                         Text(
                           rating.toStringAsFixed(1),
                           style: theme.textTheme.bodySmall?.copyWith(
@@ -521,16 +555,16 @@ class _ArtisanMapCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    SizedBox(height: 0.5.h),
+                    const SizedBox(height: 6),
 
-                    // Book / View row
+                    // Buttons
                     Row(
                       children: [
                         Expanded(
                           child: OutlinedButton(
                             onPressed: onViewProfile,
                             style: OutlinedButton.styleFrom(
-                              padding: EdgeInsets.symmetric(vertical: 0.6.h),
+                              padding: const EdgeInsets.symmetric(vertical: 6),
                               minimumSize: Size.zero,
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               side: BorderSide(
@@ -554,7 +588,7 @@ class _ArtisanMapCard extends StatelessWidget {
                           child: ElevatedButton(
                             onPressed: onBookNow,
                             style: ElevatedButton.styleFrom(
-                              padding: EdgeInsets.symmetric(vertical: 0.6.h),
+                              padding: const EdgeInsets.symmetric(vertical: 6),
                               minimumSize: Size.zero,
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               shape: RoundedRectangleBorder(
@@ -583,7 +617,7 @@ class _ArtisanMapCard extends StatelessWidget {
   }
 
   Widget _dot(ThemeData theme) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 4),
+    padding: const EdgeInsets.symmetric(horizontal: 3),
     child: Text(
       '·',
       style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
