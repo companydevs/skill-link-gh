@@ -3,6 +3,7 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sizer/sizer.dart';
 
 import '../core/app_export.dart';
@@ -11,6 +12,11 @@ import '../widgets/custom_error_widget.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(); // Wait for Firebase to finish initializing
+
+  await GoogleSignIn.instance.initialize(
+    serverClientId:
+        '185174877312-oo3rdb2hgmel0b30apn6p06st7asudh3.apps.googleusercontent.com',
+  );
 
   // Configure Firebase App Check for debug/development
   await FirebaseAppCheck.instance.activate(
