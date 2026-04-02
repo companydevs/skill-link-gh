@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -48,11 +49,19 @@ class _MapViewWidgetState extends State<MapViewWidget> {
 
   Future<void> _buildMarkers() async {
     final Set<Marker> markers = {};
+    final rng = math.Random();
 
     for (final artisan in widget.artisans) {
-      final lat = (artisan['latitude'] as num?)?.toDouble();
-      final lng = (artisan['longitude'] as num?)?.toDouble();
-      if (lat == null || lng == null) continue;
+      var lat = (artisan['latitude'] as num?)?.toDouble();
+      var lng = (artisan['longitude'] as num?)?.toDouble();
+
+      // No stored location — scatter around current location so they show on map
+      if (lat == null || lng == null) {
+        final offsetLat = (rng.nextDouble() - 0.5) * 0.04;
+        final offsetLng = (rng.nextDouble() - 0.5) * 0.04;
+        lat = widget.currentLocation.latitude + offsetLat;
+        lng = widget.currentLocation.longitude + offsetLng;
+      }
 
       final imageUrl = (artisan['profileImage'] as String?)?.isNotEmpty == true
           ? artisan['profileImage'] as String
