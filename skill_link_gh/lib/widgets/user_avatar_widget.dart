@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 /// Default avatars for users without a profile photo
@@ -33,29 +34,31 @@ class UserAvatarWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveUrl = (imageUrl != null && imageUrl!.isNotEmpty)
-        ? imageUrl!
-        : _defaultAvatar;
+    final hasRealUrl = imageUrl != null && imageUrl!.isNotEmpty;
+    final effectiveUrl = hasRealUrl ? imageUrl! : _defaultAvatar;
 
     return ClipOval(
-      child: Image.network(
-        effectiveUrl,
+      child: CachedNetworkImage(
+        imageUrl: effectiveUrl,
         width: size,
         height: size,
         fit: BoxFit.cover,
-        semanticLabel: semanticLabel ?? name,
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) return child;
+        // While loading
+        placeholder: (context, _) => _placeholder(context),
+        // If the real URL fails, try the flaticon default
+        errorWidget: (context, url, _) {
+          if (url != _defaultAvatar) {
+            return CachedNetworkImage(
+              imageUrl: _defaultAvatar,
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              placeholder: (context, _) => _placeholder(context),
+              errorWidget: (context, _, __) => _placeholder(context),
+            );
+          }
           return _placeholder(context);
         },
-        // On error, fall back to the flaticon default (never show initials)
-        errorBuilder: (context, _, __) => Image.network(
-          _defaultAvatar,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _placeholder(context),
-        ),
       ),
     );
   }
