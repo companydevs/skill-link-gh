@@ -68,12 +68,12 @@ class UserAvatarWidget extends StatelessWidget {
       width: size,
       height: size,
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: Center(
-        child: SizedBox(
-          width: size * 0.4,
-          height: size * 0.4,
-          child: const CircularProgressIndicator(strokeWidth: 2),
-        ),
+      child: Icon(
+        Icons.person,
+        size: size * 0.6,
+        color: Theme.of(
+          context,
+        ).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
       ),
     );
   }
