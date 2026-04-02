@@ -148,8 +148,30 @@ class AuthRepository {
         idToken: googleAuth.idToken,
       );
 
-      return await _auth.signInWithCredential(credential);
+      final userCredential = await _auth.signInWithCredential(credential);
+      final user = userCredential.user;
+      if (user == null) throw Exception('Google sign-in returned no user');
+
+      // Verify this Google account has a registered profile in Firestore
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (!doc.exists) {
+        // No profile for this Google account — sign them out and reject
+        await _auth.signOut();
+        await _googleSignIn.signOut();
+        throw Exception(
+          'No account found for this Google account. Please sign up first.',
+        );
+      }
+
+      return userCredential;
     } catch (e) {
+      if (e is Exception && e.toString().contains('No account found')) {
+        rethrow;
+      }
       throw Exception('Google Sign-In failed: $e');
     }
   }

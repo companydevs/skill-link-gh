@@ -2,9 +2,11 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:sizer/sizer.dart';
 import 'package:skill_link_gh/data/repository/auth_repository.dart';
+import 'package:skill_link_gh/provider/profile_provider.dart';
 import 'package:skill_link_gh/widgets/custom_app_toast.dart';
 
 import '../../routes/app_routes.dart';
@@ -12,14 +14,14 @@ import './widgets/app_logo_section.dart';
 import './widgets/login_form_field.dart';
 import './widgets/social_login_button.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
@@ -176,12 +178,16 @@ class _LoginScreenState extends State<LoginScreen> {
       HapticFeedback.mediumImpact();
 
       if (!mounted) return;
+      // Invalidate cached profile so it reloads for the newly signed-in user
+      ref.invalidate(profileNotifierProvider);
       Navigator.pushReplacementNamed(context, '/posts-homepage');
     } catch (e) {
       debugPrint('Google Sign-In error: $e');
       String msg = 'Google sign-in failed';
       final err = e.toString().toLowerCase();
-      if (err.contains('network') || err.contains('socket')) {
+      if (err.contains('no account found')) {
+        msg = e.toString().replaceAll(RegExp(r'Exception:\s*'), '').trim();
+      } else if (err.contains('network') || err.contains('socket')) {
         msg = 'No internet connection. Please try again.';
       } else if (err.contains('cancelled') || err.contains('canceled')) {
         msg = 'Sign-in cancelled';
