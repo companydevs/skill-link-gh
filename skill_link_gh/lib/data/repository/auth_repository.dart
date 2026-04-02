@@ -72,6 +72,26 @@ class AuthRepository {
       final user = userCredential.user;
       if (user == null) throw Exception("Google user is null");
 
+      // Check if an account already exists with this email (e.g. registered via email/password)
+      final emailQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: user.email)
+          .limit(1)
+          .get();
+
+      if (emailQuery.docs.isNotEmpty) {
+        final existingDoc = emailQuery.docs.first;
+        final existingProvider =
+            existingDoc.data()['provider'] as String? ?? 'password';
+        // Sign out the Google session we just created — don't keep it
+        await _auth.signOut();
+        await _googleSignIn.signOut();
+        throw Exception(
+          'An account with this email already exists. '
+          'Please sign in with ${existingProvider == 'google' ? 'Google' : 'your email and password'}.',
+        );
+      }
+
       final doc = FirebaseFirestore.instance.collection('users').doc(user.uid);
       final snapshot = await doc.get();
 
@@ -83,6 +103,7 @@ class AuthRepository {
           'role': userType,
           'profileImage': user.photoURL ?? '',
           'photoUrl': user.photoURL ?? '',
+          'provider': 'google',
           'isVerified': true,
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
