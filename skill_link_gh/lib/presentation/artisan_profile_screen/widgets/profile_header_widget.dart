@@ -71,7 +71,11 @@ class ProfileHeaderWidget extends StatelessWidget {
                   ],
                 ),
                 child: UserAvatarWidget(
-                  imageUrl: artisanData['profileImage'] as String?,
+                  imageUrl:
+                      (artisanData['profileImage'] as String?)?.isNotEmpty ==
+                          true
+                      ? artisanData['profileImage'] as String?
+                      : artisanData['photoUrl'] as String?,
                   name: name,
                   size: _avatarRadius * 2,
                   semanticLabel: 'Profile picture of $name',

@@ -81,6 +81,7 @@ class AuthRepository {
           'fullName': user.displayName ?? '',
           'email': user.email ?? '',
           'role': userType,
+          'profileImage': user.photoURL ?? '',
           'photoUrl': user.photoURL ?? '',
           'isVerified': true,
           'createdAt': FieldValue.serverTimestamp(),
