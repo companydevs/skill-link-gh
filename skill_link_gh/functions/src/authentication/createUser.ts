@@ -39,11 +39,16 @@ export const registerUser = onCall(async (request) => {
   }
 
   try {
-    // Check if user already exists
-    try {
-      await admin.auth().getUserByEmail(email);
-      throw new HttpsError("already-exists", "Email is already registered");
-    } catch (_) {/* empty */}
+    // For password signups, check if user already exists in Auth
+    if (provider === "password") {
+      try {
+        await admin.auth().getUserByEmail(email);
+        throw new HttpsError("already-exists", "Email is already registered");
+      } catch (e) {
+        if (e instanceof HttpsError) throw e;
+        // getUserByEmail threw "not found" — that's fine, user doesn't exist yet
+      }
+    }
 
     // Create Auth user if password signup
     let userRecord;
@@ -52,8 +57,13 @@ export const registerUser = onCall(async (request) => {
         email,
         password,
         displayName: fullName,
-        emailVerified: false, // explicitly false
+        emailVerified: false,
       });
+    } else {
+      // For Google, look up the existing Auth user to get their UID
+      try {
+        userRecord = await admin.auth().getUserByEmail(email);
+      } catch (_) {}
     }
 
     const role = isArtisan ? "artisan" : "client";
