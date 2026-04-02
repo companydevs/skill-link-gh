@@ -17,7 +17,7 @@ class ArtisanRepository {
 
       final snapshot = await _firestore
           .collection('users')
-          .where('userType', isEqualTo: 'artisan')
+          .where('role', isEqualTo: 'artisan')
           .limit(50)
           .get();
 
