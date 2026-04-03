@@ -1,6 +1,5 @@
 // screens/reels_screen.dart
 import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -458,45 +457,27 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                             ),
                           ),
                         ),
-                        // Interaction overlay — real-time comment count via stream
+                        // Interaction overlay — counts come from live notifier state
                         Positioned(
                           right: 10,
                           bottom: 24,
-                          child: StreamBuilder<DocumentSnapshot>(
-                            stream: FirebaseFirestore.instance
-                                .collection('reels')
-                                .doc(reel.id)
-                                .snapshots(),
-                            builder: (context, snap) {
-                              final liveComments =
-                                  snap.hasData && snap.data!.exists
-                                  ? ((snap.data!.data()
-                                                as Map<
-                                                  String,
-                                                  dynamic
-                                                >?)?['comments']
-                                            as int? ??
-                                        reel.comments)
-                                  : reel.comments;
-                              return ReelInteractionOverlayWidget(
-                                likes: reel.likes,
-                                comments: liveComments,
-                                shares: reel.shares,
-                                isLiked: reel.isLiked,
-                                onLikeTap: () {
-                                  HapticFeedback.mediumImpact();
-                                  _handleLike(reel.id);
-                                },
-                                onCommentTap: () {
-                                  _showCommentsBottomSheet(context, reel);
-                                },
-                                onShareTap: () {},
-                                onBookServiceTap: () {
-                                  Navigator.pushNamed(
-                                    context,
-                                    '/service-booking-screen',
-                                  );
-                                },
+                          child: ReelInteractionOverlayWidget(
+                            likes: reel.likes,
+                            comments: reel.comments,
+                            shares: reel.shares,
+                            isLiked: reel.isLiked,
+                            onLikeTap: () {
+                              HapticFeedback.mediumImpact();
+                              _handleLike(reel.id);
+                            },
+                            onCommentTap: () {
+                              _showCommentsBottomSheet(context, reel);
+                            },
+                            onShareTap: () {},
+                            onBookServiceTap: () {
+                              Navigator.pushNamed(
+                                context,
+                                '/service-booking-screen',
                               );
                             },
                           ),
