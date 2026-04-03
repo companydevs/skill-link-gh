@@ -234,17 +234,9 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
 
         if (snap.docs.isNotEmpty) {
           setState(() {
-            // Remove stale replies first
             _comments.removeWhere((c) => c.parentId == commentId);
-            // Re-find parent index after removal (it may have shifted)
-            final parentIdx = _comments.indexWhere((c) => c.id == commentId);
-            if (parentIdx != -1) {
-              _comments.insertAll(parentIdx + 1, replies);
-              _comments[parentIdx] = _comments[parentIdx].copyWith(
-                isExpanded: true,
-                replies: replies.length,
-              );
-            }
+            _comments.insertAll(index + 1, replies);
+            _comments[index] = _comments[index].copyWith(isExpanded: true);
           });
           return;
         }

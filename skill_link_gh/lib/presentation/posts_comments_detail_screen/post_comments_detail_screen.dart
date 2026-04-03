@@ -311,18 +311,13 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
           }).toList();
 
           setState(() {
-            // Remove stale replies, re-find parent index after removal
+            // Remove any stale replies for this parent first
             _comments.removeWhere(
               (c) => c.parentId == commentId && !replyIds.contains(c.id),
             );
-            final parentIdx = _comments.indexWhere((c) => c.id == commentId);
-            if (parentIdx != -1) {
-              _comments.insertAll(parentIdx + 1, replies);
-              _comments[parentIdx] = _comments[parentIdx].copyWith(
-                isExpanded: true,
-                replies: replies.length,
-              );
-            }
+            // Insert fresh replies right after the parent
+            _comments.insertAll(index + 1, replies);
+            _comments[index] = _comments[index].copyWith(isExpanded: true);
           });
           return;
         }
