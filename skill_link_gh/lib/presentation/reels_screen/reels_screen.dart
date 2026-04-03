@@ -420,8 +420,8 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                         // Info overlay - positioned at bottom like TikTok
                         Positioned(
                           left: 16,
-                          bottom: 20,
-                          right: 80,
+                          bottom: 24,
+                          right: 72,
                           child: ReelInfoOverlayWidget(
                             artisanName: reel.artisanName,
                             artisanAvatar: reel.artisanAvatar,
@@ -437,10 +437,31 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                             },
                           ),
                         ),
+                        // Bottom gradient scrim
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          height: 260,
+                          child: IgnorePointer(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.transparent,
+                                    Colors.black.withValues(alpha: 0.65),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                         // Interaction overlay — real-time comment count via stream
                         Positioned(
-                          right: 12,
-                          bottom: 20,
+                          right: 10,
+                          bottom: 24,
                           child: StreamBuilder<DocumentSnapshot>(
                             stream: FirebaseFirestore.instance
                                 .collection('reels')
@@ -488,7 +509,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                             icon: Icon(
                               _isMuted ? Icons.volume_off : Icons.volume_up,
                               color: Colors.white,
-                              size: 28,
+                              size: 26,
                             ),
                             onPressed: () {
                               HapticFeedback.selectionClick();
