@@ -141,6 +141,8 @@ class _ReelVideoPlayerWidgetState extends State<ReelVideoPlayerWidget> {
 
   @override
   Widget build(BuildContext context) {
+    // Deleted / unavailable video — show nothing (blank black screen)
+    // so the user can just swipe past it
     if (_hasError && !_isLoading) {
       return Container(
         color: Colors.black,
@@ -148,23 +150,26 @@ class _ReelVideoPlayerWidgetState extends State<ReelVideoPlayerWidget> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, color: Colors.white70, size: 64),
-              const SizedBox(height: 16),
+              const Icon(
+                Icons.videocam_off_outlined,
+                color: Colors.white38,
+                size: 56,
+              ),
+              const SizedBox(height: 12),
               const Text(
-                'Video failed to load',
+                'Video unavailable',
                 style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
+                  color: Colors.white54,
+                  fontSize: 15,
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: Text(
-                  _errorMessage,
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
-                  textAlign: TextAlign.center,
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: _initializeVideo,
+                child: const Text(
+                  'Retry',
+                  style: TextStyle(color: Colors.white70),
                 ),
               ),
             ],
