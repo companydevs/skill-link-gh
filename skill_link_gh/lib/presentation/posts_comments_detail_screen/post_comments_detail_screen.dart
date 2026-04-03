@@ -36,9 +36,9 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
   bool _hasMore = true;
   bool _isPosting = false;
 
-  String? _replyingToCommentId;
+  String? _replyingToCommentId; // the root parent id to store in Firestore
   String? _replyingToUserName;
-  String? _currentUserAvatar; // loaded from Firestore
+  String? _currentUserAvatar;
 
   static const int _pageSize = 20;
 
@@ -208,8 +208,16 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
 
   // ── Reply ─────────────────────────────────────────────────────────────────
   void _onReplyComment(String commentId, String userName) {
+    // Always thread under the root parent — flatten all replies under one comment
+    final tapped = _comments.firstWhere(
+      (c) => c.id == commentId,
+      orElse: () => _comments.first,
+    );
+    // If this comment is itself a reply, bubble up to its root parent
+    final rootId = tapped.parentId ?? commentId;
+
     setState(() {
-      _replyingToCommentId = commentId;
+      _replyingToCommentId = rootId;
       _replyingToUserName = userName;
     });
     _commentController.text = '@$userName ';
@@ -311,6 +319,76 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
     });
   }
 
+  /// Re-fetches all replies for a root parent and updates in-memory list,
+  /// keeping the parent expanded.
+  Future<void> _refreshRepliesFor(String rootParentId) async {
+    final index = _comments.indexWhere((c) => c.id == rootParentId);
+    if (index == -1) return;
+
+    try {
+      final snap = await _firestore
+          .collection('posts')
+          .doc(widget.post.id)
+          .collection('comments')
+          .where('parentId', isEqualTo: rootParentId)
+          .orderBy('createdAt', descending: false)
+          .get();
+
+      if (!mounted) return;
+
+      final userIds = snap.docs
+          .map((d) => (d.data())['userId'] as String? ?? '')
+          .toSet()
+          .where((id) => id.isNotEmpty)
+          .toList();
+
+      final Map<String, String> avatarMap = {};
+      final Map<String, String> nameMap = {};
+      if (userIds.isNotEmpty) {
+        final userDocs = await Future.wait(
+          userIds.map((uid) => _firestore.collection('users').doc(uid).get()),
+        );
+        for (final doc in userDocs) {
+          if (!doc.exists) continue;
+          final d = doc.data()!;
+          final img = (d['profileImage'] as String? ?? '').isNotEmpty
+              ? d['profileImage'] as String
+              : (d['photoUrl'] as String? ?? '');
+          if (img.isNotEmpty) avatarMap[doc.id] = img;
+          final name = (d['fullName'] as String? ?? '').isNotEmpty
+              ? d['fullName'] as String
+              : (d['displayName'] as String? ?? '');
+          if (name.isNotEmpty) nameMap[doc.id] = name;
+        }
+      }
+
+      final freshReplies = snap.docs.map((d) {
+        final r = LocalComment.fromDoc(d);
+        return r.copyWith(
+          userAvatar: avatarMap[r.userId] ?? r.userAvatar,
+          userName: nameMap[r.userId] ?? r.userName,
+        );
+      }).toList();
+
+      setState(() {
+        // Remove old replies for this parent
+        _comments.removeWhere((c) => c.parentId == rootParentId);
+        // Re-insert after parent
+        final newIndex = _comments.indexWhere((c) => c.id == rootParentId);
+        if (newIndex != -1) {
+          _comments.insertAll(newIndex + 1, freshReplies);
+          // Update reply count and keep expanded
+          _comments[newIndex] = _comments[newIndex].copyWith(
+            replies: freshReplies.length,
+            isExpanded: true,
+          );
+        }
+      });
+    } catch (e) {
+      log('Error refreshing replies: $e');
+    }
+  }
+
   // ── Post comment ──────────────────────────────────────────────────────────
   Future<void> _onPostComment(String text) async {
     if (text.trim().isEmpty || _isPosting) return;
@@ -348,6 +426,8 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
           .collection('comments')
           .doc();
 
+      final rootParentId = _replyingToCommentId;
+
       await ref.set({
         'id': ref.id,
         'userId': user.uid,
@@ -357,17 +437,18 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
         'commentText': text,
         'likes': [],
         'replies': 0,
-        'level': _replyingToCommentId == null ? 0 : 1,
-        'parentId': _replyingToCommentId,
+        'level': rootParentId == null ? 0 : 1,
+        'parentId': rootParentId,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      if (_replyingToCommentId != null) {
+      if (rootParentId != null) {
+        // Increment root parent's reply counter
         await _firestore
             .collection('posts')
             .doc(widget.post.id)
             .collection('comments')
-            .doc(_replyingToCommentId!)
+            .doc(rootParentId)
             .update({'replies': FieldValue.increment(1)});
       }
 
@@ -376,7 +457,14 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
         _replyingToUserName = null;
       });
       _commentController.clear();
-      _loadComments(refresh: true);
+
+      if (rootParentId != null) {
+        // Re-fetch replies for the root parent so the new one appears inline
+        // without collapsing the whole list
+        await _refreshRepliesFor(rootParentId);
+      } else {
+        _loadComments(refresh: true);
+      }
     } catch (e) {
       log('Error posting comment: $e');
     } finally {
