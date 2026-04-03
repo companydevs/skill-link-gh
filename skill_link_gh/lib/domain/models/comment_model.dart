@@ -11,6 +11,9 @@ class Comment {
   final int likes;
   final bool isLiked;
   final List<Comment> replies;
+  final String? parentId;
+  final int replyCount;
+  final bool isExpanded;
 
   Comment({
     required this.id,
@@ -23,11 +26,13 @@ class Comment {
     this.likes = 0,
     this.isLiked = false,
     this.replies = const [],
+    this.parentId,
+    this.replyCount = 0,
+    this.isExpanded = false,
   });
 
   factory Comment.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-
     return Comment(
       id: doc.id,
       reelId: data['reelId'] ?? '',
@@ -37,8 +42,11 @@ class Comment {
       text: data['text'] ?? '',
       timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
       likes: (data['likes'] ?? 0) as int,
-      isLiked: false, // This will be set by the repository
-      replies: [], // Replies will be loaded separately
+      isLiked: false,
+      replies: [],
+      parentId: data['parentId'] as String?,
+      replyCount: (data['replyCount'] ?? 0) as int,
+      isExpanded: false,
     );
   }
 
@@ -51,6 +59,8 @@ class Comment {
       'text': text,
       'timestamp': Timestamp.fromDate(timestamp),
       'likes': likes,
+      'parentId': parentId,
+      'replyCount': replyCount,
     };
   }
 
@@ -65,6 +75,9 @@ class Comment {
     int? likes,
     bool? isLiked,
     List<Comment>? replies,
+    String? parentId,
+    int? replyCount,
+    bool? isExpanded,
   }) {
     return Comment(
       id: id ?? this.id,
@@ -77,6 +90,9 @@ class Comment {
       likes: likes ?? this.likes,
       isLiked: isLiked ?? this.isLiked,
       replies: replies ?? this.replies,
+      parentId: parentId ?? this.parentId,
+      replyCount: replyCount ?? this.replyCount,
+      isExpanded: isExpanded ?? this.isExpanded,
     );
   }
 }
