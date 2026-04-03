@@ -1,10 +1,9 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_paystack_plus/flutter_paystack_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
 import 'package:skill_link_gh/provider/booking_provider.dart';
 import 'package:skill_link_gh/widgets/custom_app_toast.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../widgets/custom_app_bar.dart';
 
@@ -17,33 +16,18 @@ class PaymentVerificationScreen extends ConsumerStatefulWidget {
 }
 
 class _PaymentVerificationScreenState
-    extends ConsumerState<PaymentVerificationScreen>
-    with WidgetsBindingObserver {
-  String? _paymentUrl;
+    extends ConsumerState<PaymentVerificationScreen> {
+  String? _paymentUrl; // authorization_url from Paystack via our function
   String? _bookingId;
   String? _reference;
-  bool _isVerifying = false;
-  bool _urlOpened = false;
+  String? _email;
+  bool _isProcessing = false;
+  bool _launched = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _init());
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  // Called when app comes back to foreground (after Paystack browser)
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _urlOpened && !_isVerifying) {
-      _verifyPayment();
-    }
   }
 
   void _init() {
@@ -54,34 +38,52 @@ class _PaymentVerificationScreenState
         _paymentUrl = args['paymentUrl'] as String?;
         _bookingId = args['bookingId'] as String?;
         _reference = args['reference'] as String?;
+        _email = args['email'] as String?;
       });
-      // Auto-open Paystack checkout
-      if (_paymentUrl != null) {
-        _openPaystack();
-      }
+      // Auto-launch immediately
+      WidgetsBinding.instance.addPostFrameCallback((_) => _launchPayment());
     }
   }
 
-  Future<void> _openPaystack() async {
-    if (_paymentUrl == null) return;
-    final uri = Uri.parse(_paymentUrl!);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-      setState(() => _urlOpened = true);
-    } else {
+  Future<void> _launchPayment() async {
+    if (_launched || _isProcessing || _paymentUrl == null) return;
+    setState(() {
+      _launched = true;
+      _isProcessing = true;
+    });
+
+    try {
+      await FlutterPaystackPlus.openPaystackPopup(
+        context: context,
+        // Use the authorization_url our backend already generated
+        authorizationUrl: _paymentUrl!,
+        customerEmail: _email ?? '',
+        reference: _reference ?? '',
+        amount: '', // already set server-side
+        currency: 'GHS',
+        callBackUrl: 'https://skill-link-gh.web.app/payment-callback',
+        onSuccess: () async {
+          await _verifyWithBackend();
+        },
+        onClosed: () {
+          if (mounted) setState(() => _isProcessing = false);
+        },
+      );
+    } catch (e) {
       if (mounted) {
+        setState(() => _isProcessing = false);
         AppToast.show(
           context,
-          message: 'Could not open payment page',
+          message: 'Payment error: $e',
           type: ToastType.error,
         );
       }
     }
   }
 
-  Future<void> _verifyPayment() async {
-    if (_reference == null || _isVerifying) return;
-    setState(() => _isVerifying = true);
+  Future<void> _verifyWithBackend() async {
+    if (_reference == null) return;
+    setState(() => _isProcessing = true);
     try {
       final success = await ref
           .read(bookingNotifierProvider.notifier)
@@ -95,7 +97,7 @@ class _PaymentVerificationScreenState
           message: 'Payment confirmed! Booking is active.',
           type: ToastType.success,
         );
-        await Future.delayed(const Duration(seconds: 1));
+        await Future.delayed(const Duration(milliseconds: 800));
         if (mounted) {
           Navigator.pushReplacementNamed(
             context,
@@ -104,22 +106,22 @@ class _PaymentVerificationScreenState
           );
         }
       } else {
+        setState(() => _isProcessing = false);
         AppToast.show(
           context,
-          message: 'Payment not confirmed yet. Try again.',
+          message: 'Payment not confirmed yet. Tap retry.',
           type: ToastType.error,
         );
       }
     } catch (e) {
       if (mounted) {
+        setState(() => _isProcessing = false);
         AppToast.show(
           context,
           message: 'Verification error: $e',
           type: ToastType.error,
         );
       }
-    } finally {
-      if (mounted) setState(() => _isVerifying = false);
     }
   }
 
@@ -128,105 +130,78 @@ class _PaymentVerificationScreenState
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: CustomAppBar(
-        title: 'Complete Payment',
-        variant: AppBarVariant.standard,
-      ),
-      body: Padding(
-        padding: EdgeInsets.all(6.w),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Icon
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.payment,
-                size: 40,
-                color: theme.colorScheme.primary,
-              ),
-            ),
-            SizedBox(height: 3.h),
-
-            Text(
-              'Complete Your Payment',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 1.h),
-            Text(
-              _urlOpened
-                  ? 'Once you complete payment in the browser, come back here and tap "I\'ve Paid".'
-                  : 'Tap below to open the Paystack payment page.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 4.h),
-
-            // Open Paystack button
-            if (!_urlOpened) ...[
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _openPaystack,
-                  icon: const Icon(Icons.open_in_browser),
-                  label: const Text('Open Payment Page'),
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(vertical: 2.h),
+      appBar: CustomAppBar(title: 'Payment', variant: AppBarVariant.standard),
+      body: Center(
+        child: Padding(
+          padding: EdgeInsets.all(6.w),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (_isProcessing) ...[
+                CircularProgressIndicator(color: theme.colorScheme.primary),
+                SizedBox(height: 3.h),
+                Text(
+                  'Processing payment...',
+                  style: theme.textTheme.titleMedium,
+                ),
+                SizedBox(height: 1.h),
+                Text(
+                  'Please wait',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-              ),
-              SizedBox(height: 2.h),
-            ],
-
-            // I've paid button
-            if (_urlOpened) ...[
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _isVerifying ? null : _verifyPayment,
-                  icon: _isVerifying
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.check_circle_outline),
-                  label: Text(_isVerifying ? 'Verifying...' : "I've Paid"),
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(vertical: 2.h),
+              ] else ...[
+                Icon(
+                  Icons.payment_outlined,
+                  size: 64,
+                  color: theme.colorScheme.primary,
+                ),
+                SizedBox(height: 3.h),
+                Text(
+                  'Complete Payment',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              ),
-              SizedBox(height: 2.h),
-              TextButton.icon(
-                onPressed: _openPaystack,
-                icon: const Icon(Icons.refresh, size: 16),
-                label: const Text('Reopen payment page'),
-              ),
+                SizedBox(height: 1.h),
+                Text(
+                  'Tap below to pay securely via Paystack',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 4.h),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _launchPayment,
+                    icon: const Icon(Icons.credit_card),
+                    label: const Text('Pay Now'),
+                    style: ElevatedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 2.h),
+                    ),
+                  ),
+                ),
+                if (_launched) ...[
+                  SizedBox(height: 2.h),
+                  TextButton(
+                    onPressed: _verifyWithBackend,
+                    child: const Text('Already paid? Verify'),
+                  ),
+                ],
+                SizedBox(height: 1.h),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(color: theme.colorScheme.error),
+                  ),
+                ),
+              ],
             ],
-
-            SizedBox(height: 2.h),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Cancel',
-                style: TextStyle(color: theme.colorScheme.error),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

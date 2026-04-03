@@ -24,7 +24,6 @@ class _ReelVideoPlayerWidgetState extends State<ReelVideoPlayerWidget> {
   late VideoPlayerController _controller;
   bool _isInitialized = false;
   bool _hasError = false;
-  String _errorMessage = '';
   bool _isLoading = true;
 
   @override
@@ -39,14 +38,12 @@ class _ReelVideoPlayerWidgetState extends State<ReelVideoPlayerWidget> {
     setState(() {
       _isLoading = true;
       _hasError = false;
-      _errorMessage = '';
     });
 
     try {
       if (widget.videoUrl.isEmpty) {
         setState(() {
           _hasError = true;
-          _errorMessage = 'Video URL is empty';
           _isLoading = false;
         });
         return;
@@ -62,7 +59,6 @@ class _ReelVideoPlayerWidgetState extends State<ReelVideoPlayerWidget> {
       } catch (e) {
         setState(() {
           _hasError = true;
-          _errorMessage = 'Invalid video URL format';
           _isLoading = false;
         });
         return;
@@ -97,7 +93,6 @@ class _ReelVideoPlayerWidgetState extends State<ReelVideoPlayerWidget> {
         setState(() {
           _hasError = true;
           _isLoading = false;
-          _errorMessage = 'Failed to load video: ${e.toString()}';
           _isInitialized = false;
         });
       }
