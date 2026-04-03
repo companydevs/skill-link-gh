@@ -13,6 +13,7 @@ class CommentItemWidget extends StatelessWidget {
   final int replies;
   final bool isLiked;
   final int level;
+  final bool isExpanded;
   final VoidCallback onLike;
   final VoidCallback onReply;
   final VoidCallback onReport;
@@ -32,6 +33,7 @@ class CommentItemWidget extends StatelessWidget {
     required this.replies,
     required this.isLiked,
     required this.level,
+    this.isExpanded = true,
     required this.onLike,
     required this.onReply,
     required this.onReport,
@@ -127,30 +129,35 @@ class CommentItemWidget extends StatelessWidget {
                     ],
                   ],
                 ),
-                // View replies
+                // View / hide replies
                 if (replies > 0 && onToggleReplies != null) ...[
                   const SizedBox(height: 6),
                   GestureDetector(
+                    behavior: HitTestBehavior.opaque,
                     onTap: onToggleReplies,
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 24,
-                          height: 1,
-                          color: theme.colorScheme.onSurfaceVariant.withValues(
-                            alpha: 0.4,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 24,
+                            height: 1,
+                            color: theme.colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.4),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'View $replies ${replies == 1 ? 'reply' : 'replies'}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
+                          const SizedBox(width: 8),
+                          Text(
+                            isExpanded
+                                ? 'Hide ${replies == 1 ? 'reply' : 'replies'}'
+                                : 'View $replies ${replies == 1 ? 'reply' : 'replies'}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ],

@@ -409,6 +409,11 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
                         final isLiked =
                             currentUser != null &&
                             c.likes.contains(currentUser.uid);
+                        // Count actual loaded replies for this comment
+                        final actualReplies = _comments
+                            .where((r) => r.parentId == c.id)
+                            .length;
+                        final hasReplies = actualReplies > 0 || c.replies > 0;
                         return CommentItemWidget(
                           commentOwnerId: c.userId,
                           commentId: c.id,
@@ -418,9 +423,12 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
                           timestamp: _formatTimestamp(c.createdAt),
                           commentText: c.commentText,
                           likes: c.likes.length,
-                          replies: c.replies,
+                          replies: actualReplies > 0
+                              ? actualReplies
+                              : c.replies,
                           isLiked: isLiked,
                           level: c.level,
+                          isExpanded: c.isExpanded,
                           onLike: () => _onLikeComment(c.id),
                           onReply: () => _onReplyComment(c.id, c.userName),
                           onReport: () => AppToast.show(
@@ -428,7 +436,7 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
                             message: 'Comment reported',
                             type: ToastType.success,
                           ),
-                          onToggleReplies: c.replies > 0
+                          onToggleReplies: hasReplies && c.level == 0
                               ? () => _toggleReplies(c.id)
                               : null,
                           onDelete: currentUser?.uid == c.userId
