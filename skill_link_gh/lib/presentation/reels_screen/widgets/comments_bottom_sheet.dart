@@ -438,7 +438,9 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     }
     final ordered = <LocalComment>[];
     void add(LocalComment p, int lvl) {
-      ordered.add(p.copyWith(level: lvl == 0 ? 0 : 1));
+      ordered.add(
+        p.copyWith(level: lvl == 0 ? 0 : 1, isExpanded: p.isExpanded),
+      );
       if (p.isExpanded) {
         for (final r in repliesMap[p.id] ?? []) {
           add(r, lvl + 1);
@@ -549,10 +551,19 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                           final isLiked =
                               currentUser != null &&
                               c.likes.contains(currentUser.uid);
-                          final actualReplies = _comments
+                          // Count actual loaded children in _comments
+                          final loadedReplies = _comments
                               .where((r) => r.parentId == c.id)
                               .length;
-                          final hasReplies = actualReplies > 0 || c.replies > 0;
+                          // Firestore replyCount from the stored field
+                          final storedReplyCount = c.replies;
+                          // Only show toggle on level-0 comments that genuinely have replies
+                          final hasReplies =
+                              c.level == 0 &&
+                              (loadedReplies > 0 || storedReplyCount > 0);
+                          final displayReplies = loadedReplies > 0
+                              ? loadedReplies
+                              : storedReplyCount;
                           return CommentItemWidget(
                             commentId: c.id,
                             commentOwnerId: c.userId,
@@ -562,9 +573,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                             timestamp: _fmt(c.createdAt),
                             commentText: c.commentText,
                             likes: c.likes.length,
-                            replies: actualReplies > 0
-                                ? actualReplies
-                                : c.replies,
+                            replies: displayReplies,
                             isLiked: isLiked,
                             level: c.level,
                             isExpanded: c.isExpanded,
@@ -575,7 +584,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                               message: 'Comment reported',
                               type: ToastType.success,
                             ),
-                            onToggleReplies: hasReplies && c.level == 0
+                            onToggleReplies: hasReplies
                                 ? () => _toggleReplies(c.id)
                                 : null,
                             onDelete: currentUser?.uid == c.userId

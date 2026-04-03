@@ -180,10 +180,17 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
 
     final List<LocalComment> ordered = [];
     void addReplies(LocalComment parent, int level) {
-      ordered.add(parent.copyWith(level: level == 0 ? 0 : 1));
+      ordered.add(
+        parent.copyWith(
+          level: level == 0 ? 0 : 1,
+          isExpanded: parent.isExpanded,
+        ),
+      );
       final replies = repliesMap[parent.id];
       if (replies != null && parent.isExpanded) {
-        for (final r in replies) addReplies(r, level + 1);
+        for (final r in replies) {
+          addReplies(r, level + 1);
+        }
       }
     }
 
@@ -541,11 +548,16 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
                         final isLiked =
                             currentUser != null &&
                             c.likes.contains(currentUser.uid);
-                        // Count actual loaded replies for this comment
-                        final actualReplies = _comments
+                        final loadedReplies = _comments
                             .where((r) => r.parentId == c.id)
                             .length;
-                        final hasReplies = actualReplies > 0 || c.replies > 0;
+                        final storedReplyCount = c.replies;
+                        final hasReplies =
+                            c.level == 0 &&
+                            (loadedReplies > 0 || storedReplyCount > 0);
+                        final displayReplies = loadedReplies > 0
+                            ? loadedReplies
+                            : storedReplyCount;
                         return CommentItemWidget(
                           commentOwnerId: c.userId,
                           commentId: c.id,
@@ -555,9 +567,7 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
                           timestamp: _formatTimestamp(c.createdAt),
                           commentText: c.commentText,
                           likes: c.likes.length,
-                          replies: actualReplies > 0
-                              ? actualReplies
-                              : c.replies,
+                          replies: displayReplies,
                           isLiked: isLiked,
                           level: c.level,
                           isExpanded: c.isExpanded,
@@ -568,7 +578,7 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
                             message: 'Comment reported',
                             type: ToastType.success,
                           ),
-                          onToggleReplies: hasReplies && c.level == 0
+                          onToggleReplies: hasReplies
                               ? () => _toggleReplies(c.id)
                               : null,
                           onDelete: currentUser?.uid == c.userId
