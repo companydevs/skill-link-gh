@@ -1,96 +1,163 @@
-// providers/reels_notifier.dart
+import 'dart:async';
+import 'dart:developer';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:skill_link_gh/data/repository/reels_repositoty.dart';
 import 'package:skill_link_gh/domain/models/reel_model.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
   final ReelsRepository _repository;
 
-  // Performance optimization: track loading state and pagination
+  StreamSubscription<QuerySnapshot>? _reelsSubscription;
+  final Set<String> _likingReels = {};
   bool _isLoadingMore = false;
-  DocumentSnapshot? _lastDocument;
   bool _hasMoreReels = true;
 
-  // Like debouncing: prevent multiple simultaneous likes
-  final Set<String> _likingReels = {};
+  static const int _initialLoadSize = 10;
 
-  // Lightweight chunk size for smooth scrolling
-  static const int _chunkSize = 3; // Very small chunks for smooth experience
-  static const int _initialLoadSize = 5; // Small initial load
-
-  ReelsNotifier(this._repository) : super(const AsyncValue.data([])) {
-    // Start with empty data, load when requested
-  }
+  ReelsNotifier(this._repository) : super(const AsyncValue.data([]));
 
   Future<void> loadInitialReels() async {
-    if (state.isLoading) return; // Prevent multiple simultaneous loads
-
+    if (state.isLoading) return;
     state = const AsyncValue.loading();
-
-    // Reset pagination state
-    _lastDocument = null;
-    _hasMoreReels = true;
+    _reelsSubscription?.cancel();
 
     try {
-      final reels = await _repository.fetchReels(
-        limit: _initialLoadSize,
-        useCache: true, // Use cache for better performance
-      );
+      final uid = FirebaseAuth.instance.currentUser?.uid;
 
-      // Store last document for pagination
-      if (reels.isNotEmpty) {
-        // We need to get the document snapshot for pagination
-        final lastReelId = reels.last.id;
-        _lastDocument = await FirebaseFirestore.instance
-            .collection('reels')
-            .doc(lastReelId)
-            .get();
-      }
+      // Real-time stream — handles deletions, count updates, new reels
+      _reelsSubscription = FirebaseFirestore.instance
+          .collection('reels')
+          .orderBy('createdAt', descending: true)
+          .limit(_initialLoadSize)
+          .snapshots()
+          .listen(
+            (snapshot) async {
+              try {
+                final reels = <Reel>[];
+                for (final doc in snapshot.docs) {
+                  final data = doc.data();
+                  final videoUrl = data['videoUrl'] as String? ?? '';
+                  // Skip docs with no valid video URL (deleted/broken)
+                  if (videoUrl.isEmpty) continue;
 
-      _hasMoreReels = reels.length == _initialLoadSize;
-      state = AsyncValue.data(reels);
-    } catch (e, stackTrace) {
-      state = AsyncValue.error(e, stackTrace);
+                  bool isLiked = false;
+                  if (uid != null) {
+                    try {
+                      final likeDoc = await doc.reference
+                          .collection('likes')
+                          .doc(uid)
+                          .get();
+                      isLiked = likeDoc.exists;
+                    } catch (_) {}
+                  }
+
+                  reels.add(
+                    Reel(
+                      id: doc.id,
+                      videoUrl: videoUrl,
+                      artisanName: data['artisanName'] ?? 'Unknown',
+                      artisanAvatar: data['artisanAvatar'] ?? '',
+                      artisanCategory: data['artisanCategory'] ?? '',
+                      artisanSemanticLabel: data['artisanSemanticLabel'] ?? '',
+                      description: data['description'] ?? '',
+                      likes: (data['likes'] ?? 0) as int,
+                      comments: (data['comments'] ?? 0) as int,
+                      shares: (data['shares'] ?? 0) as int,
+                      isLiked: isLiked,
+                      timestamp:
+                          (data['createdAt'] as Timestamp?)?.toDate() ??
+                          DateTime.now(),
+                    ),
+                  );
+                }
+                if (mounted) state = AsyncValue.data(reels);
+              } catch (e, st) {
+                log('ReelsNotifier stream error: $e');
+                if (mounted) state = AsyncValue.error(e, st);
+              }
+            },
+            onError: (e, st) {
+              log('ReelsNotifier stream error: $e');
+              if (mounted) state = AsyncValue.error(e, st);
+            },
+          );
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
     }
   }
 
   Future<void> loadMoreReels() async {
-    if (_isLoadingMore || !_hasMoreReels || !state.hasValue) {
-      return;
-    }
-
+    if (_isLoadingMore || !_hasMoreReels || !state.hasValue) return;
     _isLoadingMore = true;
-
     try {
-      final currentReels = state.value!;
-
-      final newReels = await _repository.fetchReels(
-        limit: _chunkSize,
-        startAfter: _lastDocument,
-        useCache: true,
-      );
-
-      if (newReels.isNotEmpty) {
-        // Update last document for next pagination
-        final lastReelId = newReels.last.id;
-        _lastDocument = await FirebaseFirestore.instance
-            .collection('reels')
-            .doc(lastReelId)
-            .get();
-
-        // Combine with existing reels
-        final allReels = [...currentReels, ...newReels];
-        state = AsyncValue.data(allReels);
-
-        // Check if we have more reels to load
-        _hasMoreReels = newReels.length == _chunkSize;
-      } else {
-        _hasMoreReels = false;
+      final current = state.value!;
+      if (current.isEmpty) {
+        _isLoadingMore = false;
+        return;
       }
+
+      final lastId = current.last.id;
+      final lastDoc = await FirebaseFirestore.instance
+          .collection('reels')
+          .doc(lastId)
+          .get();
+
+      final snap = await FirebaseFirestore.instance
+          .collection('reels')
+          .orderBy('createdAt', descending: true)
+          .startAfterDocument(lastDoc)
+          .limit(5)
+          .get();
+
+      if (snap.docs.isEmpty) {
+        _hasMoreReels = false;
+        _isLoadingMore = false;
+        return;
+      }
+
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      final more = <Reel>[];
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final videoUrl = data['videoUrl'] as String? ?? '';
+        if (videoUrl.isEmpty) continue;
+        bool isLiked = false;
+        if (uid != null) {
+          try {
+            final likeDoc = await doc.reference
+                .collection('likes')
+                .doc(uid)
+                .get();
+            isLiked = likeDoc.exists;
+          } catch (_) {}
+        }
+        more.add(
+          Reel(
+            id: doc.id,
+            videoUrl: videoUrl,
+            artisanName: data['artisanName'] ?? 'Unknown',
+            artisanAvatar: data['artisanAvatar'] ?? '',
+            artisanCategory: data['artisanCategory'] ?? '',
+            artisanSemanticLabel: data['artisanSemanticLabel'] ?? '',
+            description: data['description'] ?? '',
+            likes: (data['likes'] ?? 0) as int,
+            comments: (data['comments'] ?? 0) as int,
+            shares: (data['shares'] ?? 0) as int,
+            isLiked: isLiked,
+            timestamp:
+                (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          ),
+        );
+      }
+
+      _hasMoreReels = snap.docs.length == 5;
+      if (mounted) state = AsyncValue.data([...current, ...more]);
     } catch (e) {
-      // Don't update state on error, just log it
+      log('loadMoreReels error: $e');
     } finally {
       _isLoadingMore = false;
     }
@@ -101,51 +168,38 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
   }
 
   void toggleLike(String reelId) {
-    // Prevent multiple simultaneous likes on the same reel
-    if (_likingReels.contains(reelId)) {
-      return;
-    }
-
-    final currentState = state;
-    if (!currentState.hasValue) return;
-
-    final reels = currentState.value!;
-    final index = reels.indexWhere((r) => r.id == reelId);
+    if (_likingReels.contains(reelId)) return;
+    final current = state.value;
+    if (current == null) return;
+    final index = current.indexWhere((r) => r.id == reelId);
     if (index == -1) return;
 
-    final currentReel = reels[index];
-    final currentIsLiked = currentReel.isLiked;
-
-    // Mark this reel as being liked to prevent race conditions
+    final reel = current[index];
     _likingReels.add(reelId);
 
-    // INSTANT optimistic update - NO AWAIT
-    final updatedReel = currentReel.copyWith(
-      isLiked: !currentIsLiked,
-      likes: currentIsLiked ? currentReel.likes - 1 : currentReel.likes + 1,
+    // Optimistic update
+    final updated = List<Reel>.from(current);
+    updated[index] = reel.copyWith(
+      isLiked: !reel.isLiked,
+      likes: reel.isLiked ? reel.likes - 1 : reel.likes + 1,
     );
+    state = AsyncValue.data(updated);
 
-    final updatedReels = List<Reel>.from(reels);
-    updatedReels[index] = updatedReel;
-    state = AsyncValue.data(updatedReels);
-
-    // Perform the actual like toggle in background (fire-and-forget)
-    // Use unawaited to make it truly async
     Future.microtask(() {
       _repository
-          .toggleLike(reelId, currentIsLiked)
+          .toggleLike(reelId, reel.isLiked)
           .then((_) {
             _likingReels.remove(reelId);
           })
           .catchError((e) {
-            // Revert on error
-            final currentReels = state.value;
-            if (currentReels != null) {
-              final idx = currentReels.indexWhere((r) => r.id == reelId);
+            // Revert
+            final cur = state.value;
+            if (cur != null) {
+              final idx = cur.indexWhere((r) => r.id == reelId);
               if (idx != -1) {
-                final revertedReels = List<Reel>.from(currentReels);
-                revertedReels[idx] = currentReel; // Revert to original
-                state = AsyncValue.data(revertedReels);
+                final rev = List<Reel>.from(cur);
+                rev[idx] = reel;
+                if (mounted) state = AsyncValue.data(rev);
               }
             }
             _likingReels.remove(reelId);
@@ -153,13 +207,12 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
     });
   }
 
-  // Add new reel locally after successful upload
-  Future<void> addNewReelLocally(Reel newReel) async {
-    final currentReels = state.value ?? [];
-    state = AsyncValue.data([newReel, ...currentReels]);
+  @override
+  void dispose() {
+    _reelsSubscription?.cancel();
+    super.dispose();
   }
 
-  // Getters for UI state
   bool get isLoadingMore => _isLoadingMore;
   bool get hasMoreReels => _hasMoreReels;
   int get currentReelsCount => state.value?.length ?? 0;
