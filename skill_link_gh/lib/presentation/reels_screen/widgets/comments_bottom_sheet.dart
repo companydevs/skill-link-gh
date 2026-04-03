@@ -82,17 +82,25 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     }
 
     try {
+      // Fetch ALL comments for this reel, filter client-side
+      // (Firestore doesn't support isNull queries on all SDK versions)
       final snap = await _firestore
           .collection('reels')
           .doc(widget.reelId)
           .collection('comments')
-          .where('parentId', isNull: true)
           .orderBy('timestamp', descending: false)
           .get();
 
       if (!mounted) return;
 
-      final userIds = snap.docs
+      // Only top-level comments (no parentId)
+      final topLevel = snap.docs.where((d) {
+        final data = d.data();
+        final pid = data['parentId'];
+        return pid == null || pid == '';
+      }).toList();
+
+      final userIds = topLevel
           .map((d) => (d.data())['userId'] as String? ?? '')
           .toSet()
           .where((id) => id.isNotEmpty)
@@ -118,7 +126,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
         }
       }
 
-      final loaded = snap.docs.map((doc) {
+      final loaded = topLevel.map((doc) {
         final data = doc.data();
         return LocalComment(
           id: doc.id,

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../core/app_export.dart';
 import '../../../widgets/custom_icon_widget.dart';
 
 /// Interaction overlay widget for reels
-/// Displays like, comment, share, and book service buttons
 class ReelInteractionOverlayWidget extends StatelessWidget {
   final int likes;
   final int comments;
@@ -41,11 +41,32 @@ class ReelInteractionOverlayWidget extends StatelessWidget {
           onTap: onLikeTap,
         ),
         const SizedBox(height: 24),
-        _buildInteractionButton(
-          icon: 'chat_bubble_outline',
-          label: _formatCount(comments),
-          color: Colors.white,
+        // Comment button — uses the custom SVG
+        GestureDetector(
           onTap: onCommentTap,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SvgPicture.asset(
+                'assets/icons/comment.svg',
+                width: 32,
+                height: 32,
+                colorFilter: const ColorFilter.mode(
+                  Colors.white,
+                  BlendMode.srcIn,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _formatCount(comments),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 24),
         _buildInteractionButton(
@@ -103,15 +124,11 @@ class ReelInteractionOverlayWidget extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CustomIconWidget(
-            iconName: icon,
-            color: color,
-            size: 32,
-          ),
+          CustomIconWidget(iconName: icon, color: color, size: 32),
           const SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 12,
               fontWeight: FontWeight.w600,
@@ -123,11 +140,8 @@ class ReelInteractionOverlayWidget extends StatelessWidget {
   }
 
   String _formatCount(int count) {
-    if (count >= 1000000) {
-      return '${(count / 1000000).toStringAsFixed(1)}M';
-    } else if (count >= 1000) {
-      return '${(count / 1000).toStringAsFixed(1)}K';
-    }
+    if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
+    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}K';
     return count.toString();
   }
 }
