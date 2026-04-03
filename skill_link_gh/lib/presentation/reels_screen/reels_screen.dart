@@ -195,6 +195,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (context) =>
           CommentsBottomSheet(reelId: reel.id, reelAuthor: reel.artisanName),
     );

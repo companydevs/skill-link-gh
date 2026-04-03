@@ -449,203 +449,218 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     final currentUser = FirebaseAuth.instance.currentUser;
     final ordered = _buildTree();
 
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.82,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+    return Padding(
+      // This pushes the entire sheet up when keyboard appears
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: Column(
-        children: [
-          // Handle
-          Container(
-            margin: const EdgeInsets.only(top: 8),
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          // Header
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                Text(
-                  'Comments',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+      child: Container(
+        height:
+            MediaQuery.of(context).size.height * 0.82 -
+            MediaQuery.of(context).viewInsets.bottom,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // Handle
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.3,
                 ),
-                const Spacer(),
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Icon(
-                    Icons.close,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-
-          // List
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : ordered.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.chat_bubble_outline,
-                          size: 48,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'No comments yet',
-                          style: theme.textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Be the first to comment!',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: () => _loadComments(refresh: true),
-                    child: ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.only(top: 8, bottom: 8),
-                      itemCount: ordered.length,
-                      itemBuilder: (_, i) {
-                        final c = ordered[i];
-                        final isLiked =
-                            currentUser != null &&
-                            c.likes.contains(currentUser.uid);
-                        final actualReplies = _comments
-                            .where((r) => r.parentId == c.id)
-                            .length;
-                        final hasReplies = actualReplies > 0 || c.replies > 0;
-                        return CommentItemWidget(
-                          commentId: c.id,
-                          commentOwnerId: c.userId,
-                          userName: c.userName,
-                          userAvatar: c.userAvatar,
-                          isVerified: c.isVerified,
-                          timestamp: _fmt(c.createdAt),
-                          commentText: c.commentText,
-                          likes: c.likes.length,
-                          replies: actualReplies > 0
-                              ? actualReplies
-                              : c.replies,
-                          isLiked: isLiked,
-                          level: c.level,
-                          isExpanded: c.isExpanded,
-                          onLike: () => _onLikeComment(c.id),
-                          onReply: () => _onReplyComment(c.id, c.userName),
-                          onReport: () => AppToast.show(
-                            context,
-                            message: 'Comment reported',
-                            type: ToastType.success,
-                          ),
-                          onToggleReplies: hasReplies && c.level == 0
-                              ? () => _toggleReplies(c.id)
-                              : null,
-                          onDelete: currentUser?.uid == c.userId
-                              ? () => _deleteComment(c.id)
-                              : null,
-                        );
-                      },
-                    ),
-                  ),
-          ),
-
-          // Quick emojis
-          Container(
-            decoration: BoxDecoration(
-              border: Border(
-                top: BorderSide(color: theme.dividerColor, width: 0.5),
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: _quickEmojis
-                  .map(
-                    (e) => GestureDetector(
-                      onTap: () {
-                        _commentController.text += e;
-                        _commentController
-                            .selection = TextSelection.fromPosition(
-                          TextPosition(offset: _commentController.text.length),
-                        );
-                        _focusNode.requestFocus();
-                      },
-                      child: Text(e, style: const TextStyle(fontSize: 26)),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ),
-
-          // Reply banner
-          if (_replyingToUserName != null)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              color: theme.colorScheme.surfaceContainerHighest,
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
                   Text(
-                    'Replying to ',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  Text(
-                    '@$_replyingToUserName',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.w600,
+                    'Comments',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   const Spacer(),
                   GestureDetector(
-                    onTap: () => setState(() {
-                      _replyingToCommentId = null;
-                      _replyingToUserName = null;
-                      _commentController.clear();
-                    }),
+                    onTap: () => Navigator.pop(context),
                     child: Icon(
                       Icons.close,
-                      size: 16,
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
               ),
             ),
+            const Divider(height: 1),
 
-          // Composer
-          _ReelComposer(
-            controller: _commentController,
-            focusNode: _focusNode,
-            isPosting: _isPosting,
-            currentUserAvatar: _currentUserAvatar,
-            onPost: _onPostComment,
-          ),
-        ],
-      ),
-    );
+            // List
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ordered.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.chat_bubble_outline,
+                            size: 48,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No comments yet',
+                            style: theme.textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Be the first to comment!',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: () => _loadComments(refresh: true),
+                      child: ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.only(top: 8, bottom: 8),
+                        itemCount: ordered.length,
+                        itemBuilder: (_, i) {
+                          final c = ordered[i];
+                          final isLiked =
+                              currentUser != null &&
+                              c.likes.contains(currentUser.uid);
+                          final actualReplies = _comments
+                              .where((r) => r.parentId == c.id)
+                              .length;
+                          final hasReplies = actualReplies > 0 || c.replies > 0;
+                          return CommentItemWidget(
+                            commentId: c.id,
+                            commentOwnerId: c.userId,
+                            userName: c.userName,
+                            userAvatar: c.userAvatar,
+                            isVerified: c.isVerified,
+                            timestamp: _fmt(c.createdAt),
+                            commentText: c.commentText,
+                            likes: c.likes.length,
+                            replies: actualReplies > 0
+                                ? actualReplies
+                                : c.replies,
+                            isLiked: isLiked,
+                            level: c.level,
+                            isExpanded: c.isExpanded,
+                            onLike: () => _onLikeComment(c.id),
+                            onReply: () => _onReplyComment(c.id, c.userName),
+                            onReport: () => AppToast.show(
+                              context,
+                              message: 'Comment reported',
+                              type: ToastType.success,
+                            ),
+                            onToggleReplies: hasReplies && c.level == 0
+                                ? () => _toggleReplies(c.id)
+                                : null,
+                            onDelete: currentUser?.uid == c.userId
+                                ? () => _deleteComment(c.id)
+                                : null,
+                          );
+                        },
+                      ),
+                    ),
+            ),
+
+            // Quick emojis
+            Container(
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: theme.dividerColor, width: 0.5),
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: _quickEmojis
+                    .map(
+                      (e) => GestureDetector(
+                        onTap: () {
+                          _commentController.text += e;
+                          _commentController.selection =
+                              TextSelection.fromPosition(
+                                TextPosition(
+                                  offset: _commentController.text.length,
+                                ),
+                              );
+                          _focusNode.requestFocus();
+                        },
+                        child: Text(e, style: const TextStyle(fontSize: 26)),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+
+            // Reply banner
+            if (_replyingToUserName != null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
+                color: theme.colorScheme.surfaceContainerHighest,
+                child: Row(
+                  children: [
+                    Text(
+                      'Replying to ',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    Text(
+                      '@$_replyingToUserName',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => setState(() {
+                        _replyingToCommentId = null;
+                        _replyingToUserName = null;
+                        _commentController.clear();
+                      }),
+                      child: Icon(
+                        Icons.close,
+                        size: 16,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Composer
+            _ReelComposer(
+              controller: _commentController,
+              focusNode: _focusNode,
+              isPosting: _isPosting,
+              currentUserAvatar: _currentUserAvatar,
+              onPost: _onPostComment,
+            ),
+          ],
+        ),
+      ), // Container
+    ); // Padding
   }
 }
 
@@ -697,12 +712,7 @@ class _ReelComposerState extends State<_ReelComposer> {
         color: theme.colorScheme.surface,
         border: Border(top: BorderSide(color: theme.dividerColor, width: 0.5)),
       ),
-      padding: EdgeInsets.only(
-        left: 12,
-        right: 12,
-        top: 8,
-        bottom: MediaQuery.of(context).viewInsets.bottom > 0 ? 8 : 20,
-      ),
+      padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 12),
       child: SafeArea(
         top: false,
         child: Row(
