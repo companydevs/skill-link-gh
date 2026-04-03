@@ -39,6 +39,7 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
   String? _replyingToCommentId; // the root parent id to store in Firestore
   String? _replyingToUserName;
   String? _currentUserAvatar;
+  String? _currentUserName;
 
   static const int _pageSize = 20;
 
@@ -61,18 +62,25 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
     super.dispose();
   }
 
-  // ── Load current user avatar from Firestore ───────────────────────────────
+  // ── Load current user avatar + name from Firestore ───────────────────────
   Future<void> _loadCurrentUserAvatar() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     try {
       final doc = await _firestore.collection('users').doc(user.uid).get();
+      final d = doc.data() ?? {};
       final url =
-          doc.data()?['profileImage'] as String? ??
-          doc.data()?['photoUrl'] as String? ??
+          d['profileImage'] as String? ??
+          d['photoUrl'] as String? ??
           user.photoURL;
-      if (mounted && url != null && url.isNotEmpty) {
-        setState(() => _currentUserAvatar = url);
+      final name = (d['fullName'] as String? ?? '').isNotEmpty
+          ? d['fullName'] as String
+          : (d['displayName'] as String? ?? user.displayName ?? '');
+      if (mounted) {
+        setState(() {
+          if (url != null && url.isNotEmpty) _currentUserAvatar = url;
+          if (name.isNotEmpty) _currentUserName = name;
+        });
       }
     } catch (_) {}
   }
@@ -400,34 +408,67 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
     }
 
     try {
-      // Always fetch the latest name + avatar from Firestore
-      final userDoc = await _firestore.collection('users').doc(user.uid).get();
-      final userData = userDoc.data() ?? {};
+      final userName = (_currentUserName?.isNotEmpty == true)
+          ? _currentUserName!
+          : user.displayName ?? 'Anonymous';
+      final avatarUrl = _currentUserAvatar ?? '';
+      final rootParentId = _replyingToCommentId;
 
-      final userName =
-          userData['fullName'] as String? ??
-          userData['displayName'] as String? ??
-          user.displayName ??
-          'Anonymous';
-
-      String avatarUrl = _currentUserAvatar ?? '';
-      if (avatarUrl.isEmpty) {
-        avatarUrl =
-            userData['profileImage'] as String? ??
-            userData['photoUrl'] as String? ??
-            user.photoURL ??
-            'https://cdn-icons-png.flaticon.com/512/3135/3135715.png';
-        if (mounted) setState(() => _currentUserAvatar = avatarUrl);
-      }
-
+      // Pre-generate the Firestore doc ref so we have the ID immediately
       final ref = _firestore
           .collection('posts')
           .doc(widget.post.id)
           .collection('comments')
           .doc();
 
-      final rootParentId = _replyingToCommentId;
+      // ── Optimistic insert ──────────────────────────────────────────────
+      final optimistic = LocalComment(
+        id: ref.id,
+        parentId: rootParentId,
+        userId: user.uid,
+        userName: userName,
+        userAvatar: avatarUrl,
+        isVerified: false,
+        commentText: text,
+        likes: [],
+        replies: 0,
+        level: rootParentId == null ? 0 : 1,
+        createdAt: DateTime.now(),
+        isExpanded: false,
+      );
 
+      setState(() {
+        if (rootParentId == null) {
+          // Top-level comment — append to end
+          _comments.add(optimistic);
+        } else {
+          // Reply — insert after the last existing reply of this parent,
+          // or right after the parent if none loaded yet
+          final parentIdx = _comments.indexWhere((c) => c.id == rootParentId);
+          if (parentIdx != -1) {
+            // Find insertion point: after last sibling reply
+            int insertAt = parentIdx + 1;
+            while (insertAt < _comments.length &&
+                _comments[insertAt].parentId == rootParentId) {
+              insertAt++;
+            }
+            _comments.insert(insertAt, optimistic);
+            // Ensure parent is expanded and counter updated
+            _comments[parentIdx] = _comments[parentIdx].copyWith(
+              replies: _comments[parentIdx].replies + 1,
+              isExpanded: true,
+            );
+          } else {
+            _comments.add(optimistic);
+          }
+        }
+        _replyingToCommentId = null;
+        _replyingToUserName = null;
+      });
+
+      _commentController.clear();
+
+      // ── Write to Firestore in background ──────────────────────────────
       await ref.set({
         'id': ref.id,
         'userId': user.uid,
@@ -443,7 +484,6 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
       });
 
       if (rootParentId != null) {
-        // Increment root parent's reply counter
         await _firestore
             .collection('posts')
             .doc(widget.post.id)
@@ -451,22 +491,23 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
             .doc(rootParentId)
             .update({'replies': FieldValue.increment(1)});
       }
-
-      setState(() {
-        _replyingToCommentId = null;
-        _replyingToUserName = null;
-      });
-      _commentController.clear();
-
-      if (rootParentId != null) {
-        // Re-fetch replies for the root parent so the new one appears inline
-        // without collapsing the whole list
-        await _refreshRepliesFor(rootParentId);
-      } else {
-        _loadComments(refresh: true);
-      }
     } catch (e) {
       log('Error posting comment: $e');
+      // Rollback — remove the optimistic comment
+      if (mounted) {
+        setState(
+          () => _comments.removeWhere(
+            (c) =>
+                c.userId == (FirebaseAuth.instance.currentUser?.uid ?? '') &&
+                c.commentText == text,
+          ),
+        );
+        AppToast.show(
+          context,
+          message: 'Failed to post comment',
+          type: ToastType.error,
+        );
+      }
     } finally {
       _isPosting = false;
     }
