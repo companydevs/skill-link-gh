@@ -149,6 +149,11 @@ class ProfileRepository {
         ...data,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      // Keep Firebase Auth displayName in sync so it never goes stale
+      if (data.containsKey('fullName')) {
+        await user.updateDisplayName(data['fullName'] as String?);
+      }
     } catch (e) {
       print('Error updating profile: $e');
       rethrow;

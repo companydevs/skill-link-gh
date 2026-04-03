@@ -105,9 +105,10 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
       _lastDoc = snapshot.docs.last;
       final loaded = snapshot.docs.map(LocalComment.fromDoc).toList();
 
-      // Batch-fetch latest profileImage for all unique userIds
+      // Batch-fetch latest profileImage + fullName for all unique userIds
       final userIds = loaded.map((c) => c.userId).toSet().toList();
       final Map<String, String> avatarMap = {};
+      final Map<String, String> nameMap = {};
       if (userIds.isNotEmpty) {
         final userDocs = await Future.wait(
           userIds.map((uid) => _firestore.collection('users').doc(uid).get()),
@@ -119,15 +120,23 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
                 ? d['profileImage'] as String
                 : (d['photoUrl'] as String? ?? '');
             if (img.isNotEmpty) avatarMap[doc.id] = img;
+            final name = (d['fullName'] as String? ?? '').isNotEmpty
+                ? d['fullName'] as String
+                : (d['displayName'] as String? ?? '');
+            if (name.isNotEmpty) nameMap[doc.id] = name;
           }
         }
       }
 
-      // Override stored userAvatar with the live one if available
+      // Override stored userName + userAvatar with live values
       _comments.addAll(
         loaded.map((c) {
           final liveAvatar = avatarMap[c.userId];
-          return liveAvatar != null ? c.copyWith(userAvatar: liveAvatar) : c;
+          final liveName = nameMap[c.userId];
+          return c.copyWith(
+            userAvatar: liveAvatar ?? c.userAvatar,
+            userName: liveName ?? c.userName,
+          );
         }),
       );
     }
@@ -240,16 +249,21 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
     }
 
     try {
-      // Always fetch the latest profileImage from Firestore so it stays in sync
+      // Always fetch the latest name + avatar from Firestore
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      final userData = userDoc.data() ?? {};
+
+      final userName =
+          userData['fullName'] as String? ??
+          userData['displayName'] as String? ??
+          user.displayName ??
+          'Anonymous';
+
       String avatarUrl = _currentUserAvatar ?? '';
       if (avatarUrl.isEmpty) {
-        final userDoc = await _firestore
-            .collection('users')
-            .doc(user.uid)
-            .get();
         avatarUrl =
-            userDoc.data()?['profileImage'] as String? ??
-            userDoc.data()?['photoUrl'] as String? ??
+            userData['profileImage'] as String? ??
+            userData['photoUrl'] as String? ??
             user.photoURL ??
             'https://cdn-icons-png.flaticon.com/512/3135/3135715.png';
         if (mounted) setState(() => _currentUserAvatar = avatarUrl);
@@ -264,7 +278,7 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
       await ref.set({
         'id': ref.id,
         'userId': user.uid,
-        'userName': user.displayName ?? 'Anonymous',
+        'userName': userName,
         'userAvatar': avatarUrl,
         'isVerified': false,
         'commentText': text,

@@ -53,17 +53,19 @@ class CommentsRepository {
     try {
       print("💬 Adding comment to reel: $reelId");
 
-      // Get user data
+      // Get latest user data from Firestore (never use stale cached name)
       final userDoc = await _firestore.collection('users').doc(user.uid).get();
       final userData = userDoc.data() ?? {};
 
       final comment = Comment(
-        id: '', // Will be set by Firestore
+        id: '',
         reelId: reelId,
         userId: user.uid,
         userName:
-            userData['fullName'] ?? userData['displayName'] ?? 'Anonymous',
-        userAvatar: userData['profileImage'] ?? '',
+            userData['fullName'] as String? ??
+            userData['displayName'] as String? ??
+            'Anonymous',
+        userAvatar: userData['profileImage'] as String? ?? '',
         text: text,
         timestamp: DateTime.now(),
       );

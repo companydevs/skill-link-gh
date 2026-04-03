@@ -53,12 +53,13 @@ class LocalComment {
     List<String>? likes,
     bool? isExpanded,
     String? userAvatar,
+    String? userName,
   }) {
     return LocalComment(
       id: id,
       parentId: parentId,
       userId: userId,
-      userName: userName,
+      userName: userName ?? this.userName,
       userAvatar: userAvatar ?? this.userAvatar,
       isVerified: isVerified,
       commentText: commentText,
