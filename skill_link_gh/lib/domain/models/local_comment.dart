@@ -26,7 +26,7 @@ class LocalComment {
     required this.replies,
     required this.level,
     required this.createdAt,
-    this.isExpanded = true,
+    this.isExpanded = false,
   });
 
   factory LocalComment.fromDoc(QueryDocumentSnapshot doc) {
@@ -43,7 +43,7 @@ class LocalComment {
       replies: data['replies'] ?? 0,
       level: data['level'] ?? 0,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      isExpanded: true,
+      isExpanded: false,
     );
   }
 

@@ -227,10 +227,83 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
     _commentController.clear();
   }
 
-  // ── Toggle replies ────────────────────────────────────────────────────────
-  void _toggleReplies(String commentId) {
+  // ── Toggle replies — lazy-loads on first expand ───────────────────────────
+  Future<void> _toggleReplies(String commentId) async {
     final index = _comments.indexWhere((c) => c.id == commentId);
     if (index == -1) return;
+
+    final comment = _comments[index];
+    final alreadyLoaded = _comments.any((c) => c.parentId == commentId);
+
+    if (!comment.isExpanded && !alreadyLoaded) {
+      // Lazy-fetch replies from Firestore
+      try {
+        final snap = await _firestore
+            .collection('posts')
+            .doc(widget.post.id)
+            .collection('comments')
+            .where('parentId', isEqualTo: commentId)
+            .orderBy('createdAt', descending: false)
+            .get();
+
+        if (!mounted) return;
+
+        if (snap.docs.isNotEmpty) {
+          final replyIds = snap.docs.map((d) => d.id).toSet();
+          final userIds = snap.docs
+              .map((d) => (d.data())['userId'] as String? ?? '')
+              .toSet()
+              .where((id) => id.isNotEmpty)
+              .toList();
+
+          final Map<String, String> avatarMap = {};
+          final Map<String, String> nameMap = {};
+          if (userIds.isNotEmpty) {
+            final userDocs = await Future.wait(
+              userIds.map(
+                (uid) => _firestore.collection('users').doc(uid).get(),
+              ),
+            );
+            for (final doc in userDocs) {
+              if (doc.exists) {
+                final d = doc.data()!;
+                final img = (d['profileImage'] as String? ?? '').isNotEmpty
+                    ? d['profileImage'] as String
+                    : (d['photoUrl'] as String? ?? '');
+                if (img.isNotEmpty) avatarMap[doc.id] = img;
+                final name = (d['fullName'] as String? ?? '').isNotEmpty
+                    ? d['fullName'] as String
+                    : (d['displayName'] as String? ?? '');
+                if (name.isNotEmpty) nameMap[doc.id] = name;
+              }
+            }
+          }
+
+          final replies = snap.docs.map((d) {
+            final r = LocalComment.fromDoc(d);
+            return r.copyWith(
+              userAvatar: avatarMap[r.userId] ?? r.userAvatar,
+              userName: nameMap[r.userId] ?? r.userName,
+            );
+          }).toList();
+
+          setState(() {
+            // Remove any stale replies for this parent first
+            _comments.removeWhere(
+              (c) => c.parentId == commentId && !replyIds.contains(c.id),
+            );
+            // Insert fresh replies right after the parent
+            _comments.insertAll(index + 1, replies);
+            _comments[index] = _comments[index].copyWith(isExpanded: true);
+          });
+          return;
+        }
+      } catch (e) {
+        log('Error loading replies: $e');
+      }
+    }
+
+    // Just toggle if already loaded or no replies found
     setState(() {
       _comments[index] = _comments[index].copyWith(
         isExpanded: !_comments[index].isExpanded,
