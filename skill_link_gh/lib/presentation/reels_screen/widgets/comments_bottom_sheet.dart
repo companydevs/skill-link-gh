@@ -128,6 +128,11 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
 
       final loaded = topLevel.map((doc) {
         final data = doc.data();
+        // Handle both old schema (likes: int) and new schema (likes: List)
+        final rawLikes = data['likes'];
+        final likesList = rawLikes is List
+            ? List<String>.from(rawLikes)
+            : <String>[];
         return LocalComment(
           id: doc.id,
           parentId: null,
@@ -136,7 +141,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
           userAvatar: avatarMap[data['userId']] ?? data['userAvatar'] ?? '',
           isVerified: data['isVerified'] ?? false,
           commentText: data['text'] ?? data['commentText'] ?? '',
-          likes: List<String>.from(data['likes'] ?? []),
+          likes: likesList,
           replies: data['replyCount'] ?? data['replies'] ?? 0,
           level: 0,
           createdAt:
@@ -205,6 +210,10 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
 
         final replies = snap.docs.map((doc) {
           final data = doc.data();
+          final rawLikes = data['likes'];
+          final likesList = rawLikes is List
+              ? List<String>.from(rawLikes)
+              : <String>[];
           return LocalComment(
             id: doc.id,
             parentId: commentId,
@@ -214,7 +223,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
             userAvatar: avatarMap[data['userId']] ?? data['userAvatar'] ?? '',
             isVerified: data['isVerified'] ?? false,
             commentText: data['text'] ?? data['commentText'] ?? '',
-            likes: List<String>.from(data['likes'] ?? []),
+            likes: likesList,
             replies: 0,
             level: 1,
             createdAt:

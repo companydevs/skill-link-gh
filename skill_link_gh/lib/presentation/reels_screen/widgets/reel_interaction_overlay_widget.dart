@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../core/app_export.dart';
 import '../../../widgets/custom_icon_widget.dart';
@@ -41,20 +40,16 @@ class ReelInteractionOverlayWidget extends StatelessWidget {
           onTap: onLikeTap,
         ),
         const SizedBox(height: 24),
-        // Comment button — uses the custom SVG
+        // Comment button
         GestureDetector(
           onTap: onCommentTap,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              SvgPicture.asset(
-                'assets/icons/comment.svg',
-                width: 32,
-                height: 32,
-                colorFilter: const ColorFilter.mode(
-                  Colors.white,
-                  BlendMode.srcIn,
-                ),
+              const Icon(
+                Icons.chat_bubble_outline_rounded,
+                color: Colors.white,
+                size: 32,
               ),
               const SizedBox(height: 4),
               Text(
