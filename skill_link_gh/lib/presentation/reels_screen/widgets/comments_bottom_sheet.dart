@@ -82,8 +82,8 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     }
 
     try {
-      // Fetch ALL comments for this reel, filter client-side
-      // (Firestore doesn't support isNull queries on all SDK versions)
+      // Fetch ALL comments — same approach as post comments screen
+      // _buildTree handles parent/reply separation
       final snap = await _firestore
           .collection('reels')
           .doc(widget.reelId)
@@ -93,14 +93,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
 
       if (!mounted) return;
 
-      // Only top-level comments (no parentId)
-      final topLevel = snap.docs.where((d) {
-        final data = d.data();
-        final pid = data['parentId'];
-        return pid == null || pid == '';
-      }).toList();
-
-      final userIds = topLevel
+      final userIds = snap.docs
           .map((d) => (d.data())['userId'] as String? ?? '')
           .toSet()
           .where((id) => id.isNotEmpty)
@@ -126,16 +119,17 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
         }
       }
 
-      final loaded = topLevel.map((doc) {
+      final loaded = snap.docs.map((doc) {
         final data = doc.data();
-        // Handle both old schema (likes: int) and new schema (likes: List)
         final rawLikes = data['likes'];
         final likesList = rawLikes is List
             ? List<String>.from(rawLikes)
             : <String>[];
+        final pid = data['parentId'];
         return LocalComment(
           id: doc.id,
-          parentId: null,
+          // treat empty string same as null
+          parentId: (pid is String && pid.isNotEmpty) ? pid : null,
           userId: data['userId'] ?? '',
           userName: nameMap[data['userId']] ?? data['userName'] ?? 'Anonymous',
           userAvatar: avatarMap[data['userId']] ?? data['userAvatar'] ?? '',
@@ -143,20 +137,21 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
           commentText: data['text'] ?? data['commentText'] ?? '',
           likes: likesList,
           replies: data['replyCount'] ?? data['replies'] ?? 0,
-          level: 0,
+          level: (pid is String && pid.isNotEmpty) ? 1 : 0,
           createdAt:
               (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
           isExpanded: false,
         );
       }).toList();
 
-      if (mounted)
+      if (mounted) {
         setState(() {
           _comments
             ..clear()
             ..addAll(loaded);
           _isLoading = false;
         });
+      }
     } catch (e) {
       log('Error loading reel comments: $e');
       if (mounted) setState(() => _isLoading = false);
@@ -166,85 +161,6 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
   Future<void> _toggleReplies(String commentId) async {
     final index = _comments.indexWhere((c) => c.id == commentId);
     if (index == -1) return;
-
-    final comment = _comments[index];
-    final alreadyLoaded = _comments.any((c) => c.parentId == commentId);
-
-    if (!comment.isExpanded && !alreadyLoaded) {
-      try {
-        final snap = await _firestore
-            .collection('reels')
-            .doc(widget.reelId)
-            .collection('comments')
-            .where('parentId', isEqualTo: commentId)
-            .orderBy('timestamp', descending: false)
-            .get();
-
-        if (!mounted) return;
-
-        final userIds = snap.docs
-            .map((d) => (d.data())['userId'] as String? ?? '')
-            .toSet()
-            .where((id) => id.isNotEmpty)
-            .toList();
-
-        final Map<String, String> avatarMap = {};
-        final Map<String, String> nameMap = {};
-        if (userIds.isNotEmpty) {
-          final userDocs = await Future.wait(
-            userIds.map((uid) => _firestore.collection('users').doc(uid).get()),
-          );
-          for (final doc in userDocs) {
-            if (!doc.exists) continue;
-            final d = doc.data()!;
-            final img = (d['profileImage'] as String? ?? '').isNotEmpty
-                ? d['profileImage'] as String
-                : (d['photoUrl'] as String? ?? '');
-            if (img.isNotEmpty) avatarMap[doc.id] = img;
-            final name = (d['fullName'] as String? ?? '').isNotEmpty
-                ? d['fullName'] as String
-                : (d['displayName'] as String? ?? '');
-            if (name.isNotEmpty) nameMap[doc.id] = name;
-          }
-        }
-
-        final replies = snap.docs.map((doc) {
-          final data = doc.data();
-          final rawLikes = data['likes'];
-          final likesList = rawLikes is List
-              ? List<String>.from(rawLikes)
-              : <String>[];
-          return LocalComment(
-            id: doc.id,
-            parentId: commentId,
-            userId: data['userId'] ?? '',
-            userName:
-                nameMap[data['userId']] ?? data['userName'] ?? 'Anonymous',
-            userAvatar: avatarMap[data['userId']] ?? data['userAvatar'] ?? '',
-            isVerified: data['isVerified'] ?? false,
-            commentText: data['text'] ?? data['commentText'] ?? '',
-            likes: likesList,
-            replies: 0,
-            level: 1,
-            createdAt:
-                (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
-            isExpanded: false,
-          );
-        }).toList();
-
-        if (snap.docs.isNotEmpty) {
-          setState(() {
-            _comments.removeWhere((c) => c.parentId == commentId);
-            _comments.insertAll(index + 1, replies);
-            _comments[index] = _comments[index].copyWith(isExpanded: true);
-          });
-          return;
-        }
-      } catch (e) {
-        log('Error loading reel replies: $e');
-      }
-    }
-
     setState(() {
       _comments[index] = _comments[index].copyWith(
         isExpanded: !_comments[index].isExpanded,
