@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
-import '../../../core/app_export.dart';
 import '../../../widgets/custom_icon_widget.dart';
 
-/// Interaction overlay widget for reels
+/// Right-side action buttons — Instagram Reels style
 class ReelInteractionOverlayWidget extends StatelessWidget {
   final int likes;
   final int comments;
@@ -28,98 +28,107 @@ class ReelInteractionOverlayWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _buildInteractionButton(
-          icon: isLiked ? 'favorite' : 'favorite_border',
-          label: _formatCount(likes),
-          color: isLiked ? Colors.red : Colors.white,
+        // Like
+        _ActionBtn(
           onTap: onLikeTap,
+          label: _fmt(likes),
+          child: Icon(
+            isLiked ? Icons.favorite : Icons.favorite_border,
+            color: isLiked ? Colors.red : Colors.white,
+            size: 30,
+          ),
         ),
-        const SizedBox(height: 24),
-        // Comment button
-        GestureDetector(
+        const SizedBox(height: 20),
+
+        // Comment — uses same SVG as post card
+        _ActionBtn(
           onTap: onCommentTap,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.chat_bubble_outline_rounded,
-                color: Colors.white,
-                size: 32,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _formatCount(comments),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+          label: _fmt(comments),
+          child: SvgPicture.asset(
+            'assets/images/comment-1-svgrepo-com.svg',
+            width: 28,
+            height: 28,
+            colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Share
+        _ActionBtn(
+          onTap: onShareTap,
+          label: _fmt(shares),
+          child: SvgPicture.asset(
+            'assets/images/send-svgrepo-com.svg',
+            width: 28,
+            height: 28,
+            colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
           ),
         ),
         const SizedBox(height: 24),
-        _buildInteractionButton(
-          icon: 'share',
-          label: _formatCount(shares),
-          color: Colors.white,
-          onTap: onShareTap,
-        ),
-        const SizedBox(height: 32),
+
+        // Book — compact pill button
         GestureDetector(
           onTap: onBookServiceTap,
           child: Container(
-            width: 56,
-            height: 56,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary,
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [
-                BoxShadow(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.4),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CustomIconWidget(
+                  iconName: 'calendar_today',
+                  color: Colors.black,
+                  size: 16,
+                ),
+                const SizedBox(width: 4),
+                const Text(
+                  'Book',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ],
             ),
-            child: Center(
-              child: CustomIconWidget(
-                iconName: 'calendar_today',
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Book',
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildInteractionButton({
-    required String icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
+  String _fmt(int n) {
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
+    return n.toString();
+  }
+}
+
+class _ActionBtn extends StatelessWidget {
+  final VoidCallback onTap;
+  final String label;
+  final Widget child;
+
+  const _ActionBtn({
+    required this.onTap,
+    required this.label,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CustomIconWidget(iconName: icon, color: color, size: 32),
+          child,
           const SizedBox(height: 4),
           Text(
             label,
@@ -127,16 +136,11 @@ class ReelInteractionOverlayWidget extends StatelessWidget {
               color: Colors.white,
               fontSize: 12,
               fontWeight: FontWeight.w600,
+              shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
             ),
           ),
         ],
       ),
     );
-  }
-
-  String _formatCount(int count) {
-    if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
-    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}K';
-    return count.toString();
   }
 }

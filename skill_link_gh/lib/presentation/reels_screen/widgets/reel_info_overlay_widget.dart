@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../widgets/user_avatar_widget.dart';
 
-/// Info overlay widget for reels
-/// Displays artisan profile, category, and reel description
+/// Bottom-left info overlay — Instagram Reels style
 class ReelInfoOverlayWidget extends StatelessWidget {
   final String artisanName;
   final String artisanAvatar;
@@ -24,19 +23,17 @@ class ReelInfoOverlayWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Avatar + name + follow
         GestureDetector(
           onTap: onProfileTap,
           child: Row(
             children: [
+              // Avatar with white ring
               Container(
-                width: 48,
-                height: 48,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2),
@@ -44,50 +41,41 @@ class ReelInfoOverlayWidget extends StatelessWidget {
                 child: UserAvatarWidget(
                   imageUrl: artisanAvatar,
                   name: artisanName,
-                  size: 44, // Slightly smaller to account for border
+                  size: 40,
                   semanticLabel: artisanAvatarSemanticLabel,
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      artisanName,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      category,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+              const SizedBox(width: 10),
+              // Name — truncated like Instagram
+              Flexible(
+                child: Text(
+                  artisanName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 10),
+              // Follow button — outlined white pill
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 6,
+                  horizontal: 14,
+                  vertical: 5,
                 ),
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.white, width: 1.5),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Text(
+                child: const Text(
                   'Follow',
-                  style: theme.textTheme.labelMedium?.copyWith(
+                  style: TextStyle(
                     color: Colors.white,
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -95,14 +83,17 @@ class ReelInfoOverlayWidget extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
+        // Description
         Text(
           description,
-          style: theme.textTheme.bodyMedium?.copyWith(
+          style: const TextStyle(
             color: Colors.white,
+            fontSize: 14,
             height: 1.4,
+            shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
           ),
-          maxLines: 3,
+          maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
       ],
