@@ -845,7 +845,7 @@ class _ArtisanCard extends StatelessWidget {
                       ),
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 4),
-                        child: Text('Â·'),
+                        child: Text('·'),
                       ),
                       Flexible(
                         child: Text(
@@ -858,7 +858,7 @@ class _ArtisanCard extends StatelessWidget {
                       ),
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 4),
-                        child: Text('Â·'),
+                        child: Text('·'),
                       ),
                       const Icon(Icons.star, color: Colors.amber, size: 12),
                       const SizedBox(width: 2),
