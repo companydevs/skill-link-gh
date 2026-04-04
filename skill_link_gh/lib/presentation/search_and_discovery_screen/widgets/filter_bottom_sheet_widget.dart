@@ -23,7 +23,15 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
   @override
   void initState() {
     super.initState();
-    _filters = Map.from(widget.currentFilters);
+    _filters = {
+      'distance': 10.0,
+      'minPrice': 0.0,
+      'maxPrice': 1000.0,
+      'minRating': 0.0,
+      'availability': 'any',
+      'verifiedOnly': false,
+      ...widget.currentFilters,
+    };
   }
 
   @override
@@ -36,7 +44,6 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             margin: EdgeInsets.only(top: 1.h),
