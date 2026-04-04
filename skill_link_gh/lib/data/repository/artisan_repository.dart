@@ -1,4 +1,7 @@
+import 'dart:developer';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -99,12 +102,68 @@ class ArtisanRepository {
           (a, b) =>
               (a['distance'] as double).compareTo(b['distance'] as double),
         );
+
+        // Enrich with real road distances from Google Distance Matrix API
+        // Only for artisans that have stored coordinates
+        await _enrichWithRoadDistances(artisans, userLat, userLng);
       }
 
       return artisans;
     } catch (e) {
-      print('Error fetching artisans: $e');
+      log('Error fetching artisans: $e');
       return [];
+    }
+  }
+
+  /// Calls the getDistanceMatrix Cloud Function to get real road distances
+  /// and travel times. Falls back to straight-line if the call fails.
+  Future<void> _enrichWithRoadDistances(
+    List<Map<String, dynamic>> artisans,
+    double userLat,
+    double userLng,
+  ) async {
+    final withCoords = artisans.where((a) {
+      final lat = (a['latitude'] as num?)?.toDouble();
+      final lng = (a['longitude'] as num?)?.toDouble();
+      return lat != null && lng != null;
+    }).toList();
+
+    if (withCoords.isEmpty) return;
+
+    try {
+      final result = await FirebaseFunctions.instance
+          .httpsCallable('getDistanceMatrix')
+          .call({
+            'originLat': userLat,
+            'originLng': userLng,
+            'destinations': withCoords
+                .map(
+                  (a) => {
+                    'id': a['id'] as String,
+                    'lat': (a['latitude'] as num).toDouble(),
+                    'lng': (a['longitude'] as num).toDouble(),
+                  },
+                )
+                .toList(),
+          });
+
+      final results = (result.data['results'] as List).cast<Map>();
+      for (final r in results) {
+        final id = r['artisanId'] as String;
+        final idx = artisans.indexWhere((a) => a['id'] == id);
+        if (idx != -1) {
+          artisans[idx]['distance'] = (r['distanceKm'] as num).toDouble();
+          artisans[idx]['durationMinutes'] = (r['durationMinutes'] as num)
+              .toInt();
+        }
+      }
+
+      // Re-sort by real road distance
+      artisans.sort(
+        (a, b) => (a['distance'] as double).compareTo(b['distance'] as double),
+      );
+    } catch (e) {
+      log('Distance Matrix enrichment failed (using straight-line): $e');
     }
   }
 }

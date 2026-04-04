@@ -26,6 +26,7 @@ export {checkUserStatus} from "./authentication/checkUserStatus";
 export {deleteUserAccount} from "./authentication/deleteUserAccount";
 export {deleteComment} from "./posts/deleteComment";
 export {syncUserProfile} from "./syncUserProfile";
+export {getDistanceMatrix} from "./distanceMatrix";
 
 
 export {createPost} from "./posts/createPost";
