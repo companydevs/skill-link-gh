@@ -131,10 +131,14 @@ class CustomBottomBar extends StatelessWidget {
           if (onTap != null) {
             onTap!(index);
           } else {
-            // Default navigation behavior
             if (!isSelected) {
               HapticFeedback.lightImpact();
-              Navigator.pushReplacementNamed(context, item.route);
+              // Clear back stack and go to the route fresh
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                item.route,
+                (route) => false,
+              );
             }
           }
         },
