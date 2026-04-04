@@ -71,6 +71,7 @@ class AppRoutes {
     },
 
     artisanProfile: (context) => const ArtisanProfileScreen(),
+    reels: (context) => ReelsScreen(),
     '/user-profile-view': (context) {
       final args =
           ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
