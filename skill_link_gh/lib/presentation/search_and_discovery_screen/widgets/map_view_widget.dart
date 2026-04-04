@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -50,7 +50,7 @@ class _MapViewWidgetState extends State<MapViewWidget> {
     }
   }
 
-  // ── Marker building ────────────────────────────────────────────────────────
+  // â”€â”€ Marker building â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Future<void> _buildMarkers() async {
     final rng = math.Random();
@@ -116,7 +116,7 @@ class _MapViewWidgetState extends State<MapViewWidget> {
     if (mounted) setState(() => _markers = updated);
   }
 
-  // ── Marker tap → fetch road route ─────────────────────────────────────────
+  // â”€â”€ Marker tap â†’ fetch road route â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Future<void> _onMarkerTap(Map<String, dynamic> artisan) async {
     final lat = artisan['_lat'] as double? ?? widget.currentLocation.latitude;
@@ -136,7 +136,7 @@ class _MapViewWidgetState extends State<MapViewWidget> {
             polylineId: const PolylineId('route'),
             points: points,
             color: const Color(0xFF4CAF50),
-            width: 4,
+            width: 5,
             jointType: JointType.round,
             endCap: Cap.roundCap,
             startCap: Cap.roundCap,
@@ -201,7 +201,7 @@ class _MapViewWidgetState extends State<MapViewWidget> {
     return points;
   }
 
-  // ── Circular avatar marker ─────────────────────────────────────────────────
+  // â”€â”€ Circular avatar marker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Future<BitmapDescriptor> _buildMarkerIcon(
     String imageUrl,
@@ -291,7 +291,7 @@ class _MapViewWidgetState extends State<MapViewWidget> {
       polylines: _polylines,
       myLocationEnabled: true,
       myLocationButtonEnabled: false,
-      zoomControlsEnabled: false,
+      zoomControlsEnabled: true,
       mapToolbarEnabled: false,
       onMapCreated: (c) => _mapController = c,
       onTap: (_) {
