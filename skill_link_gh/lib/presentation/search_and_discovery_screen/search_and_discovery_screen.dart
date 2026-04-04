@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -109,7 +109,7 @@ class _SearchAndDiscoveryScreenState extends State<SearchAndDiscoveryScreen> {
 
   Future<void> _getCurrentLocation() async {
     try {
-      // Try last known position first — instant, no GPS wait
+      // Try last known position first â€” instant, no GPS wait
       final lastKnown = await Geolocator.getLastKnownPosition();
       if (lastKnown != null && mounted) {
         setState(() {
