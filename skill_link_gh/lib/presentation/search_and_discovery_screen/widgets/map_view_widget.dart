@@ -45,7 +45,7 @@ class _MapViewWidgetState extends State<MapViewWidget>
     super.initState();
     _routeAnim = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 1200),
     );
     _routeAnim.addListener(_onRouteAnimTick);
     _buildMarkers();
@@ -81,24 +81,26 @@ class _MapViewWidgetState extends State<MapViewWidget>
     if (mounted) {
       setState(() {
         _polylines = {
-          Polyline(
-            polylineId: const PolylineId('route'),
-            points: visible,
-            color: const Color(0xFF1A73E8), // Google Maps blue
-            width: 6,
-            jointType: JointType.round,
-            endCap: Cap.roundCap,
-            startCap: Cap.roundCap,
-          ),
-          // Shadow/outline for depth
+          // Shadow for depth
           Polyline(
             polylineId: const PolylineId('route_shadow'),
             points: visible,
-            color: Colors.black.withValues(alpha: 0.15),
-            width: 10,
+            color: Colors.black.withValues(alpha: 0.18),
+            width: 12,
             jointType: JointType.round,
             endCap: Cap.roundCap,
             startCap: Cap.roundCap,
+            geodesic: false,
+          ),
+          Polyline(
+            polylineId: const PolylineId('route'),
+            points: visible,
+            color: const Color(0xFF1A73E8),
+            width: 7,
+            jointType: JointType.round,
+            endCap: Cap.roundCap,
+            startCap: Cap.roundCap,
+            geodesic: false,
           ),
         };
       });
@@ -220,15 +222,41 @@ class _MapViewWidgetState extends State<MapViewWidget>
         '&key=$_kMapsKey',
       );
       final response = await http.get(url).timeout(const Duration(seconds: 8));
-      if (response.statusCode != 200) return [origin, dest];
+      if (response.statusCode != 200) return _curvedFallback(origin, dest);
       final data = json.decode(response.body) as Map<String, dynamic>;
-      if (data['status'] != 'OK') return [origin, dest];
+      if (data['status'] != 'OK') return _curvedFallback(origin, dest);
       final encoded =
           data['routes'][0]['overview_polyline']['points'] as String;
       return _decodePolyline(encoded);
     } catch (_) {
-      return [origin, dest];
+      return _curvedFallback(origin, dest);
     }
+  }
+
+  /// Generates a smooth curved arc between two points as a fallback.
+  List<LatLng> _curvedFallback(LatLng a, LatLng b) {
+    const steps = 40;
+    final midLat = (a.latitude + b.latitude) / 2;
+    final midLng = (a.longitude + b.longitude) / 2;
+    // Perpendicular offset for the curve
+    final dLat = b.latitude - a.latitude;
+    final dLng = b.longitude - a.longitude;
+    final curvature = 0.3;
+    final ctrlLat = midLat - dLng * curvature;
+    final ctrlLng = midLng + dLat * curvature;
+
+    return List.generate(steps + 1, (i) {
+      final t = i / steps;
+      final lat =
+          (1 - t) * (1 - t) * a.latitude +
+          2 * (1 - t) * t * ctrlLat +
+          t * t * b.latitude;
+      final lng =
+          (1 - t) * (1 - t) * a.longitude +
+          2 * (1 - t) * t * ctrlLng +
+          t * t * b.longitude;
+      return LatLng(lat, lng);
+    });
   }
 
   List<LatLng> _decodePolyline(String encoded) {

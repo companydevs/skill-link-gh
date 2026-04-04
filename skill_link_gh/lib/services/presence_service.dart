@@ -81,4 +81,15 @@ class PresenceService with WidgetsBindingObserver {
     if (diff.inDays < 7) return '${diff.inDays}d ago';
     return 'Long ago';
   }
+
+  /// Returns a short label only if seen recently (within 24h).
+  /// Otherwise returns 'Available' to avoid ugly "Last seen Long ago" text.
+  static String recentLastSeenLabel(Timestamp? ts) {
+    if (ts == null) return 'Available';
+    final diff = DateTime.now().difference(ts.toDate());
+    if (diff.inSeconds < 60) return 'Last seen just now';
+    if (diff.inMinutes < 60) return 'Last seen ${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return 'Last seen ${diff.inHours}h ago';
+    return 'Available';
+  }
 }

@@ -718,7 +718,6 @@ class _ArtisanCard extends StatelessWidget {
               stream: PresenceService.presenceStream(id),
               builder: (_, snap) {
                 final isOnline = snap.data?['isOnline'] as bool? ?? false;
-                final lastSeen = snap.data?['lastSeen'] as Timestamp?;
                 return Stack(
                   clipBehavior: Clip.none,
                   children: [
@@ -740,31 +739,32 @@ class _ArtisanCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Tooltip(
-                        message: isOnline
-                            ? 'Online'
-                            : 'Last seen ${PresenceService.formatLastSeen(lastSeen)}',
+                    if (isOnline)
+                      Positioned(
+                        right: -1,
+                        bottom: -1,
                         child: Container(
-                          width: 12,
-                          height: 12,
+                          width: 14,
+                          height: 14,
                           decoration: BoxDecoration(
-                            color: isOnline
-                                ? const Color(0xFF4CAF50)
-                                : theme.colorScheme.onSurfaceVariant.withValues(
-                                    alpha: 0.4,
-                                  ),
+                            color: const Color(0xFF22C55E),
                             shape: BoxShape.circle,
                             border: Border.all(
                               color: theme.colorScheme.surface,
-                              width: 2,
+                              width: 2.5,
                             ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(
+                                  0xFF22C55E,
+                                ).withValues(alpha: 0.5),
+                                blurRadius: 4,
+                                spreadRadius: 1,
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ),
                   ],
                 );
               },
@@ -818,11 +818,11 @@ class _ArtisanCard extends StatelessWidget {
                       final lastSeen = snap.data?['lastSeen'] as Timestamp?;
                       return Text(
                         isOnline
-                            ? 'ðŸŸ¢ Online'
-                            : 'Last seen ${PresenceService.formatLastSeen(lastSeen)}',
+                            ? '🟢 Online'
+                            : PresenceService.recentLastSeenLabel(lastSeen),
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: isOnline
-                              ? const Color(0xFF4CAF50)
+                              ? const Color(0xFF22C55E)
                               : theme.colorScheme.onSurfaceVariant,
                           fontWeight: isOnline
                               ? FontWeight.w600
