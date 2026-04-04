@@ -15,6 +15,15 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(); // Wait for Firebase to finish initializing
 
+  // Start/stop presence tracking based on auth state
+  FirebaseAuth.instance.authStateChanges().listen((user) {
+    if (user != null) {
+      PresenceService().init();
+    } else {
+      PresenceService().dispose();
+    }
+  });
+
   await GoogleSignIn.instance.initialize(
     serverClientId:
         '185174877312-oo3rdb2hgmel0b30apn6p06st7asudh3.apps.googleusercontent.com',
