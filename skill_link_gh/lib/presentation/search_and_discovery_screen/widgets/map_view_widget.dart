@@ -32,7 +32,6 @@ class _MapViewWidgetState extends State<MapViewWidget> {
   Set<Marker> _markers = {};
   Set<Polyline> _polylines = {};
   Map<String, dynamic>? _selectedArtisan;
-  final ScrollController _listScrollController = ScrollController();
 
   // Cache: artisanId -> {normal: BitmapDescriptor, selected: BitmapDescriptor}
   final Map<String, Map<String, BitmapDescriptor>> _iconCache = {};
@@ -257,115 +256,27 @@ class _MapViewWidgetState extends State<MapViewWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Map gets 50% of available height, list gets the rest
-        final mapHeight = constraints.maxHeight * 0.50;
-
-        return Column(
-          children: [
-            // ── Map ──────────────────────────────────────────────────────
-            SizedBox(
-              height: mapHeight,
-              child: GoogleMap(
-                initialCameraPosition: CameraPosition(
-                  target: widget.currentLocation,
-                  zoom: 13,
-                ),
-                markers: _markers,
-                polylines: _polylines,
-                myLocationEnabled: true,
-                myLocationButtonEnabled: true,
-                zoomControlsEnabled: false,
-                mapToolbarEnabled: false,
-                onMapCreated: (c) => _mapController = c,
-                onTap: (_) {
-                  setState(() {
-                    _selectedArtisan = null;
-                    _polylines = {};
-                  });
-                  _swapMarkerIcon('');
-                },
-              ),
-            ),
-
-            // ── List section ─────────────────────────────────────────────
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 4.w,
-                      vertical: 1.2.h,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'These are the available artisans',
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        Icon(
-                          Icons.tune,
-                          color: theme.colorScheme.onSurfaceVariant,
-                          size: 22,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: widget.artisans.isEmpty
-                        ? Center(
-                            child: Text(
-                              'No artisans found nearby',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          )
-                        : ListView.separated(
-                            controller: _listScrollController,
-                            padding: EdgeInsets.symmetric(horizontal: 4.w)
-                                .copyWith(
-                                  bottom:
-                                      MediaQuery.of(context).padding.bottom +
-                                      1.h,
-                                ),
-                            itemCount: widget.artisans.length,
-                            separatorBuilder: (_, __) => SizedBox(height: 1.h),
-                            itemBuilder: (context, index) {
-                              final artisan = widget.artisans[index];
-                              final isSelected =
-                                  _selectedArtisan != null &&
-                                  _selectedArtisan!['id'] == artisan['id'];
-                              return _ArtisanMapCard(
-                                artisan: artisan,
-                                isSelected: isSelected,
-                                distanceLabel: _distanceLabel(
-                                  (artisan['distance'] as num).toDouble(),
-                                ),
-                                onTap: () => _selectArtisan(artisan),
-                                onBookNow: () => Navigator.pushNamed(
-                                  context,
-                                  '/service-booking-screen',
-                                  arguments: artisan,
-                                ),
-                                onViewProfile: () =>
-                                    widget.onArtisanSelected(artisan),
-                              );
-                            },
-                          ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+        return GoogleMap(
+          initialCameraPosition: CameraPosition(
+            target: widget.currentLocation,
+            zoom: 14,
+          ),
+          markers: _markers,
+          polylines: _polylines,
+          myLocationEnabled: true,
+          myLocationButtonEnabled: false,
+          zoomControlsEnabled: false,
+          mapToolbarEnabled: false,
+          onMapCreated: (c) => _mapController = c,
+          onTap: (_) {
+            setState(() {
+              _selectedArtisan = null;
+              _polylines = {};
+            });
+            _swapMarkerIcon('');
+          },
         );
       },
     );
@@ -374,7 +285,6 @@ class _MapViewWidgetState extends State<MapViewWidget> {
   @override
   void dispose() {
     _mapController?.dispose();
-    _listScrollController.dispose();
     super.dispose();
   }
 }
