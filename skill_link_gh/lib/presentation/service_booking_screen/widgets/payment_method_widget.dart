@@ -1,50 +1,31 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_credit_card/flutter_credit_card.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skill_link_gh/provider/wallet_provider.dart';
 
-import '../../../core/app_export.dart';
-import '../../../widgets/custom_icon_widget.dart';
-
-/// Widget for payment method selection
-class PaymentMethodWidget extends StatefulWidget {
+/// Wallet-first payment widget.
+/// Auto-selects wallet. If balance is insufficient, shows a top-up nudge.
+class PaymentMethodWidget extends ConsumerWidget {
   final String? selectedPaymentMethod;
   final Function(String) onPaymentMethodSelected;
-  final List<Map<String, dynamic>> savedCards;
+  final List<Map<String, dynamic>> savedCards; // kept for API compat, unused
+  final double totalAmount;
 
   const PaymentMethodWidget({
     super.key,
     required this.selectedPaymentMethod,
     required this.onPaymentMethodSelected,
     required this.savedCards,
+    this.totalAmount = 0.0,
   });
 
   @override
-  State<PaymentMethodWidget> createState() => _PaymentMethodWidgetState();
-}
-
-class _PaymentMethodWidgetState extends State<PaymentMethodWidget> {
-  bool _showAddCardForm = false;
-  String _cardNumber = '';
-  String _expiryDate = '';
-  String _cardHolderName = '';
-  String _cvvCode = '';
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-
-  void _toggleAddCardForm() {
-    setState(() => _showAddCardForm = !_showAddCardForm);
-  }
-
-  void _onCreditCardModelChange(CreditCardModel creditCardModel) {
-    setState(() {
-      _cardNumber = creditCardModel.cardNumber;
-      _expiryDate = creditCardModel.expiryDate;
-      _cardHolderName = creditCardModel.cardHolderName;
-      _cvvCode = creditCardModel.cvvCode;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final walletState = ref.watch(walletNotifierProvider);
+    final balance = walletState.balance;
+    final hasSufficient = balance >= totalAmount;
+    final isSelected = selectedPaymentMethod == 'wallet';
+    final shortfall = totalAmount - balance;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -65,157 +46,126 @@ class _PaymentMethodWidgetState extends State<PaymentMethodWidget> {
             ),
           ),
           const SizedBox(height: 16),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: widget.savedCards.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final card = widget.savedCards[index];
-              final isSelected =
-                  widget.selectedPaymentMethod == card['id'] as String;
 
-              return InkWell(
-                onTap: () =>
-                    widget.onPaymentMethodSelected(card['id'] as String),
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? theme.colorScheme.primaryContainer
-                        : theme.colorScheme.surface,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: isSelected
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.outline.withValues(alpha: 0.3),
-                      width: isSelected ? 2 : 1,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      CustomIconWidget(
-                        iconName: 'credit_card',
-                        color: isSelected
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.onSurfaceVariant,
-                        size: 24,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              card['cardType'] as String,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '**** **** **** ${card['lastFourDigits']}',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (isSelected)
-                        CustomIconWidget(
-                          iconName: 'check_circle',
-                          color: theme.colorScheme.primary,
-                          size: 24,
-                        ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 12),
+          // ── Wallet tile ──────────────────────────────────────────────
           InkWell(
-            onTap: _toggleAddCardForm,
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.all(12),
+            onTap: hasSufficient
+                ? () => onPaymentMethodSelected('wallet')
+                : null,
+            borderRadius: BorderRadius.circular(10),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                borderRadius: BorderRadius.circular(8),
+                color: isSelected
+                    ? const Color(0xFF1A73E8).withValues(alpha: 0.08)
+                    : theme.colorScheme.surfaceContainerHighest.withValues(
+                        alpha: 0.5,
+                      ),
+                borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: theme.colorScheme.primary,
-                  width: 1,
-                  style: BorderStyle.solid,
+                  color: isSelected
+                      ? const Color(0xFF1A73E8)
+                      : theme.colorScheme.outline.withValues(alpha: 0.25),
+                  width: isSelected ? 2 : 1,
                 ),
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CustomIconWidget(
-                    iconName: 'add',
-                    color: theme.colorScheme.primary,
-                    size: 20,
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A73E8).withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.account_balance_wallet_rounded,
+                      color: Color(0xFF1A73E8),
+                      size: 20,
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Add New Card',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.w600,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'SkillLink Wallet',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Balance: GH₵ ${balance.toStringAsFixed(2)}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: hasSufficient
+                                ? const Color(0xFF22C55E)
+                                : theme.colorScheme.error,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (isSelected)
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      color: Color(0xFF1A73E8),
+                      size: 22,
+                    ),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Insufficient balance nudge ───────────────────────────────
+          if (!hasSufficient && totalAmount > 0) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.errorContainer.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: theme.colorScheme.error.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: theme.colorScheme.error,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'You need GH₵ ${shortfall.toStringAsFixed(2)} more to complete this booking.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.error,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-          if (_showAddCardForm) ...[
-            const SizedBox(height: 16),
-            CreditCardWidget(
-              cardNumber: _cardNumber,
-              expiryDate: _expiryDate,
-              cardHolderName: _cardHolderName,
-              cvvCode: _cvvCode,
-              showBackView: false,
-              onCreditCardWidgetChange: (CreditCardBrand brand) {},
-            ),
-            const SizedBox(height: 16),
-            CreditCardForm(
-              formKey: _formKey,
-              cardNumber: _cardNumber,
-              expiryDate: _expiryDate,
-              cardHolderName: _cardHolderName,
-              cvvCode: _cvvCode,
-              onCreditCardModelChange: _onCreditCardModelChange,
-              obscureCvv: true,
-              obscureNumber: true,
-              inputConfiguration: InputConfiguration(
-                cardNumberDecoration: InputDecoration(
-                  labelText: 'Card Number',
-                  hintText: 'XXXX XXXX XXXX XXXX',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => Navigator.pushNamed(context, '/wallet-screen'),
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: Text(
+                  'Top Up GH₵ ${shortfall.toStringAsFixed(2)}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-                expiryDateDecoration: InputDecoration(
-                  labelText: 'Expiry Date',
-                  hintText: 'MM/YY',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                cvvCodeDecoration: InputDecoration(
-                  labelText: 'CVV',
-                  hintText: 'XXX',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                cardHolderDecoration: InputDecoration(
-                  labelText: 'Card Holder Name',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF1A73E8),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
               ),

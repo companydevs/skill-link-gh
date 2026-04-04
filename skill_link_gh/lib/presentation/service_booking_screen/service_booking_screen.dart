@@ -55,6 +55,7 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
     // Rebuild when description changes so Continue button enables/disables
     _descriptionController.addListener(() => setState(() {}));
     _addressController.addListener(() => setState(() {}));
+    _selectedPaymentMethod = 'wallet'; // default to wallet
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadCurrentLocation();
       _loadServiceData();
@@ -340,11 +341,8 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
   // Time slots generated from artisan's working hours
   List<String> _availableTimeSlots = [];
 
-  // Mock saved cards
-  final List<Map<String, dynamic>> _savedCards = [
-    {"id": "card_1", "cardType": "Visa", "lastFourDigits": "4242"},
-    {"id": "card_2", "cardType": "Mastercard", "lastFourDigits": "5555"},
-  ];
+  // Mock saved cards — kept for API compat but wallet is primary
+  final List<Map<String, dynamic>> _savedCards = [];
 
   Map<String, dynamic> get _pricingData {
     // Trotro round-trip fare based on artisan distance
@@ -783,6 +781,14 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
               selectedPaymentMethod: _selectedPaymentMethod,
               onPaymentMethodSelected: _onPaymentMethodSelected,
               savedCards: _savedCards,
+              totalAmount:
+                  double.tryParse(
+                    (_pricingData['totalPrice'] as String? ?? '').replaceAll(
+                      RegExp(r'[^\d.]'),
+                      '',
+                    ),
+                  ) ??
+                  0.0,
             ),
             const SizedBox(height: 16),
             _buildTermsCheckbox(),

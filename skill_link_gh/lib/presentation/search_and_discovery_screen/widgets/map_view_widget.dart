@@ -289,12 +289,14 @@ class _MapViewWidgetState extends State<MapViewWidget>
     String imageUrl,
     bool selected,
   ) async {
+    // Render at 3× for crisp display on high-DPI screens
+    const double scale = 3.0;
     const int imgSize = 60;
     const double border = 3.5;
     const double tail = 14;
     final double r = imgSize / 2 + border;
-    final int w = (r * 2).ceil();
-    final int h = (r * 2 + tail).ceil();
+    final int w = ((r * 2) * scale).ceil();
+    final int h = ((r * 2 + tail) * scale).ceil();
 
     try {
       Uint8List? bytes;
@@ -316,15 +318,17 @@ class _MapViewWidgetState extends State<MapViewWidget>
 
       final codec = await ui.instantiateImageCodec(
         bytes,
-        targetWidth: imgSize,
-        targetHeight: imgSize,
+        targetWidth: (imgSize * scale).toInt(),
+        targetHeight: (imgSize * scale).toInt(),
       );
       final frame = await codec.getNextFrame();
       final src = frame.image;
 
       final rec = ui.PictureRecorder();
       final canvas = Canvas(rec);
-      final cx = w / 2.0;
+      // Scale all drawing operations
+      canvas.scale(scale);
+      final cx = (w / scale) / 2.0;
       final borderColor = selected ? const Color(0xFF1A73E8) : Colors.white;
 
       // Drop shadow
@@ -368,7 +372,10 @@ class _MapViewWidgetState extends State<MapViewWidget>
       final img = await rec.endRecording().toImage(w, h);
       final bd = await img.toByteData(format: ui.ImageByteFormat.png);
       if (bd == null) return BitmapDescriptor.defaultMarker;
-      return BitmapDescriptor.bytes(bd.buffer.asUint8List());
+      return BitmapDescriptor.bytes(
+        bd.buffer.asUint8List(),
+        imagePixelRatio: scale,
+      );
     } catch (_) {
       return BitmapDescriptor.defaultMarker;
     }
