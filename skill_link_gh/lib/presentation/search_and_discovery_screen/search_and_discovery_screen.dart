@@ -5,7 +5,6 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sizer/sizer.dart';
 
-import '../../core/app_export.dart';
 import '../../data/repository/artisan_repository.dart';
 import '../../presentation/in_app_messaging/in_app_messaging.dart';
 import '../../widgets/custom_app_bar.dart';
