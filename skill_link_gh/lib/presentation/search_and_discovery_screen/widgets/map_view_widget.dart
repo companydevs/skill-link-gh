@@ -249,11 +249,6 @@ class _MapViewWidgetState extends State<MapViewWidget> {
     }
   }
 
-  String _distanceLabel(double km) {
-    final minutes = (km * 3).round().clamp(1, 999);
-    return '$minutes min${minutes == 1 ? '' : 's'} away';
-  }
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
