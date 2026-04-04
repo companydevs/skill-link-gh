@@ -21,6 +21,7 @@ import '../presentation/service_booking_screen/service_booking_screen.dart';
 import '../presentation/registration_screen/registration_screen.dart';
 import '../presentation/search_and_discovery_screen/search_and_discovery_screen.dart';
 import '../presentation/posts_homepage/posts_homepage.dart';
+import 'package:skill_link_gh/presentation/user_profile_view_screen/user_profile_view_screen.dart';
 import 'package:skill_link_gh/presentation/wallet_screen/wallet_screen.dart';
 
 class AppRoutes {
@@ -50,6 +51,7 @@ class AppRoutes {
   static const String bookingTrackingScreen = '/booking-tracking-screen';
   static const String fixDataScreen = '/fix-data-screen';
   static const String walletScreen = '/wallet-screen';
+  static const String userProfileView = '/user-profile-view';
   static const String cleanupVideosScreen = '/cleanup-videos-screen';
 
   static Map<String, WidgetBuilder> routes = {
@@ -69,7 +71,12 @@ class AppRoutes {
     },
 
     artisanProfile: (context) => const ArtisanProfileScreen(),
-    reels: (context) => ReelsScreen(),
+    '/user-profile-view': (context) {
+      final args =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      final userId = args?['id'] as String? ?? '';
+      return UserProfileViewScreen(userId: userId);
+    },
     serviceBooking: (context) => const ServiceBookingScreen(),
     registration: (context) => const RegistrationScreen(),
     searchAndDiscovery: (context) => const SearchAndDiscoveryScreen(),

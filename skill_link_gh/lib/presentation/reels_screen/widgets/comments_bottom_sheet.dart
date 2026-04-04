@@ -515,7 +515,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                                 ? null
                                 : () => Navigator.pushNamed(
                                     context,
-                                    '/artisan-profile-screen',
+                                    '/user-profile-view',
                                     arguments: {'id': c.userId},
                                   ),
                           );

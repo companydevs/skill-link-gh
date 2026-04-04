@@ -588,7 +588,7 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
                               ? null
                               : () => Navigator.pushNamed(
                                   context,
-                                  '/artisan-profile-screen',
+                                  '/user-profile-view',
                                   arguments: {'id': c.userId},
                                 ),
                         );
