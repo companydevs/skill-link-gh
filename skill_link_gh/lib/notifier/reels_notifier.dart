@@ -12,9 +12,22 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
   final ReelsRepository _repository;
 
   StreamSubscription<QuerySnapshot>? _reelsSubscription;
-  final Set<String> _likingReels = {};
+
+  // Like state: reelId -> isLiked (source of truth for UI, never overwritten by stream)
+  final Map<String, bool> _likedState = {};
+
+  // Debounce: reelId -> pending timer
+  final Map<String, Timer> _likeDebounce = {};
+
+  // Track the "intended" like state after all pending taps
+  final Map<String, bool> _pendingLikeState = {};
+
+  // Original like state before debounce started (for revert on error)
+  final Map<String, bool> _originalLikeState = {};
+
   bool _isLoadingMore = false;
   bool _hasMoreReels = true;
+  bool _initialLikesLoaded = false;
 
   static const int _initialLoadSize = 10;
 
@@ -24,36 +37,54 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
     if (state.isLoading) return;
     state = const AsyncValue.loading();
     _reelsSubscription?.cancel();
+    _initialLikesLoaded = false;
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
 
     try {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
+      // Load like status once upfront — not on every stream event
+      if (uid != null) {
+        final snap = await FirebaseFirestore.instance
+            .collection('reels')
+            .orderBy('createdAt', descending: true)
+            .limit(_initialLoadSize)
+            .get();
 
-      // Real-time stream — handles deletions, count updates, new reels
+        for (final doc in snap.docs) {
+          try {
+            final likeDoc = await doc.reference
+                .collection('likes')
+                .doc(uid)
+                .get();
+            _likedState[doc.id] = likeDoc.exists;
+          } catch (_) {
+            _likedState[doc.id] = false;
+          }
+        }
+        _initialLikesLoaded = true;
+      }
+
+      // Now subscribe to real-time updates — counts only, never overwrite like state
       _reelsSubscription = FirebaseFirestore.instance
           .collection('reels')
           .orderBy('createdAt', descending: true)
           .limit(_initialLoadSize)
           .snapshots()
           .listen(
-            (snapshot) async {
+            (snapshot) {
               try {
                 final reels = <Reel>[];
                 for (final doc in snapshot.docs) {
                   final data = doc.data();
                   final videoUrl = data['videoUrl'] as String? ?? '';
-                  // Skip docs with no valid video URL (deleted/broken)
                   if (videoUrl.isEmpty) continue;
 
-                  bool isLiked = false;
-                  if (uid != null) {
-                    try {
-                      final likeDoc = await doc.reference
-                          .collection('likes')
-                          .doc(uid)
-                          .get();
-                      isLiked = likeDoc.exists;
-                    } catch (_) {}
-                  }
+                  // Use cached like state — never re-fetch from Firestore on stream events
+                  final isLiked = _likedState[doc.id] ?? false;
+
+                  // Comment count = top-level comments field on reel doc
+                  // (replies are tracked separately per comment)
+                  final commentCount = (data['comments'] ?? 0) as int;
 
                   reels.add(
                     Reel(
@@ -65,7 +96,7 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
                       artisanSemanticLabel: data['artisanSemanticLabel'] ?? '',
                       description: data['description'] ?? '',
                       likes: (data['likes'] ?? 0) as int,
-                      comments: (data['comments'] ?? 0) as int,
+                      comments: commentCount,
                       shares: (data['shares'] ?? 0) as int,
                       isLiked: isLiked,
                       timestamp:
@@ -125,16 +156,20 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
         final data = doc.data();
         final videoUrl = data['videoUrl'] as String? ?? '';
         if (videoUrl.isEmpty) continue;
-        bool isLiked = false;
-        if (uid != null) {
+
+        // Load like status for new reels
+        if (uid != null && !_likedState.containsKey(doc.id)) {
           try {
             final likeDoc = await doc.reference
                 .collection('likes')
                 .doc(uid)
                 .get();
-            isLiked = likeDoc.exists;
-          } catch (_) {}
+            _likedState[doc.id] = likeDoc.exists;
+          } catch (_) {
+            _likedState[doc.id] = false;
+          }
         }
+
         more.add(
           Reel(
             id: doc.id,
@@ -147,7 +182,7 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
             likes: (data['likes'] ?? 0) as int,
             comments: (data['comments'] ?? 0) as int,
             shares: (data['shares'] ?? 0) as int,
-            isLiked: isLiked,
+            isLiked: _likedState[doc.id] ?? false,
             timestamp:
                 (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
           ),
@@ -164,52 +199,99 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
   }
 
   Future<void> refreshReels() async {
+    _likedState.clear();
+    _likeDebounce.forEach((_, t) => t.cancel());
+    _likeDebounce.clear();
+    _pendingLikeState.clear();
+    _originalLikeState.clear();
     await loadInitialReels();
   }
 
+  /// Instant UI toggle + debounced Firestore write.
+  /// Rapid taps flip the UI immediately every time.
+  /// Firestore write fires 400ms after the last tap.
   void toggleLike(String reelId) {
-    if (_likingReels.contains(reelId)) return;
     final current = state.value;
     if (current == null) return;
     final index = current.indexWhere((r) => r.id == reelId);
     if (index == -1) return;
 
     final reel = current[index];
-    _likingReels.add(reelId);
+    final currentIsLiked = _likedState[reelId] ?? reel.isLiked;
+    final newIsLiked = !currentIsLiked;
 
-    // Optimistic update
+    // Store original state before any debounce started
+    _originalLikeState.putIfAbsent(reelId, () => currentIsLiked);
+
+    // Update cached like state immediately
+    _likedState[reelId] = newIsLiked;
+    _pendingLikeState[reelId] = newIsLiked;
+
+    // Instant UI update
     final updated = List<Reel>.from(current);
     updated[index] = reel.copyWith(
-      isLiked: !reel.isLiked,
-      likes: reel.isLiked ? reel.likes - 1 : reel.likes + 1,
+      isLiked: newIsLiked,
+      likes: newIsLiked ? reel.likes + 1 : reel.likes - 1,
     );
     state = AsyncValue.data(updated);
 
-    Future.microtask(() {
-      _repository
-          .toggleLike(reelId, reel.isLiked)
-          .then((_) {
-            _likingReels.remove(reelId);
-          })
-          .catchError((e) {
-            // Revert
-            final cur = state.value;
-            if (cur != null) {
-              final idx = cur.indexWhere((r) => r.id == reelId);
-              if (idx != -1) {
-                final rev = List<Reel>.from(cur);
-                rev[idx] = reel;
-                if (mounted) state = AsyncValue.data(rev);
-              }
-            }
-            _likingReels.remove(reelId);
-          });
+    // Cancel previous debounce timer
+    _likeDebounce[reelId]?.cancel();
+
+    // Debounce: write to Firestore 400ms after last tap
+    _likeDebounce[reelId] = Timer(const Duration(milliseconds: 400), () async {
+      final finalState = _pendingLikeState[reelId];
+      final originalState = _originalLikeState[reelId];
+      _likeDebounce.remove(reelId);
+      _pendingLikeState.remove(reelId);
+      _originalLikeState.remove(reelId);
+
+      if (finalState == null || originalState == null) return;
+      // If final state == original, net effect is zero — skip write
+      if (finalState == originalState) return;
+
+      try {
+        // Write the final state: if finalState is liked, we need to like;
+        // pass originalState so repository knows what to toggle from
+        await _repository.toggleLike(reelId, originalState);
+      } catch (e) {
+        log('toggleLike Firestore error: $e');
+        // Revert UI to original state on error
+        _likedState[reelId] = originalState!;
+        final cur = state.value;
+        if (cur != null && mounted) {
+          final idx = cur.indexWhere((r) => r.id == reelId);
+          if (idx != -1) {
+            final rev = List<Reel>.from(cur);
+            rev[idx] = cur[idx].copyWith(
+              isLiked: originalState,
+              likes: originalState ? cur[idx].likes + 1 : cur[idx].likes - 1,
+            );
+            state = AsyncValue.data(rev);
+          }
+        }
+      }
     });
+  }
+
+  /// Called by the comments bottom sheet after posting a comment
+  /// so the count updates instantly without waiting for the stream
+  void incrementCommentCount(String reelId) {
+    final current = state.value;
+    if (current == null) return;
+    final index = current.indexWhere((r) => r.id == reelId);
+    if (index == -1) return;
+    final updated = List<Reel>.from(current);
+    updated[index] = current[index].copyWith(
+      comments: current[index].comments + 1,
+    );
+    if (mounted) state = AsyncValue.data(updated);
   }
 
   @override
   void dispose() {
     _reelsSubscription?.cancel();
+    _likeDebounce.forEach((_, t) => t.cancel());
     super.dispose();
   }
 
