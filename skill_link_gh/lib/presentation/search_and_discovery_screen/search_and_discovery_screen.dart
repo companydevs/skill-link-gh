@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -461,7 +461,7 @@ class _SearchAndDiscoveryScreenState extends State<SearchAndDiscoveryScreen> {
   }
 }
 
-// ── Floating map button ───────────────────────────────────────────────────────
+// â”€â”€ Floating map button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class _MapBtn extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
@@ -491,7 +491,7 @@ class _MapBtn extends StatelessWidget {
   }
 }
 
-// ── Artisan list bottom sheet ─────────────────────────────────────────────────
+// â”€â”€ Artisan list bottom sheet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class _ArtisanListSheet extends StatelessWidget {
   final List<Map<String, dynamic>> artisans;
   final String sortBy;
@@ -665,7 +665,7 @@ class _ArtisanListSheet extends StatelessWidget {
   }
 }
 
-// ── Artisan card with real-time presence ──────────────────────────────────────
+// â”€â”€ Artisan card with real-time presence â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class _ArtisanCard extends StatelessWidget {
   final Map<String, dynamic> artisan;
   final VoidCallback onViewProfile;
@@ -687,7 +687,7 @@ class _ArtisanCard extends StatelessWidget {
     final distKm = (artisan['distance'] as num).toDouble();
     final mins = durationMins ?? (distKm * 3).round().clamp(1, 999);
     final distLabel = distKm > 0
-        ? '${distKm.toStringAsFixed(1)} km · $mins min'
+        ? '${distKm.toStringAsFixed(1)} km Â· $mins min'
         : '$mins min away';
     final img = (artisan['profileImage'] as String?)?.isNotEmpty == true
         ? artisan['profileImage'] as String
@@ -818,7 +818,7 @@ class _ArtisanCard extends StatelessWidget {
                       final lastSeen = snap.data?['lastSeen'] as Timestamp?;
                       return Text(
                         isOnline
-                            ? '🟢 Online'
+                            ? 'ðŸŸ¢ Online'
                             : 'Last seen ${PresenceService.formatLastSeen(lastSeen)}',
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: isOnline
@@ -842,7 +842,7 @@ class _ArtisanCard extends StatelessWidget {
                       ),
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 4),
-                        child: Text('·'),
+                        child: Text('Â·'),
                       ),
                       Flexible(
                         child: Text(
@@ -855,7 +855,7 @@ class _ArtisanCard extends StatelessWidget {
                       ),
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 4),
-                        child: Text('·'),
+                        child: Text('Â·'),
                       ),
                       const Icon(Icons.star, color: Colors.amber, size: 12),
                       const SizedBox(width: 2),
