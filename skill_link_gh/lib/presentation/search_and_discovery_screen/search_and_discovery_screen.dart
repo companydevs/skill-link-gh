@@ -687,7 +687,7 @@ class _ArtisanCard extends StatelessWidget {
     final distKm = (artisan['distance'] as num).toDouble();
     final mins = durationMins ?? (distKm * 3).round().clamp(1, 999);
     final distLabel = distKm > 0
-        ? '${distKm.toStringAsFixed(1)} km Â· $mins min'
+        ? '${distKm.toStringAsFixed(1)} km · $mins min'
         : '$mins min away';
     final img = (artisan['profileImage'] as String?)?.isNotEmpty == true
         ? artisan['profileImage'] as String
@@ -739,32 +739,35 @@ class _ArtisanCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (isOnline)
-                      Positioned(
-                        right: -1,
-                        bottom: -1,
-                        child: Container(
-                          width: 14,
-                          height: 14,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF22C55E),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: theme.colorScheme.surface,
-                              width: 2.5,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(
-                                  0xFF22C55E,
-                                ).withValues(alpha: 0.5),
-                                blurRadius: 4,
-                                spreadRadius: 1,
-                              ),
-                            ],
+                    Positioned(
+                      right: -1,
+                      bottom: -1,
+                      child: Container(
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: isOnline
+                              ? const Color(0xFF22C55E)
+                              : const Color(0xFF9E9E9E),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: theme.colorScheme.surface,
+                            width: 2.5,
                           ),
+                          boxShadow: isOnline
+                              ? [
+                                  BoxShadow(
+                                    color: const Color(
+                                      0xFF22C55E,
+                                    ).withValues(alpha: 0.5),
+                                    blurRadius: 4,
+                                    spreadRadius: 1,
+                                  ),
+                                ]
+                              : null,
                         ),
                       ),
+                    ),
                   ],
                 );
               },
