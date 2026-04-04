@@ -1,4 +1,5 @@
-﻿import 'dart:convert';
+﻿import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -27,17 +28,26 @@ class MapViewWidget extends StatefulWidget {
   State<MapViewWidget> createState() => _MapViewWidgetState();
 }
 
-class _MapViewWidgetState extends State<MapViewWidget> {
+class _MapViewWidgetState extends State<MapViewWidget>
+    with SingleTickerProviderStateMixin {
   GoogleMapController? _mapController;
   Set<Marker> _markers = {};
   Set<Polyline> _polylines = {};
-
-  // Icon cache: artisanId -> {normal, selected}
   final Map<String, Map<String, BitmapDescriptor>> _iconCache = {};
+
+  // Uber-style animated polyline
+  List<LatLng> _fullRoute = [];
+  late AnimationController _routeAnim;
+  Timer? _routeTimer;
 
   @override
   void initState() {
     super.initState();
+    _routeAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _routeAnim.addListener(_onRouteAnimTick);
     _buildMarkers();
   }
 
@@ -50,7 +60,58 @@ class _MapViewWidgetState extends State<MapViewWidget> {
     }
   }
 
-  // â”€â”€ Marker building â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  @override
+  void dispose() {
+    _routeTimer?.cancel();
+    _routeAnim.dispose();
+    _mapController?.dispose();
+    super.dispose();
+  }
+
+  // ── Animated polyline draw ─────────────────────────────────────────────────
+
+  void _onRouteAnimTick() {
+    if (_fullRoute.isEmpty) return;
+    final progress = _routeAnim.value;
+    final count = (_fullRoute.length * progress).round().clamp(
+      2,
+      _fullRoute.length,
+    );
+    final visible = _fullRoute.sublist(0, count);
+    if (mounted) {
+      setState(() {
+        _polylines = {
+          Polyline(
+            polylineId: const PolylineId('route'),
+            points: visible,
+            color: const Color(0xFF1A73E8), // Google Maps blue
+            width: 6,
+            jointType: JointType.round,
+            endCap: Cap.roundCap,
+            startCap: Cap.roundCap,
+          ),
+          // Shadow/outline for depth
+          Polyline(
+            polylineId: const PolylineId('route_shadow'),
+            points: visible,
+            color: Colors.black.withValues(alpha: 0.15),
+            width: 10,
+            jointType: JointType.round,
+            endCap: Cap.roundCap,
+            startCap: Cap.roundCap,
+          ),
+        };
+      });
+    }
+  }
+
+  void _animateRoute(List<LatLng> points) {
+    _fullRoute = points;
+    _routeAnim.reset();
+    _routeAnim.forward();
+  }
+
+  // ── Markers ────────────────────────────────────────────────────────────────
 
   Future<void> _buildMarkers() async {
     final rng = math.Random();
@@ -116,37 +177,39 @@ class _MapViewWidgetState extends State<MapViewWidget> {
     if (mounted) setState(() => _markers = updated);
   }
 
-  // â”€â”€ Marker tap â†’ fetch road route â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
   Future<void> _onMarkerTap(Map<String, dynamic> artisan) async {
     final lat = artisan['_lat'] as double? ?? widget.currentLocation.latitude;
     final lng = artisan['_lng'] as double? ?? widget.currentLocation.longitude;
     final dest = LatLng(lat, lng);
 
     _swapIcon(artisan['id'].toString());
-    _mapController?.animateCamera(CameraUpdate.newLatLng(dest));
 
-    // Fetch road route from Directions API
-    final points = await _fetchRoutePoints(widget.currentLocation, dest);
-
-    if (mounted) {
-      setState(() {
-        _polylines = {
-          Polyline(
-            polylineId: const PolylineId('route'),
-            points: points,
-            color: const Color(0xFF4CAF50),
-            width: 5,
-            jointType: JointType.round,
-            endCap: Cap.roundCap,
-            startCap: Cap.roundCap,
+    // Fit both points in view
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLngBounds(
+        LatLngBounds(
+          southwest: LatLng(
+            math.min(widget.currentLocation.latitude, lat) - 0.005,
+            math.min(widget.currentLocation.longitude, lng) - 0.005,
           ),
-        };
-      });
-    }
+          northeast: LatLng(
+            math.max(widget.currentLocation.latitude, lat) + 0.005,
+            math.max(widget.currentLocation.longitude, lng) + 0.005,
+          ),
+        ),
+        80,
+      ),
+    );
+
+    // Clear old route immediately
+    setState(() => _polylines = {});
+
+    final points = await _fetchRoutePoints(widget.currentLocation, dest);
+    _animateRoute(points);
   }
 
-  /// Calls Google Directions API and decodes the polyline into LatLng points.
+  // ── Directions API ─────────────────────────────────────────────────────────
+
   Future<List<LatLng>> _fetchRoutePoints(LatLng origin, LatLng dest) async {
     try {
       final url = Uri.parse(
@@ -157,27 +220,20 @@ class _MapViewWidgetState extends State<MapViewWidget> {
         '&key=$_kMapsKey',
       );
       final response = await http.get(url).timeout(const Duration(seconds: 8));
-      if (response.statusCode != 200) return _straightLine(origin, dest);
-
+      if (response.statusCode != 200) return [origin, dest];
       final data = json.decode(response.body) as Map<String, dynamic>;
-      if (data['status'] != 'OK') return _straightLine(origin, dest);
-
+      if (data['status'] != 'OK') return [origin, dest];
       final encoded =
           data['routes'][0]['overview_polyline']['points'] as String;
       return _decodePolyline(encoded);
     } catch (_) {
-      return _straightLine(origin, dest);
+      return [origin, dest];
     }
   }
 
-  List<LatLng> _straightLine(LatLng a, LatLng b) => [a, b];
-
-  /// Google's polyline encoding decoder
   List<LatLng> _decodePolyline(String encoded) {
     final points = <LatLng>[];
-    int index = 0;
-    int lat = 0, lng = 0;
-
+    int index = 0, lat = 0, lng = 0;
     while (index < encoded.length) {
       int shift = 0, result = 0, b;
       do {
@@ -186,7 +242,6 @@ class _MapViewWidgetState extends State<MapViewWidget> {
         shift += 5;
       } while (b >= 0x20);
       lat += (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
-
       shift = 0;
       result = 0;
       do {
@@ -195,21 +250,20 @@ class _MapViewWidgetState extends State<MapViewWidget> {
         shift += 5;
       } while (b >= 0x20);
       lng += (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
-
       points.add(LatLng(lat / 1e5, lng / 1e5));
     }
     return points;
   }
 
-  // â”€â”€ Circular avatar marker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Circular avatar marker ─────────────────────────────────────────────────
 
   Future<BitmapDescriptor> _buildMarkerIcon(
     String imageUrl,
     bool selected,
   ) async {
-    const int imgSize = 56;
-    const double border = 3;
-    const double tail = 12;
+    const int imgSize = 60;
+    const double border = 3.5;
+    const double tail = 14;
     final double r = imgSize / 2 + border;
     final int w = (r * 2).ceil();
     final int h = (r * 2 + tail).ceil();
@@ -243,10 +297,21 @@ class _MapViewWidgetState extends State<MapViewWidget> {
       final rec = ui.PictureRecorder();
       final canvas = Canvas(rec);
       final cx = w / 2.0;
-      final borderColor = selected ? const Color(0xFF4CAF50) : Colors.white;
+      final borderColor = selected ? const Color(0xFF1A73E8) : Colors.white;
 
+      // Drop shadow
+      canvas.drawCircle(
+        Offset(cx, r + 2),
+        r,
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.25)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+      );
+
+      // Border
       canvas.drawCircle(Offset(cx, r), r, Paint()..color = borderColor);
 
+      // Image
       final clip = Path()
         ..addOval(Rect.fromCircle(center: Offset(cx, r), radius: imgSize / 2));
       canvas.save();
@@ -264,12 +329,13 @@ class _MapViewWidgetState extends State<MapViewWidget> {
       );
       canvas.restore();
 
-      final tail_ = Path()
-        ..moveTo(cx - 7, r * 2 - 3)
-        ..lineTo(cx + 7, r * 2 - 3)
+      // Pin tail
+      final tailPath = Path()
+        ..moveTo(cx - 8, r * 2 - 4)
+        ..lineTo(cx + 8, r * 2 - 4)
         ..lineTo(cx, r * 2 + tail)
         ..close();
-      canvas.drawPath(tail_, Paint()..color = borderColor);
+      canvas.drawPath(tailPath, Paint()..color = borderColor);
 
       final img = await rec.endRecording().toImage(w, h);
       final bd = await img.toByteData(format: ui.ImageByteFormat.png);
@@ -295,15 +361,13 @@ class _MapViewWidgetState extends State<MapViewWidget> {
       mapToolbarEnabled: false,
       onMapCreated: (c) => _mapController = c,
       onTap: (_) {
-        setState(() => _polylines = {});
+        _routeAnim.reset();
+        setState(() {
+          _polylines = {};
+          _fullRoute = [];
+        });
         _swapIcon('');
       },
     );
-  }
-
-  @override
-  void dispose() {
-    _mapController?.dispose();
-    super.dispose();
   }
 }
