@@ -8,6 +8,7 @@ import 'package:sizer/sizer.dart';
 import '../../data/repository/artisan_repository.dart';
 import '../../presentation/in_app_messaging/in_app_messaging.dart';
 import '../../services/presence_service.dart';
+import '../../services/transport_fare_service.dart';
 import '../../widgets/custom_bottom_bar.dart';
 import './widgets/filter_bottom_sheet_widget.dart';
 import './widgets/map_view_widget.dart';
@@ -866,6 +867,25 @@ class _ArtisanCard extends StatelessWidget {
                         rating.toStringAsFixed(1),
                         style: theme.textTheme.bodySmall?.copyWith(
                           fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  // Transport fare row
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.directions_bus_rounded,
+                        size: 12,
+                        color: Color(0xFF1A73E8),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${TransportFareService.fareLabel(distKm)} (round-trip)',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: const Color(0xFF1A73E8),
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],

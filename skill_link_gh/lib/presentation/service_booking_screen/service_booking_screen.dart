@@ -8,6 +8,7 @@ import 'package:skill_link_gh/domain/models/booking_model.dart';
 import 'package:skill_link_gh/provider/booking_provider.dart';
 
 import '../../core/app_export.dart';
+import '../../services/transport_fare_service.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/custom_icon_widget.dart';
 import './widgets/artisan_summary_widget.dart';
@@ -346,17 +347,22 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
   ];
 
   Map<String, dynamic> get _pricingData {
+    // Trotro round-trip fare based on artisan distance
+    final distKm = (_artisanData?['distance'] as num?)?.toDouble() ?? 0.0;
+    final transportFare = TransportFareService.roundTripFare(distKm);
+    final transportLabel = 'GH₵ ${transportFare.toStringAsFixed(2)}';
+
     if (_isContractBooking) {
       final raw = (_serviceData?['basePrice'] as num?)?.toDouble() ?? 0.0;
       final contractPrice = (raw.isNaN || raw.isInfinite) ? 0.0 : raw;
       final platformFee = contractPrice * 0.05;
-      final total = contractPrice + platformFee;
+      final total = contractPrice + transportFare + platformFee;
       return {
         "basePrice": contractPrice == 0.0
             ? 'Not set'
             : 'GH₵ ${contractPrice.toStringAsFixed(2)}',
         "complexityFee": null,
-        "travelFee": null,
+        "travelFee": transportLabel,
         "platformFee": "GH₵ ${platformFee.toStringAsFixed(2)}",
         "totalPrice": contractPrice == 0.0
             ? 'TBD'
@@ -372,16 +378,15 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
       }
       final dailyRate = (rawRate.isNaN || rawRate.isInfinite) ? 0.0 : rawRate;
       final subtotal = dailyRate * _numberOfDays;
-      final travelFee = _selectedLocation != null ? 20.0 : 0.0;
       final platformFee = subtotal * 0.05;
-      final total = subtotal + travelFee + platformFee;
+      final total = subtotal + transportFare + platformFee;
       final dayLabel = '$_numberOfDays day${_numberOfDays > 1 ? 's' : ''}';
       return {
         "basePrice": dailyRate == 0.0
             ? 'Not set'
             : 'GH₵ ${dailyRate.toStringAsFixed(2)} × $dayLabel',
         "complexityFee": null,
-        "travelFee": "GH₵ ${travelFee.toStringAsFixed(2)}",
+        "travelFee": transportLabel,
         "platformFee": "GH₵ ${platformFee.toStringAsFixed(2)}",
         "totalPrice": dailyRate == 0.0
             ? 'TBD'

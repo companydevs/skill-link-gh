@@ -59,7 +59,11 @@ class PricingSummaryWidget extends StatelessWidget {
           ),
           if (pricingData['travelFee'] != null) ...[
             const SizedBox(height: 8),
-            _row(context, 'Travel Fee', pricingData['travelFee'] as String),
+            _row(
+              context,
+              'Transport (trotro, round-trip)',
+              pricingData['travelFee'] as String,
+            ),
           ],
           const SizedBox(height: 8),
           _row(
