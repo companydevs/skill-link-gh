@@ -517,7 +517,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                                     Navigator.pop(context); // close sheet first
                                     Navigator.pushNamed(
                                       context,
-                                      '/user-profile-view',
+                                      '/artisan-profile-screen',
                                       arguments: {'id': c.userId},
                                     );
                                   },

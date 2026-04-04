@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
 import 'package:skill_link_gh/data/repository/auth_repository.dart';
 import 'package:skill_link_gh/provider/profile_provider.dart';
+import 'package:skill_link_gh/notifier/profile_notifier.dart';
+import 'package:skill_link_gh/presentation/in_app_messaging/in_app_messaging.dart';
 import 'package:skill_link_gh/widgets/custom_app_toast.dart';
 import 'package:skill_link_gh/widgets/utils/createPost.dart';
 import 'package:skill_link_gh/routes/app_routes.dart';
@@ -38,6 +40,14 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
   int _selectedTab = 0;
   bool _isLoggingOut = false;
 
+  // For viewing another user's profile
+  String? _viewingUserId;
+  Map<String, dynamic>? _otherUserData;
+  List<Map<String, dynamic>> _otherPortfolio = [];
+  List<Map<String, dynamic>> _otherReviews = [];
+  List<Map<String, dynamic>> _otherServices = [];
+  bool _otherLoading = false;
+
   static const _tabs = [
     'About',
     'Portfolio',
@@ -47,9 +57,156 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
     'Saved',
   ];
 
+  // Tabs shown when viewing someone else (no Bookings/Saved)
+  static const _otherTabs = ['About', 'Portfolio', 'Reviews', 'Services'];
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final uid = args?['id'] as String?;
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+
+    // Only load other user if it's a different person
+    if (uid != null && uid != currentUid && uid != _viewingUserId) {
+      _viewingUserId = uid;
+      _loadOtherUser(uid);
+    }
+  }
+
+  Future<void> _loadOtherUser(String userId) async {
+    setState(() => _otherLoading = true);
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+      if (!doc.exists || !mounted) return;
+      final data = doc.data()!;
+      data['id'] = userId;
+
+      final results = await Future.wait<List<Map<String, dynamic>>>([
+        ref.read(profileRepositoryProvider).getPortfolioImages(userId),
+        ref.read(profileRepositoryProvider).getReviews(userId),
+        ref.read(profileRepositoryProvider).getServices(userId),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          _otherUserData = data;
+          _otherPortfolio = results[0];
+          _otherReviews = results[1];
+          _otherServices = results[2];
+          _otherLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _otherLoading = false);
+    }
+  }
+
+  bool get _isViewingOther {
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final uid = args?['id'] as String?;
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    return uid != null && uid != currentUid;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    // ── Viewing someone else's profile ────────────────────────────────────
+    if (_isViewingOther) {
+      if (_otherLoading || _otherUserData == null) {
+        return Scaffold(
+          appBar: AppBar(
+            backgroundColor: theme.colorScheme.surface,
+            elevation: 0,
+          ),
+          body: _otherLoading
+              ? _buildSkeleton(theme)
+              : const Center(child: Text('Profile not found')),
+        );
+      }
+
+      final data = _otherUserData!;
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: theme.colorScheme.surface,
+          elevation: 0,
+          title: Text(
+            data['fullName'] as String? ?? '',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.message_outlined),
+              onPressed: () => Navigator.pushNamed(
+                context,
+                '/in-app-messaging-screen',
+                arguments: ChatArgs(
+                  otherUserId: data['id'] as String,
+                  otherUserName: data['fullName'] as String? ?? '',
+                  otherUserAvatar: data['profileImage'] as String? ?? '',
+                ),
+              ),
+            ),
+          ],
+        ),
+        body: Column(
+          children: [
+            Expanded(
+              child: NestedScrollView(
+                headerSliverBuilder: (ctx, _) => [
+                  SliverToBoxAdapter(
+                    child: ProfileHeaderWidget(artisanData: data),
+                  ),
+                  SliverToBoxAdapter(
+                    child: ProfileStatsWidget(
+                      artisanData: data,
+                      jobsDone: 0,
+                      bidsAccepted: 0,
+                      postsCount: 0,
+                    ),
+                  ),
+                  SliverPersistentHeader(
+                    pinned: true,
+                    delegate: _PillTabBarDelegate(
+                      tabs: _otherTabs,
+                      selectedIndex: _selectedTab.clamp(
+                        0,
+                        _otherTabs.length - 1,
+                      ),
+                      onTap: (i) => setState(() => _selectedTab = i),
+                      theme: theme,
+                    ),
+                  ),
+                ],
+                body: _buildOtherTabBody(data),
+              ),
+            ),
+          ],
+        ),
+        bottomNavigationBar: Padding(
+          padding: const EdgeInsets.all(12),
+          child: ElevatedButton(
+            onPressed: () => Navigator.pushNamed(
+              context,
+              '/service-booking-screen',
+              arguments: data,
+            ),
+            child: const Text('Book Now'),
+          ),
+        ),
+      );
+    }
+
+    // ── Own profile ───────────────────────────────────────────────────────
     final profileState = ref.watch(profileNotifierProvider);
 
     if (profileState.isLoading && profileState.profileData == null) {
@@ -158,6 +315,26 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildOtherTabBody(Map<String, dynamic> data) {
+    final tab = _selectedTab.clamp(0, _otherTabs.length - 1);
+    switch (tab) {
+      case 0:
+        return AboutSectionWidget(artisanData: data);
+      case 1:
+        return PortfolioSectionWidget(portfolioImages: _otherPortfolio);
+      case 2:
+        return ReviewsSectionWidget(
+          reviews: _otherReviews,
+          averageRating: (data['rating'] as num?)?.toDouble() ?? 0.0,
+          totalReviews: _otherReviews.length,
+        );
+      case 3:
+        return ServicesSectionWidget(services: _otherServices);
+      default:
+        return const SizedBox.shrink();
+    }
   }
 
   Widget _buildTabBody({
