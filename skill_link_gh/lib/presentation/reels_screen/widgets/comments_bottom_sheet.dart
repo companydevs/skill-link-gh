@@ -513,11 +513,14 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                                 : null,
                             onProfileTap: currentUser?.uid == c.userId
                                 ? null
-                                : () => Navigator.pushNamed(
-                                    context,
-                                    '/user-profile-view',
-                                    arguments: {'id': c.userId},
-                                  ),
+                                : () {
+                                    Navigator.pop(context); // close sheet first
+                                    Navigator.pushNamed(
+                                      context,
+                                      '/user-profile-view',
+                                      arguments: {'id': c.userId},
+                                    );
+                                  },
                           );
                         },
                       ),

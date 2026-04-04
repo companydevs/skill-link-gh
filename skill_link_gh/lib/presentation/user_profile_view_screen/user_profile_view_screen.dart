@@ -46,11 +46,10 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
       final data = doc.data()!;
       data['id'] = doc.id;
 
-      // Fetch their posts
+      // Fetch their posts — no orderBy to avoid requiring a composite index
       final postsSnap = await FirebaseFirestore.instance
           .collection('posts')
           .where('artisanId', isEqualTo: widget.userId)
-          .orderBy('createdAt', descending: true)
           .limit(12)
           .get();
 
