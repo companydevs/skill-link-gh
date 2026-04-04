@@ -415,44 +415,7 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
   }
 
   Widget _buildSkeleton(ThemeData theme) {
-    final c = theme.colorScheme.surfaceContainerHighest;
-    Widget box(double w, double h, {double r = 8}) => Container(
-      width: w,
-      height: h,
-      decoration: BoxDecoration(
-        color: c,
-        borderRadius: BorderRadius.circular(r),
-      ),
-    );
-    return Padding(
-      padding: EdgeInsets.all(4.w),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              box(18.w, 18.w, r: 100),
-              SizedBox(width: 4.w),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  box(35.w, 2.h),
-                  SizedBox(height: 1.h),
-                  box(22.w, 1.5.h),
-                  SizedBox(height: 1.h),
-                  box(28.w, 1.5.h),
-                ],
-              ),
-            ],
-          ),
-          SizedBox(height: 2.h),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(3, (_) => box(25.w, 8.h, r: 14)),
-          ),
-        ],
-      ),
-    );
+    return _ProfileShimmer(theme: theme);
   }
 
   Future<void> _handleLogout() async {
@@ -559,6 +522,178 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
         type: ToastType.error,
       );
     }
+  }
+}
+
+// ─── Profile shimmer ──────────────────────────────────────────────────────────
+class _ProfileShimmer extends StatefulWidget {
+  final ThemeData theme;
+  const _ProfileShimmer({required this.theme});
+  @override
+  State<_ProfileShimmer> createState() => _ProfileShimmerState();
+}
+
+class _ProfileShimmerState extends State<_ProfileShimmer>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+    _anim = Tween<double>(
+      begin: -1.5,
+      end: 2.5,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (_, __) => _buildContent(),
+    );
+  }
+
+  Widget _buildContent() {
+    final base = widget.theme.colorScheme.surfaceContainerHighest;
+    final highlight = widget.theme.colorScheme.surface;
+
+    Widget shimBox(double w, double h, {double r = 8, bool full = false}) {
+      return Container(
+        width: full ? double.infinity : w,
+        height: h,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(r),
+          gradient: LinearGradient(
+            begin: Alignment(_anim.value - 1, 0),
+            end: Alignment(_anim.value, 0),
+            colors: [base, highlight, base],
+            stops: const [0.0, 0.5, 1.0],
+          ),
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      physics: const NeverScrollableScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Cover photo
+          shimBox(double.infinity, 18.h, r: 0, full: true),
+
+          // Avatar overlapping cover
+          Transform.translate(
+            offset: Offset(4.w, -24),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: widget.theme.colorScheme.surface,
+                  width: 3,
+                ),
+              ),
+              child: shimBox(20.w, 20.w, r: 100),
+            ),
+          ),
+
+          // Name + location + rating
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4.w),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                shimBox(45.w, 2.4.h),
+                SizedBox(height: 1.h),
+                shimBox(28.w, 1.6.h),
+                SizedBox(height: 0.8.h),
+                shimBox(35.w, 1.6.h),
+                SizedBox(height: 1.h),
+                // Category chips
+                Row(
+                  children: [
+                    shimBox(22.w, 3.h, r: 20),
+                    SizedBox(width: 2.w),
+                    shimBox(18.w, 3.h, r: 20),
+                    SizedBox(width: 2.w),
+                    shimBox(25.w, 3.h, r: 20),
+                  ],
+                ),
+                SizedBox(height: 2.h),
+              ],
+            ),
+          ),
+
+          // Stats row — 3 cards
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4.w),
+            child: Row(
+              children: List.generate(
+                3,
+                (i) => Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(right: i < 2 ? 2.w : 0),
+                    child: shimBox(double.infinity, 10.h, r: 14, full: true),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SizedBox(height: 2.h),
+
+          // Verification banner
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4.w),
+            child: shimBox(double.infinity, 7.h, r: 12, full: true),
+          ),
+          SizedBox(height: 2.h),
+
+          // Tab pills
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4.w),
+            child: Row(
+              children: List.generate(
+                4,
+                (i) => Padding(
+                  padding: EdgeInsets.only(right: 2.w),
+                  child: shimBox(18.w, 4.h, r: 20),
+                ),
+              ),
+            ),
+          ),
+          SizedBox(height: 2.h),
+
+          // Content lines
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4.w),
+            child: Column(
+              children: List.generate(
+                5,
+                (i) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: shimBox(
+                    i % 2 == 0 ? double.infinity : 60.w,
+                    1.8.h,
+                    full: i % 2 == 0,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

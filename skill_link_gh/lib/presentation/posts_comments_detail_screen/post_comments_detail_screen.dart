@@ -584,13 +584,21 @@ class _PostCommentsDetailsScreenState extends State<PostCommentsDetailsScreen> {
                           onDelete: currentUser?.uid == c.userId
                               ? () => _deleteComment(c.id)
                               : null,
-                          onProfileTap: currentUser?.uid == c.userId
-                              ? null
-                              : () => Navigator.pushNamed(
-                                  context,
-                                  '/artisan-profile-screen',
-                                  arguments: {'id': c.userId},
-                                ),
+                          onProfileTap: () {
+                            if (currentUser?.uid == c.userId) {
+                              // Own profile — navigate without id arg
+                              Navigator.pushNamed(
+                                context,
+                                '/artisan-profile-screen',
+                              );
+                            } else {
+                              Navigator.pushNamed(
+                                context,
+                                '/artisan-profile-screen',
+                                arguments: {'id': c.userId},
+                              );
+                            }
+                          },
                         );
                       },
                     ),
