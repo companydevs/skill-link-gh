@@ -655,9 +655,14 @@ class _ArtisanListSheet extends StatelessWidget {
                             (a['services'] as List?)?.cast<String>() ?? [];
                         final isAvailable = a['isAvailable'] as bool? ?? false;
                         final isVerified = a['isVerified'] as bool? ?? false;
-                        final mins = ((a['distance'] as num).toDouble() * 3)
-                            .round()
-                            .clamp(1, 999);
+                        // Use real road duration if available, else estimate
+                        final durationMins = a['durationMinutes'] as int?;
+                        final distKm = (a['distance'] as num).toDouble();
+                        final mins =
+                            durationMins ?? (distKm * 3).round().clamp(1, 999);
+                        final distLabel = distKm > 0
+                            ? '${distKm.toStringAsFixed(1)} km · $mins min'
+                            : '$mins min away';
                         final img =
                             (a['profileImage'] as String?)?.isNotEmpty == true
                             ? a['profileImage'] as String
@@ -786,7 +791,7 @@ class _ArtisanListSheet extends StatelessWidget {
                                       Row(
                                         children: [
                                           Text(
-                                            '$mins min away',
+                                            distLabel,
                                             style: theme.textTheme.bodySmall
                                                 ?.copyWith(
                                                   color: theme
