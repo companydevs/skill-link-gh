@@ -27,9 +27,6 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
 
   final TextEditingController _captionController = TextEditingController();
 
-  // Debouncing: prevent multiple rapid likes
-  final Set<String> _likingReels = {};
-
   // Like animation state
   bool _showLikeAnimation = false;
   String? _animatingReelId;
@@ -54,38 +51,21 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
     super.dispose();
   }
 
-  /// Instant like function with animation
+  /// Instant like — notifier handles debounce + Firestore write
   void _handleLike(String reelId) {
-    // Prevent multiple likes on the same reel
-    if (_likingReels.contains(reelId)) {
-      return;
-    }
-
-    _likingReels.add(reelId);
-
     // Show animation
     setState(() {
       _showLikeAnimation = true;
       _animatingReelId = reelId;
     });
-
-    // Hide animation after delay
     Future.delayed(const Duration(milliseconds: 800), () {
-      if (mounted) {
+      if (mounted)
         setState(() {
           _showLikeAnimation = false;
           _animatingReelId = null;
         });
-      }
     });
-
-    // Perform the like instantly - NO AWAIT
     ref.read(reelsNotifierProvider.notifier).toggleLike(reelId);
-
-    // Remove from debounce set after a short delay
-    Future.delayed(const Duration(milliseconds: 300), () {
-      _likingReels.remove(reelId);
-    });
   }
 
   Future<void> _pickAndUploadVideo() async {

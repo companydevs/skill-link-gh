@@ -11,11 +11,13 @@ import '../../../domain/models/local_comment.dart';
 class CommentsBottomSheet extends StatefulWidget {
   final String reelId;
   final String reelAuthor;
+  final VoidCallback? onCommentPosted;
 
   const CommentsBottomSheet({
     super.key,
     required this.reelId,
     required this.reelAuthor,
+    this.onCommentPosted,
   });
 
   @override
@@ -247,6 +249,9 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     });
     _commentController.clear();
 
+    // Notify parent immediately so count updates in the reel overlay
+    widget.onCommentPosted?.call();
+
     try {
       await ref.set({
         'userId': user.uid,
@@ -268,11 +273,11 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
             .collection('comments')
             .doc(rootParentId)
             .update({'replyCount': FieldValue.increment(1)});
-      } else {
-        await _firestore.collection('reels').doc(widget.reelId).update({
-          'comments': FieldValue.increment(1),
-        });
       }
+      // Always increment reel comment count (top-level + replies)
+      await _firestore.collection('reels').doc(widget.reelId).update({
+        'comments': FieldValue.increment(1),
+      });
     } catch (e) {
       log('Error posting reel comment: $e');
       if (mounted) {

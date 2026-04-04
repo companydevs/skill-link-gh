@@ -27,7 +27,6 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
 
   bool _isLoadingMore = false;
   bool _hasMoreReels = true;
-  bool _initialLikesLoaded = false;
 
   static const int _initialLoadSize = 10;
 
@@ -37,7 +36,6 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
     if (state.isLoading) return;
     state = const AsyncValue.loading();
     _reelsSubscription?.cancel();
-    _initialLikesLoaded = false;
 
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
@@ -61,7 +59,6 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
             _likedState[doc.id] = false;
           }
         }
-        _initialLikesLoaded = true;
       }
 
       // Now subscribe to real-time updates — counts only, never overwrite like state
@@ -257,7 +254,7 @@ class ReelsNotifier extends StateNotifier<AsyncValue<List<Reel>>> {
       } catch (e) {
         log('toggleLike Firestore error: $e');
         // Revert UI to original state on error
-        _likedState[reelId] = originalState!;
+        _likedState[reelId] = originalState;
         final cur = state.value;
         if (cur != null && mounted) {
           final idx = cur.indexWhere((r) => r.id == reelId);
