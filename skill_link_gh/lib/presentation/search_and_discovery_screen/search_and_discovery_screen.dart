@@ -124,11 +124,11 @@ class _SearchAndDiscoveryScreenState extends State<SearchAndDiscoveryScreen> {
       final position =
           await Geolocator.getCurrentPosition(
             locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.medium,
-              timeLimit: Duration(seconds: 8),
+              accuracy: LocationAccuracy.high,
+              timeLimit: Duration(seconds: 10),
             ),
           ).timeout(
-            const Duration(seconds: 8),
+            const Duration(seconds: 10),
             onTimeout: () => throw Exception('Location timeout'),
           );
 
