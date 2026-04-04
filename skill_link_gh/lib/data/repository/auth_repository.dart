@@ -146,11 +146,41 @@ class AuthRepository {
           .get();
 
       if (!doc.exists) {
-        // No profile for this Google account — sign them out and reject
+        // Check if an account exists with this email but a different provider
+        final emailQuery = await FirebaseFirestore.instance
+            .collection('users')
+            .where('email', isEqualTo: user.email)
+            .limit(1)
+            .get();
+
+        await _auth.signOut();
+        await _googleSignIn.signOut();
+
+        if (emailQuery.docs.isNotEmpty) {
+          final existingProvider =
+              emailQuery.docs.first.data()['provider'] as String? ?? 'password';
+          if (existingProvider != 'google') {
+            throw Exception(
+              'This email is registered with email & password. '
+              'Please sign in with your email and password instead.',
+            );
+          }
+        }
+
+        throw Exception(
+          'No account found for this Google account. Please sign up first.',
+        );
+      }
+
+      // Account exists — check it was registered with Google
+      final registeredProvider =
+          doc.data()?['provider'] as String? ?? 'password';
+      if (registeredProvider != 'google') {
         await _auth.signOut();
         await _googleSignIn.signOut();
         throw Exception(
-          'No account found for this Google account. Please sign up first.',
+          'This account was registered with email & password. '
+          'Please sign in with your email and password instead.',
         );
       }
 

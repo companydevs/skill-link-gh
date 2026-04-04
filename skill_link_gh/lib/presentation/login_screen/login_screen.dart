@@ -1,4 +1,5 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -99,11 +100,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // Check if this email is registered with Google before attempting password sign-in
+      final emailQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: _emailController.text.trim())
+          .limit(1)
+          .get();
+      if (emailQuery.docs.isNotEmpty) {
+        final provider =
+            emailQuery.docs.first.data()['provider'] as String? ?? 'password';
+        if (provider == 'google') {
+          AppToast.show(
+            context,
+            message:
+                'This account was registered with Google. Please sign in with Google instead.',
+            type: ToastType.error,
+          );
+          setState(() => _isLoading = false);
+          return;
+        }
+      }
+
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-
       final user = FirebaseAuth.instance.currentUser;
       await user?.reload();
 

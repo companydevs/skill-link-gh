@@ -511,6 +511,13 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                             onDelete: currentUser?.uid == c.userId
                                 ? () => _deleteComment(c.id)
                                 : null,
+                            onProfileTap: currentUser?.uid == c.userId
+                                ? null
+                                : () => Navigator.pushNamed(
+                                    context,
+                                    '/artisan-profile-screen',
+                                    arguments: {'id': c.userId},
+                                  ),
                           );
                         },
                       ),

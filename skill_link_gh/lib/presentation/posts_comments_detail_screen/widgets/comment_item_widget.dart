@@ -19,6 +19,7 @@ class CommentItemWidget extends StatelessWidget {
   final VoidCallback onReport;
   final VoidCallback? onToggleReplies;
   final VoidCallback? onDelete;
+  final VoidCallback? onProfileTap;
 
   const CommentItemWidget({
     super.key,
@@ -39,6 +40,7 @@ class CommentItemWidget extends StatelessWidget {
     required this.onReport,
     this.onToggleReplies,
     this.onDelete,
+    this.onProfileTap,
   });
 
   @override
@@ -54,10 +56,13 @@ class CommentItemWidget extends StatelessWidget {
           // ── Avatar ────────────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.only(left: 14, right: 10, top: 2),
-            child: UserAvatarWidget(
-              imageUrl: userAvatar.isNotEmpty ? userAvatar : null,
-              name: userName,
-              size: (level == 0 ? 18 : 14) * 2,
+            child: GestureDetector(
+              onTap: onProfileTap,
+              child: UserAvatarWidget(
+                imageUrl: userAvatar.isNotEmpty ? userAvatar : null,
+                name: userName,
+                size: (level == 0 ? 18 : 14) * 2,
+              ),
             ),
           ),
 
@@ -71,9 +76,18 @@ class CommentItemWidget extends StatelessWidget {
                   text: TextSpan(
                     style: theme.textTheme.bodyMedium,
                     children: [
-                      TextSpan(
-                        text: '$userName  ',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.baseline,
+                        baseline: TextBaseline.alphabetic,
+                        child: GestureDetector(
+                          onTap: onProfileTap,
+                          child: Text(
+                            '$userName  ',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
                       ),
                       ..._buildTextSpans(context, commentText),
                     ],
