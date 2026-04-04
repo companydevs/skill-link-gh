@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -83,11 +84,36 @@ class ArtisanRepository {
           data['priceRange'] = 'Contact for price';
         }
 
-        // Distance
+        // Distance + assign stable lat/lng for artisans without stored coords
         final lat = (data['latitude'] as num?)?.toDouble();
         final lng = (data['longitude'] as num?)?.toDouble();
-        if (lat != null && lng != null && userLat != null && userLng != null) {
-          final meters = Geolocator.distanceBetween(userLat, userLng, lat, lng);
+        if (lat != null && lng != null) {
+          data['_lat'] = lat;
+          data['_lng'] = lng;
+          if (userLat != null && userLng != null) {
+            final meters = Geolocator.distanceBetween(
+              userLat,
+              userLng,
+              lat,
+              lng,
+            );
+            data['distance'] = double.parse((meters / 1000).toStringAsFixed(1));
+          } else {
+            data['distance'] = 0.0;
+          }
+        } else if (userLat != null && userLng != null) {
+          // Assign a stable random offset so the marker doesn't jump on rebuild
+          final rng = math.Random(data['id'].hashCode);
+          final offsetLat = (rng.nextDouble() - 0.5) * 0.04;
+          final offsetLng = (rng.nextDouble() - 0.5) * 0.04;
+          data['_lat'] = userLat + offsetLat;
+          data['_lng'] = userLng + offsetLng;
+          final meters = Geolocator.distanceBetween(
+            userLat,
+            userLng,
+            data['_lat'] as double,
+            data['_lng'] as double,
+          );
           data['distance'] = double.parse((meters / 1000).toStringAsFixed(1));
         } else {
           data['distance'] = 0.0;
@@ -122,10 +148,9 @@ class ArtisanRepository {
     double userLat,
     double userLng,
   ) async {
+    // Use _lat/_lng which are set for ALL artisans (real coords or assigned offsets)
     final withCoords = artisans.where((a) {
-      final lat = (a['latitude'] as num?)?.toDouble();
-      final lng = (a['longitude'] as num?)?.toDouble();
-      return lat != null && lng != null;
+      return a['_lat'] != null && a['_lng'] != null;
     }).toList();
 
     if (withCoords.isEmpty) return;
@@ -140,8 +165,8 @@ class ArtisanRepository {
                 .map(
                   (a) => {
                     'id': a['id'] as String,
-                    'lat': (a['latitude'] as num).toDouble(),
-                    'lng': (a['longitude'] as num).toDouble(),
+                    'lat': a['_lat'] as double,
+                    'lng': a['_lng'] as double,
                   },
                 )
                 .toList(),
@@ -158,7 +183,6 @@ class ArtisanRepository {
         }
       }
 
-      // Re-sort by real road distance
       artisans.sort(
         (a, b) => (a['distance'] as double).compareTo(b['distance'] as double),
       );
