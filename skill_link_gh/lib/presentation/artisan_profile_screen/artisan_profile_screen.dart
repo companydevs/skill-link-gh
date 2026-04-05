@@ -1,4 +1,4 @@
-import 'package:cloud_functions/cloud_functions.dart';
+﻿import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -898,13 +898,11 @@ class _BookingCard extends StatelessWidget {
         booking.status == BookingStatus.inProgress;
 
     return GestureDetector(
-      onTap: canTrack
-          ? () => Navigator.pushNamed(
-              context,
-              '/booking-tracking-screen',
-              arguments: {'bookingId': booking.id},
-            )
-          : null,
+      onTap: () => Navigator.pushNamed(
+        context,
+        '/booking-tracking-screen',
+        arguments: {'bookingId': booking.id},
+      ),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -988,27 +986,25 @@ class _BookingCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (canTrack) ...[
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Icon(
-                    Icons.location_on,
-                    size: 13,
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Icon(
+                  canTrack ? Icons.location_on : Icons.open_in_new,
+                  size: 13,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  canTrack ? 'Tap to track' : 'Tap to view details',
+                  style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.primary,
+                    decoration: TextDecoration.underline,
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Tap to track',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.primary,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ],
         ),
       ),
