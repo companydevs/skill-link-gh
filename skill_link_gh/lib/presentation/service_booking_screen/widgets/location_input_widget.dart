@@ -93,6 +93,34 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
     }
   }
 
+  /// Converts lat/lng to Ghana Post GPS format: e.g. "GA-123-4567"
+  /// Uses a simplified encoding — real Ghana Post GPS uses a proprietary grid.
+  /// This gives a human-readable short code instead of raw coordinates.
+  String _toGhanaPostGps(LatLng pos) {
+    // Encode as a short alphanumeric code based on the coordinates
+    final latCode = ((pos.latitude + 90) * 1000).round();
+    final lngCode = ((pos.longitude + 180) * 1000).round();
+    final prefix = _ghanaRegionPrefix(pos.latitude, pos.longitude);
+    final part1 = (latCode % 1000).toString().padLeft(3, '0');
+    final part2 = (lngCode % 10000).toString().padLeft(4, '0');
+    return '$prefix-$part1-$part2';
+  }
+
+  String _ghanaRegionPrefix(double lat, double lng) {
+    // Rough bounding boxes for Ghana regions
+    if (lat >= 5.5 && lat <= 6.0 && lng >= -0.4 && lng <= 0.2)
+      return 'GA'; // Greater Accra
+    if (lat >= 6.0 && lat <= 7.0 && lng >= -1.5 && lng <= -0.5)
+      return 'AH'; // Ashanti
+    if (lat >= 5.0 && lat <= 5.5 && lng >= -2.0 && lng <= -1.0)
+      return 'WE'; // Western
+    if (lat >= 7.0 && lat <= 8.0 && lng >= -1.0 && lng <= 0.5)
+      return 'BE'; // Bono East
+    if (lat >= 9.0 && lat <= 11.0 && lng >= -2.5 && lng <= 0.0)
+      return 'NR'; // Northern
+    return 'GH'; // Generic Ghana
+  }
+
   Future<String?> _geocode(LatLng pos) async {
     try {
       final dio = Dio(
@@ -138,8 +166,7 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
         _pickedLatLng = result;
         _isLocating = true;
       });
-      widget.addressController.text =
-          '${result.latitude.toStringAsFixed(5)}, ${result.longitude.toStringAsFixed(5)}';
+      widget.addressController.text = _toGhanaPostGps(result);
       final addr = await _geocode(result);
       if (mounted) {
         if (addr != null) widget.addressController.text = addr;

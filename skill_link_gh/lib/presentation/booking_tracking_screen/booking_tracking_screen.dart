@@ -48,6 +48,7 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen>
   LatLng? _artisanStaticLocation;
   double _distanceKm = 0.0;
   bool _isArtisan = false;
+  String _resolvedAddress = '';
   late AnimationController _routeAnim;
   List<LatLng> _fullRoute = [];
 
@@ -214,6 +215,9 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen>
           _booking = booking;
           _isLoadingBooking = false;
         });
+
+      // Resolve address — reverse-geocode if stored as raw coords or Ghana Post GPS code
+      _resolveClientAddress(booking.clientLocation);
 
       if (_artisanStaticLocation != null && cl.latitude != 0) {
         final clientLatLng = LatLng(cl.latitude, cl.longitude);
@@ -388,6 +392,65 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen>
       icon: icon,
       infoWindow: InfoWindow(title: label),
     );
+  }
+
+  /// Reverse-geocodes the client location if the stored address is raw coords.
+  /// Falls back to Ghana Post GPS format if the API fails.
+  Future<void> _resolveClientAddress(LocationData cl) async {
+    // If address is already a proper human-readable string, use it
+    final raw = cl.address.trim();
+    final isRawCoords =
+        raw.startsWith('Lat:') ||
+        RegExp(r'^-?\d+\.\d+,\s*-?\d+\.\d+$').hasMatch(raw);
+
+    if (!isRawCoords && raw.isNotEmpty) {
+      if (mounted) setState(() => _resolvedAddress = raw);
+      return;
+    }
+
+    // Try reverse-geocoding via Google Maps API
+    if (cl.latitude != 0 && cl.longitude != 0) {
+      try {
+        final url = Uri.parse(
+          'https://maps.googleapis.com/maps/api/geocode/json'
+          '?latlng=${cl.latitude},${cl.longitude}&key=$_kMapsKey',
+        );
+        final resp = await http.get(url).timeout(const Duration(seconds: 6));
+        final data = jsonDecode(resp.body) as Map<String, dynamic>;
+        final results = data['results'] as List?;
+        if (results != null && results.isNotEmpty) {
+          final addr = results.first['formatted_address'] as String?;
+          if (addr != null && addr.isNotEmpty && mounted) {
+            setState(() => _resolvedAddress = addr);
+            return;
+          }
+        }
+      } catch (_) {}
+
+      // Fallback: Ghana Post GPS style
+      if (mounted) {
+        setState(
+          () => _resolvedAddress = _toGhanaPostGps(cl.latitude, cl.longitude),
+        );
+      }
+    }
+  }
+
+  /// Encodes coordinates as a Ghana Post GPS-style short code
+  String _toGhanaPostGps(double lat, double lng) {
+    final prefix = _ghanaRegionPrefix(lat, lng);
+    final part1 = ((lat + 90) * 1000).round() % 1000;
+    final part2 = ((lng + 180) * 1000).round() % 10000;
+    return '$prefix-${part1.toString().padLeft(3, '0')}-${part2.toString().padLeft(4, '0')}';
+  }
+
+  String _ghanaRegionPrefix(double lat, double lng) {
+    if (lat >= 5.5 && lat <= 6.0 && lng >= -0.4 && lng <= 0.2) return 'GA';
+    if (lat >= 6.0 && lat <= 7.0 && lng >= -1.5 && lng <= -0.5) return 'AH';
+    if (lat >= 5.0 && lat <= 5.5 && lng >= -2.0 && lng <= -1.0) return 'WE';
+    if (lat >= 7.0 && lat <= 8.0 && lng >= -1.0 && lng <= 0.5) return 'BE';
+    if (lat >= 9.0 && lat <= 11.0 && lng >= -2.5 && lng <= 0.0) return 'NR';
+    return 'GH';
   }
 
   void _showClientQr() {
