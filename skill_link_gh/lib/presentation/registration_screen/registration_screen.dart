@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:sizer/sizer.dart';
 import 'package:skill_link_gh/data/repository/auth_repository.dart';
 import 'package:skill_link_gh/domain/models/userTypes.dart';
@@ -336,6 +337,34 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
               Container(
                 color: Colors.black.withOpacity(0.3),
                 child: const Center(child: CircularProgressIndicator()),
+              ),
+            if (_isGoogleLoading)
+              Positioned.fill(
+                child: Container(
+                  color: theme.colorScheme.surface,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/images/skill_link.png',
+                        width: 40.w,
+                        fit: BoxFit.contain,
+                      ),
+                      SizedBox(height: 4.h),
+                      LoadingAnimationWidget.staggeredDotsWave(
+                        color: theme.colorScheme.primary,
+                        size: 34,
+                      ),
+                      SizedBox(height: 2.h),
+                      Text(
+                        'Signing you in...',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
           ],
         ),
