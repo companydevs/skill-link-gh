@@ -21,12 +21,15 @@ class _ConversationsScreenState extends State<ConversationsScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _shimmerCtrl;
   late Animation<double> _shimmerAnim;
-  // Guard: once we've seen real data, never show empty state from a stale snapshot
+  late Stream<QuerySnapshot> _stream;
   bool _hasEverHadData = false;
 
   @override
   void initState() {
     super.initState();
+    // Create stream ONCE here — calling it inside build() recreates it every rebuild
+    _stream = ChatRepository().conversationsStream();
+
     _shimmerCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -46,14 +49,13 @@ class _ConversationsScreenState extends State<ConversationsScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final repo = ChatRepository();
     final currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     return Scaffold(
       appBar: CustomAppBar(title: 'Messages', variant: AppBarVariant.standard),
       bottomNavigationBar: const CustomBottomBar(currentIndex: 3),
       body: StreamBuilder<QuerySnapshot>(
-        stream: repo.conversationsStream(),
+        stream: _stream,
         builder: (context, snapshot) {
           final isLoading = snapshot.connectionState == ConnectionState.waiting;
           final docs = snapshot.data?.docs ?? [];
