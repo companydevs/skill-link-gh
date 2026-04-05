@@ -643,7 +643,7 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen>
             ),
           ),
           SizedBox(height: 1.h),
-          if (cl.address.isNotEmpty)
+          if (cl.address.isNotEmpty || _resolvedAddress.isNotEmpty)
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 4.w),
               child: Container(
@@ -670,7 +670,9 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen>
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        cl.address,
+                        _resolvedAddress.isNotEmpty
+                            ? _resolvedAddress
+                            : cl.address,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
