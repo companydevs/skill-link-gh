@@ -304,134 +304,170 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         children: [
           SafeArea(
             child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: EdgeInsets.symmetric(horizontal: 6.w),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(height: 4.h),
-              const AppLogoSection(),
-              SizedBox(height: 4.h),
+              physics: const BouncingScrollPhysics(),
+              padding: EdgeInsets.symmetric(horizontal: 6.w),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(height: 4.h),
+                  const AppLogoSection(),
+                  SizedBox(height: 4.h),
 
-              Text(
-                'Welcome Back',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              SizedBox(height: 1.h),
-
-              Text(
-                'Sign in to continue',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                ),
-              ),
-
-              SizedBox(height: 4.h),
-
-              // Email Field
-              LoginFormField(
-                controller: _emailController,
-                label: 'Email',
-                hint: 'Enter your email',
-                iconName: 'email',
-                showError: _showEmailError,
-                errorText: _emailErrorText,
-                onChanged: () {
-                  _showEmailError = false;
-                  setState(() {});
-                },
-              ),
-
-              SizedBox(height: 2.h),
-
-              // Password Field with Forgot Password
-              LoginFormField(
-                controller: _passwordController,
-                label: 'Password',
-                hint: 'Enter your password',
-                iconName: 'lock',
-                isPassword: true,
-                showError: _showPasswordError,
-                errorText: _passwordErrorText,
-                onChanged: () {
-                  _showPasswordError = false;
-                  setState(() {});
-                },
-                onForgotPassword: _handleForgotPassword, // ✅ Correctly placed
-              ),
-
-              SizedBox(height: 2.h),
-
-              SizedBox(
-                height: 6.h, // responsive height
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _handleLogin,
-                  style: ElevatedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        50,
-                      ), // circular/pill shape
+                  Text(
+                    'Welcome Back',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
-                    padding: EdgeInsets.symmetric(horizontal: 8.w),
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    elevation: 6,
-                    shadowColor: Theme.of(context).shadowColor.withOpacity(0.3),
                   ),
-                  child: _isLoading
-                      ? SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            color: Theme.of(context).colorScheme.onPrimary,
-                            strokeWidth: 2.5,
-                          ),
-                        )
-                      : Text(
-                          'Login',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
-                                color: Theme.of(context).colorScheme.onPrimary,
-                                fontWeight: FontWeight.bold,
-                              ),
+                  SizedBox(height: 1.h),
+
+                  Text(
+                    'Sign in to continue',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                    ),
+                  ),
+
+                  SizedBox(height: 4.h),
+
+                  // Email Field
+                  LoginFormField(
+                    controller: _emailController,
+                    label: 'Email',
+                    hint: 'Enter your email',
+                    iconName: 'email',
+                    showError: _showEmailError,
+                    errorText: _emailErrorText,
+                    onChanged: () {
+                      _showEmailError = false;
+                      setState(() {});
+                    },
+                  ),
+
+                  SizedBox(height: 2.h),
+
+                  // Password Field with Forgot Password
+                  LoginFormField(
+                    controller: _passwordController,
+                    label: 'Password',
+                    hint: 'Enter your password',
+                    iconName: 'lock',
+                    isPassword: true,
+                    showError: _showPasswordError,
+                    errorText: _passwordErrorText,
+                    onChanged: () {
+                      _showPasswordError = false;
+                      setState(() {});
+                    },
+                    onForgotPassword:
+                        _handleForgotPassword, // ✅ Correctly placed
+                  ),
+
+                  SizedBox(height: 2.h),
+
+                  SizedBox(
+                    height: 6.h, // responsive height
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _handleLogin,
+                      style: ElevatedButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            50,
+                          ), // circular/pill shape
                         ),
-                ),
-              ),
-
-              SizedBox(height: 3.h),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: SocialLoginButton(
-                      provider: 'Google',
-                      icon: FontAwesomeIcons.google,
-                      iconColor: Colors.redAccent,
-                      onTap: _handleGoogleSignIn,
-                      isLoading: _isGoogleLoading,
+                        padding: EdgeInsets.symmetric(horizontal: 8.w),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        elevation: 6,
+                        shadowColor: Theme.of(
+                          context,
+                        ).shadowColor.withOpacity(0.3),
+                      ),
+                      child: _isLoading
+                          ? SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                color: Theme.of(context).colorScheme.onPrimary,
+                                strokeWidth: 2.5,
+                              ),
+                            )
+                          : Text(
+                              'Login',
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onPrimary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                            ),
                     ),
                   ),
-                ],
-              ),
 
-              SizedBox(height: 3.h),
+                  SizedBox(height: 3.h),
 
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('New user? '),
-                  TextButton(
-                    onPressed: _navigateToRegistration,
-                    child: const Text('Sign Up'),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SocialLoginButton(
+                          provider: 'Google',
+                          icon: FontAwesomeIcons.google,
+                          iconColor: Colors.redAccent,
+                          onTap: _handleGoogleSignIn,
+                          isLoading: _isGoogleLoading,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  SizedBox(height: 3.h),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text('New user? '),
+                      TextButton(
+                        onPressed: _navigateToRegistration,
+                        child: const Text('Sign Up'),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
+          // ── Full-screen Google sign-in loader (Instagram-style) ──────────
+          if (_isGoogleLoading)
+            Positioned.fill(
+              child: Container(
+                color: theme.colorScheme.surface,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.asset(
+                      'assets/images/skill_link.png',
+                      width: 40.w,
+                      fit: BoxFit.contain,
+                    ),
+                    SizedBox(height: 4.h),
+                    LoadingAnimationWidget.staggeredDotsWave(
+                      color: theme.colorScheme.primary,
+                      size: 34,
+                    ),
+                    SizedBox(height: 2.h),
+                    Text(
+                      'Signing you in...',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
