@@ -109,4 +109,46 @@ class WalletNotifier extends Notifier<WalletState> {
       rethrow;
     }
   }
+
+  Future<bool> releasePaymentToArtisan({
+    required String bookingId,
+    required String artisanId,
+    required double amount,
+  }) async {
+    state = state.copyWith(isProcessing: true, error: null);
+    try {
+      final success = await _repo.releasePaymentToArtisan(
+        bookingId: bookingId,
+        artisanId: artisanId,
+        amount: amount,
+      );
+      if (success) await loadTransactions();
+      state = state.copyWith(isProcessing: false);
+      return success;
+    } catch (e) {
+      state = state.copyWith(isProcessing: false, error: e.toString());
+      return false;
+    }
+  }
+
+  Future<bool> refundExpiredBooking({
+    required String bookingId,
+    required String clientId,
+    required double amount,
+  }) async {
+    state = state.copyWith(isProcessing: true, error: null);
+    try {
+      final success = await _repo.refundExpiredBooking(
+        bookingId: bookingId,
+        clientId: clientId,
+        amount: amount,
+      );
+      if (success) await loadTransactions();
+      state = state.copyWith(isProcessing: false);
+      return success;
+    } catch (e) {
+      state = state.copyWith(isProcessing: false, error: e.toString());
+      return false;
+    }
+  }
 }

@@ -95,4 +95,100 @@ class WalletRepository {
       rethrow;
     }
   }
+
+  /// Release payment to artisan after QR scan verification
+  Future<bool> releasePaymentToArtisan({
+    required String bookingId,
+    required String artisanId,
+    required double amount,
+  }) async {
+    try {
+      // Mark booking as payment released in Firestore
+      await _firestore.collection('bookings').doc(bookingId).update({
+        'paymentReleased': true,
+        'paymentReleasedAt': FieldValue.serverTimestamp(),
+        'status': 'completed',
+      });
+
+      // Credit artisan wallet
+      final artisanWallet = _firestore.collection('wallets').doc(artisanId);
+      await _firestore.runTransaction((tx) async {
+        final snap = await tx.get(artisanWallet);
+        final current = snap.exists
+            ? ((snap.data()!['balance'] ?? 0.0) as num).toDouble()
+            : 0.0;
+        tx.set(artisanWallet, {
+          'balance': current + amount,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        // Add transaction record
+        tx.set(artisanWallet.collection('transactions').doc(), {
+          'type': 'payment',
+          'status': 'success',
+          'amount': amount,
+          'description': 'Payment received for booking $bookingId',
+          'reference': bookingId,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      });
+      log('✅ Payment released to artisan $artisanId');
+      return true;
+    } catch (e) {
+      log('Error releasing payment: $e');
+      return false;
+    }
+  }
+
+  /// Refund client wallet when booking expires without artisan acceptance
+  Future<bool> refundExpiredBooking({
+    required String bookingId,
+    required String clientId,
+    required double amount,
+  }) async {
+    try {
+      final bookingRef = _firestore.collection('bookings').doc(bookingId);
+      final clientWallet = _firestore.collection('wallets').doc(clientId);
+
+      await _firestore.runTransaction((tx) async {
+        final bookingSnap = await tx.get(bookingRef);
+        if (!bookingSnap.exists) return;
+        final data = bookingSnap.data()!;
+        // Only refund if still pending and not already refunded
+        if (data['status'] != 'pending') return;
+        if (data['refunded'] == true) return;
+
+        final walletSnap = await tx.get(clientWallet);
+        final current = walletSnap.exists
+            ? ((walletSnap.data()!['balance'] ?? 0.0) as num).toDouble()
+            : 0.0;
+
+        tx.update(bookingRef, {
+          'status': 'cancelled',
+          'refunded': true,
+          'refundedAt': FieldValue.serverTimestamp(),
+          'cancellationReason': 'Artisan did not accept before booking date',
+        });
+
+        tx.set(clientWallet, {
+          'balance': current + amount,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        tx.set(clientWallet.collection('transactions').doc(), {
+          'type': 'refund',
+          'status': 'success',
+          'amount': amount,
+          'description': 'Refund: Artisan did not accept booking $bookingId',
+          'reference': bookingId,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      });
+
+      log('✅ Refund processed for expired booking $bookingId');
+      return true;
+    } catch (e) {
+      log('Error processing refund: $e');
+      return false;
+    }
+  }
 }
