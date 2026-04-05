@@ -22,50 +22,41 @@ class SocialLoginButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return SizedBox(
       width: double.infinity,
-      height: 6.h,
+      height: 6.5.h,
       child: OutlinedButton(
         onPressed: isLoading ? null : onTap,
         style: OutlinedButton.styleFrom(
-          backgroundColor: theme.colorScheme.surface,
+          backgroundColor: isDark ? const Color(0xFF2A2A2A) : Colors.white,
           side: BorderSide(
-            color: theme.colorScheme.outline.withOpacity(0.2),
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.12)
+                : Colors.black.withValues(alpha: 0.12),
             width: 1.5,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
           ),
+          elevation: 0,
         ),
-        child: isLoading
-            ? SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation(
-                    theme.colorScheme.primary,
-                  ),
-                ),
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  FaIcon(
-                    icon,
-                    size: 22,
-                    color: iconColor,
-                  ),
-                  SizedBox(width: 3.w),
-                  Text(
-                    provider,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            FaIcon(icon, size: 20, color: iconColor),
+            SizedBox(width: 3.w),
+            Text(
+              'Continue with $provider',
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : Colors.black87,
+                letterSpacing: 0.2,
               ),
+            ),
+          ],
+        ),
       ),
     );
   }
