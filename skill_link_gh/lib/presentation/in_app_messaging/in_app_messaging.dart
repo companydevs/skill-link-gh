@@ -300,37 +300,22 @@ class _InAppMessagingState extends State<InAppMessaging> {
       appBar: AppBar(
         title: Row(
           children: [
-            Stack(
-              children: [
-                Container(
-                  width: 10.w,
-                  height: 10.w,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: theme.colorScheme.outline.withValues(alpha: 0.2),
-                      width: 1,
-                    ),
-                  ),
-                  child: ClipOval(
-                    child: _otherAvatar.isNotEmpty
-                        ? CustomImageWidget(
-                            imageUrl: _otherAvatar,
-                            width: 10.w,
-                            height: 10.w,
-                            fit: BoxFit.cover,
-                            semanticLabel: 'Profile photo of $_otherName',
-                          )
-                        : CircleAvatar(
-                            child: Text(
-                              _otherName.isNotEmpty
-                                  ? _otherName[0].toUpperCase()
-                                  : '?',
-                            ),
-                          ),
-                  ),
+            CircleAvatar(
+              radius: 5.w,
+              backgroundColor: theme.colorScheme.primaryContainer,
+              foregroundImage: _otherAvatar.isNotEmpty
+                  ? NetworkImage(_otherAvatar)
+                  : null,
+              onForegroundImageError: _otherAvatar.isNotEmpty
+                  ? (_, __) {}
+                  : null,
+              child: Text(
+                _otherName.isNotEmpty ? _otherName[0].toUpperCase() : '?',
+                style: TextStyle(
+                  color: theme.colorScheme.onPrimaryContainer,
+                  fontWeight: FontWeight.w600,
                 ),
-              ],
+              ),
             ),
             SizedBox(width: 3.w),
             Expanded(
@@ -357,24 +342,7 @@ class _InAppMessagingState extends State<InAppMessaging> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            onPressed: () {},
-            icon: CustomIconWidget(
-              iconName: 'call',
-              size: 24,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          IconButton(
-            onPressed: () {},
-            icon: CustomIconWidget(
-              iconName: 'videocam',
-              size: 24,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-        ],
+        actions: const [],
       ),
       bottomNavigationBar: null,
       body: Column(

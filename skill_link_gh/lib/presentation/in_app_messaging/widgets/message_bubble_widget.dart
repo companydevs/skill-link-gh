@@ -27,14 +27,12 @@ class MessageBubbleWidget extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
       child: Row(
-        mainAxisAlignment:
-            isCurrentUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isCurrentUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (!isCurrentUser) ...[
-            _buildAvatar(context),
-            SizedBox(width: 2.w),
-          ],
+          if (!isCurrentUser) ...[_buildAvatar(context), SizedBox(width: 2.w)],
           Flexible(
             child: GestureDetector(
               onLongPress: onLongPress,
@@ -50,33 +48,27 @@ class MessageBubbleWidget extends StatelessWidget {
               ),
             ),
           ),
-          if (isCurrentUser) ...[
-            SizedBox(width: 2.w),
-            _buildAvatar(context),
-          ],
+          if (isCurrentUser) ...[SizedBox(width: 2.w), _buildAvatar(context)],
         ],
       ),
     );
   }
 
   Widget _buildAvatar(BuildContext context) {
-    return Container(
-      width: 8.w,
-      height: 8.w,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
-          width: 1,
-        ),
-      ),
-      child: ClipOval(
-        child: CustomImageWidget(
-          imageUrl: message['avatar'] as String? ?? '',
-          width: 8.w,
-          height: 8.w,
-          fit: BoxFit.cover,
-          semanticLabel: message['avatarLabel'] as String? ?? 'User avatar',
+    final theme = Theme.of(context);
+    final avatarUrl = message['avatar'] as String? ?? '';
+    final label = message['avatarLabel'] as String? ?? '?';
+    return CircleAvatar(
+      radius: 4.w,
+      backgroundColor: theme.colorScheme.primaryContainer,
+      foregroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+      onForegroundImageError: avatarUrl.isNotEmpty ? (_, __) {} : null,
+      child: Text(
+        label.isNotEmpty ? label[0].toUpperCase() : '?',
+        style: TextStyle(
+          fontSize: 12.sp,
+          color: theme.colorScheme.onPrimaryContainer,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -421,8 +413,8 @@ class MessageBubbleWidget extends StatelessWidget {
             iconName: status == 'read'
                 ? 'done_all'
                 : status == 'delivered'
-                    ? 'done_all'
-                    : 'done',
+                ? 'done_all'
+                : 'done',
             size: 14,
             color: status == 'read'
                 ? theme.colorScheme.primary
@@ -469,7 +461,7 @@ class WaveformPainter extends CustomPainter {
       0.7,
       0.6,
       0.4,
-      0.5
+      0.5,
     ];
 
     for (int i = 0; i < barCount; i++) {
