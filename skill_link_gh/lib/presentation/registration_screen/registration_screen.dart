@@ -45,6 +45,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   late UserType _userType;
 
   bool _isAgreedToTerms = false;
+  bool _isGoogleLoading = false;
 
   @override
   void didChangeDependencies() {
@@ -273,36 +274,31 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                     SocialRegistrationWidget(
                       onGoogleSignIn: () async {
                         final authRepository = AuthRepository();
+                        setState(() => _isGoogleLoading = true);
                         try {
-                          await ErrorHandler.runWithLoader(
-                            context: context,
-                            action: () async {
-                              final userCredential = await authRepository
-                                  .signUpWithGoogle(
-                                    userType: _userType
-                                        .name, // pass string to AuthRepository
-                                  );
-
-                              if (userCredential.user != null) {
-                                Navigator.pushReplacementNamed(
-                                  context,
-                                  '/posts-homepage',
-                                );
-                              }
-                            },
-                            successMessage: 'Google Sign-Up successful!',
-                          );
+                          final userCredential = await authRepository
+                              .signUpWithGoogle(userType: _userType.name);
+                          if (!mounted) return;
+                          if (userCredential.user != null) {
+                            Navigator.pushReplacementNamed(
+                              context,
+                              '/posts-homepage',
+                            );
+                          }
                         } catch (e) {
-                          // Strip nested "Exception:" prefixes for clean display
-                          String msg = e.toString();
-                          msg = msg
+                          String msg = e
+                              .toString()
                               .replaceAll(RegExp(r'Exception:\s*'), '')
                               .trim();
-                          AppToast.show(
-                            context,
-                            message: msg,
-                            type: ToastType.error,
-                          );
+                          if (mounted) {
+                            AppToast.show(
+                              context,
+                              message: msg,
+                              type: ToastType.error,
+                            );
+                          }
+                        } finally {
+                          if (mounted) setState(() => _isGoogleLoading = false);
                         }
                       },
                       onAppleSignIn: () {},
