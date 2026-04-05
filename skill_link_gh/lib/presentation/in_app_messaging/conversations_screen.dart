@@ -21,6 +21,8 @@ class _ConversationsScreenState extends State<ConversationsScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _shimmerCtrl;
   late Animation<double> _shimmerAnim;
+  // Guard: once we've seen real data, never show empty state from a stale snapshot
+  bool _hasEverHadData = false;
 
   @override
   void initState() {
