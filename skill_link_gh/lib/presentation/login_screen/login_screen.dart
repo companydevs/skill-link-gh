@@ -176,6 +176,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isGoogleLoading = true);
+    bool _navigated = false;
 
     try {
       final authRepository = AuthRepository();
@@ -193,15 +194,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           'provider': 'google',
         });
       } catch (fnErr) {
-        // signInUser function failed but Firebase Auth succeeded — still proceed
         debugPrint('signInUser function error (non-fatal): $fnErr');
       }
 
       HapticFeedback.mediumImpact();
 
       if (!mounted) return;
-      // Invalidate cached profile so it reloads for the newly signed-in user
       ref.invalidate(profileNotifierProvider);
+      _navigated = true;
       Navigator.pushReplacementNamed(context, '/posts-homepage');
     } catch (e) {
       debugPrint('Google Sign-In error: $e');
@@ -230,7 +230,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         AppToast.show(context, message: msg, type: ToastType.error);
       }
     } finally {
-      if (mounted) setState(() => _isGoogleLoading = false);
+      // Only reset loading if we didn't navigate away — avoids the flash
+      if (mounted && !_navigated) {
+        setState(() => _isGoogleLoading = false);
+      }
     }
   }
 
