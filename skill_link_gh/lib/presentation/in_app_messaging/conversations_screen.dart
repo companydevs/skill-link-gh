@@ -55,17 +55,21 @@ class _ConversationsScreenState extends State<ConversationsScreen>
       body: StreamBuilder<QuerySnapshot>(
         stream: repo.conversationsStream(),
         builder: (context, snapshot) {
-          // Show shimmer while waiting OR on first empty snapshot that hasn't settled
           final isLoading = snapshot.connectionState == ConnectionState.waiting;
-          final hasData = snapshot.hasData;
+          final docs = snapshot.data?.docs ?? [];
 
-          if (isLoading ||
-              (!hasData &&
-                  snapshot.connectionState != ConnectionState.active)) {
+          // Latch: once real data arrives, never regress to empty/shimmer
+          if (docs.isNotEmpty) _hasEverHadData = true;
+
+          // First load — no data yet
+          if (isLoading && !_hasEverHadData) {
             return _buildShimmer(theme);
           }
 
-          final docs = snapshot.data?.docs ?? [];
+          // Had data before but got stale empty snapshot (re-subscription flicker)
+          if (docs.isEmpty && _hasEverHadData) {
+            return _buildShimmer(theme);
+          }
 
           if (docs.isEmpty) {
             return _buildEmpty(theme, context);
