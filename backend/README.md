@@ -15,6 +15,26 @@ Spring Boot 3 + PostgreSQL service that powers the personalised feed for posts a
 
 ## Recommendation Algorithm
 
+### Algorithm Type: Geo-Aware Weighted Preference Ranking
+
+Formally a **weighted multi-signal ranking function with online preference learning** — a rule-based, collaborative-free recommendation system. No ML model or training pipeline is required.
+
+It combines four well-known techniques:
+
+- **Content-based filtering** — matches content to the user's category affinity scores (no model, just weighted counters updated per interaction)
+- **Recency decay** — exponential time decay, the same principle used in Reddit's and Hacker News's ranking formulas
+- **Geo-proximity scoring** — haversine distance weighting, similar to how Yelp and Uber-style feeds surface nearby results first
+- **Engagement scoring** — log-normalised interaction counts, similar to YouTube's early ranking approach
+- **Online learning** — user preferences update in real-time after every interaction (no batch training, no retraining cycle)
+
+### Why not a neural model?
+
+TikTok's actual system trains a deep neural network on billions of interactions to predict click-through rate. That requires massive data and compute. What we built is **deterministic** — given the same inputs it always produces the same output. A neural model is probabilistic and learns patterns that can't be hand-coded.
+
+This is exactly how most apps start. When enough interaction data accumulates in the `user_interactions` table (tens of thousands of rows), the `RecommendationEngine.java` scoring function can be swapped for a trained ML model using that data. The table already collects every signal needed for that upgrade.
+
+### Scoring Formula
+
 Final score for each piece of content:
 
 ```
