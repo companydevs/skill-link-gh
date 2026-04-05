@@ -57,27 +57,34 @@ class _ConversationsScreenState extends State<ConversationsScreen>
       body: StreamBuilder<QuerySnapshot>(
         stream: _stream,
         builder: (context, snapshot) {
-          final isLoading = snapshot.connectionState == ConnectionState.waiting;
+          final state = snapshot.connectionState;
           final docs = snapshot.data?.docs ?? [];
 
-          // Latch: once real data arrives, never regress to empty/shimmer
+          // Debug — remove after confirming fix
+          debugPrint(
+            '💬 Conversations: state=$state docs=${docs.length} hadData=$_hasEverHadData err=${snapshot.error}',
+          );
+
           if (docs.isNotEmpty) _hasEverHadData = true;
 
-          // First load — no data yet
-          if (isLoading && !_hasEverHadData) {
+          // Only shimmer on the very first load before ANY data arrives
+          if (!_hasEverHadData && state == ConnectionState.waiting) {
             return _buildShimmer(theme);
           }
 
-          // Had data before but got stale empty snapshot (re-subscription flicker)
-          if (docs.isEmpty && _hasEverHadData) {
-            return _buildShimmer(theme);
+          // We have data — show it immediately, regardless of connection state
+          if (docs.isNotEmpty) {
+            return _buildList(context, theme, docs, currentUid);
           }
 
-          if (docs.isEmpty) {
+          // Confirmed empty from Firestore (active/done, no data ever seen)
+          if (state == ConnectionState.active ||
+              state == ConnectionState.done) {
             return _buildEmpty(theme, context);
           }
 
-          return _buildList(context, theme, docs, currentUid);
+          // Still connecting but no data yet — keep shimmer
+          return _buildShimmer(theme);
         },
       ),
     );
