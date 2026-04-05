@@ -303,12 +303,16 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
                   ),
                 ),
               ],
-              body: _buildTabBody(
-                selectedTab: _selectedTab,
-                data: data,
-                reviews: reviews,
-                portfolio: portfolio,
-                services: services,
+              body: MediaQuery.removePadding(
+                context: context,
+                removeBottom: true,
+                child: _buildTabBody(
+                  selectedTab: _selectedTab,
+                  data: data,
+                  reviews: reviews,
+                  portfolio: portfolio,
+                  services: services,
+                ),
               ),
             ),
           ),

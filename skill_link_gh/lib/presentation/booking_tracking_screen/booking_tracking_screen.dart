@@ -411,6 +411,12 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen>
     required String imageUrl,
     required String label,
   }) async {
+    const int size = 56; // smaller, like search screen cards
+    final bool isClient = id == 'client';
+    final Color ringColor = isClient
+        ? const Color(0xFF10B981)
+        : const Color(0xFF1A73E8);
+
     BitmapDescriptor icon;
     try {
       final resp = await http
@@ -418,14 +424,24 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen>
           .timeout(const Duration(seconds: 5));
       final codec = await ui.instantiateImageCodec(
         Uint8List.fromList(resp.bodyBytes),
-        targetWidth: 120,
-        targetHeight: 120,
+        targetWidth: size,
+        targetHeight: size,
       );
       final frame = await codec.getNextFrame();
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
       final paint = Paint()..isAntiAlias = true;
-      canvas.clipPath(Path()..addOval(Rect.fromLTWH(0, 0, 120, 120)));
+
+      // Draw colored ring
+      canvas.drawCircle(
+        const Offset(size / 2, size / 2),
+        size / 2,
+        Paint()..color = ringColor,
+      );
+      // Clip inner circle for avatar
+      canvas.clipPath(
+        Path()..addOval(Rect.fromLTWH(3, 3, size - 6.0, size - 6.0)),
+      );
       canvas.drawImageRect(
         frame.image,
         Rect.fromLTWH(
@@ -434,21 +450,26 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen>
           frame.image.width.toDouble(),
           frame.image.height.toDouble(),
         ),
-        const Rect.fromLTWH(0, 0, 120, 120),
+        Rect.fromLTWH(3, 3, size - 6.0, size - 6.0),
         paint,
       );
-      final img = await recorder.endRecording().toImage(120, 120);
+      final img = await recorder.endRecording().toImage(size, size);
       final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
-      icon = BitmapDescriptor.bytes(bytes!.buffer.asUint8List());
+      icon = BitmapDescriptor.bytes(
+        bytes!.buffer.asUint8List(),
+        width: size.toDouble(),
+        height: size.toDouble(),
+      );
     } catch (_) {
       icon = BitmapDescriptor.defaultMarkerWithHue(
-        id == 'artisan' ? BitmapDescriptor.hueBlue : BitmapDescriptor.hueRed,
+        isClient ? BitmapDescriptor.hueGreen : BitmapDescriptor.hueBlue,
       );
     }
     return Marker(
       markerId: MarkerId(id),
       position: latLng,
       icon: icon,
+      anchor: const Offset(0.5, 0.5),
       infoWindow: InfoWindow(title: label),
     );
   }
