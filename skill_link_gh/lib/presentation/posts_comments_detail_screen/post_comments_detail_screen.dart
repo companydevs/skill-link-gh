@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:skill_link_gh/domain/models/local_comment.dart';
 import 'package:skill_link_gh/domain/models/post_model.dart';
 import 'package:skill_link_gh/widgets/custom_app_toast.dart';
+import 'package:skill_link_gh/widgets/user_avatar_widget.dart';
 
 import 'widgets/comment_item_widget.dart';
 import 'widgets/comment_shimmer_widget_screen.dart';
@@ -682,14 +683,10 @@ class _PostCaptionHeader extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: theme.colorScheme.surfaceContainerHighest,
-            backgroundImage: NetworkImage(
-              hasImage
-                  ? post.artisanImage
-                  : 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
-            ),
+          UserAvatarWidget(
+            imageUrl: hasImage ? post.artisanImage : null,
+            name: post.artisanName,
+            size: 36,
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -810,14 +807,14 @@ class _IGComposerState extends State<_IGComposer> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // Current user avatar
-            CircleAvatar(
-              radius: 17,
-              backgroundImage: NetworkImage(
-                widget.currentUserAvatar != null &&
-                        widget.currentUserAvatar!.isNotEmpty
-                    ? widget.currentUserAvatar!
-                    : 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
-              ),
+            UserAvatarWidget(
+              imageUrl:
+                  widget.currentUserAvatar != null &&
+                      widget.currentUserAvatar!.isNotEmpty
+                  ? widget.currentUserAvatar
+                  : null,
+              name: 'Me',
+              size: 34,
             ),
             const SizedBox(width: 10),
             // Input field
