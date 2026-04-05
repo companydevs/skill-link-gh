@@ -1,0 +1,7 @@
+target/
+*.class
+*.jar
+*.war
+.env
+firebase-service-account.json
+application-local.yml

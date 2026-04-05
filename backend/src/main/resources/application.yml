@@ -1,0 +1,37 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/skilllink_db
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: 8080
+
+firebase:
+  # Path to your Firebase service account JSON key file
+  # Download from Firebase Console → Project Settings → Service Accounts
+  service-account-path: ${FIREBASE_SERVICE_ACCOUNT_PATH:firebase-service-account.json}
+  project-id: ${FIREBASE_PROJECT_ID:your-firebase-project-id}
+
+recommendation:
+  # Max radius in km for location-based filtering
+  max-radius-km: 50
+  # Weight factors for the scoring algorithm (must sum to 1.0)
+  weights:
+    engagement: 0.30    # likes, comments, shares, saves
+    recency: 0.20       # how fresh the content is
+    location: 0.25      # proximity to user
+    preference: 0.25    # matches user's category/skill preferences
+  # Decay constants
+  recency-decay-hours: 48   # content older than this gets lower recency score
+  # Feed page size
+  feed-page-size: 10

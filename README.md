@@ -1,216 +1,84 @@
-# Skill Link GH – Flutter App
+# SkillLink GH
 
-A modern Flutter-based mobile application designed for seamless cross-platform performance, clean UI, in-app messaging, artisan discovery, bookings, reels, and more.  
-Built for speed, scalability, and modern mobile UX.
-
----
-
-## ✨ Features
-
-
-- 🔍 **Artisan Search & Discovery**
-- 💬 **In-App Messaging**
-- 🎥 **Reels / Short Videos**
-- 📄 **Service Booking**
-- 👤 **Artisan Profile Pages**
-- 🏠 **Posts Homepage**
-- 📱 **Responsive UI (Sizer)**
-- 🎨 **Light & Dark Theme Support**
-- 🚀 **Fast Navigation With Clean Routes**
-- 🗄️ **Optimized Assets & Reusable Components**
-
+A full-stack platform connecting clients with skilled artisans in Ghana. Built with Flutter (mobile), Spring Boot (recommendation backend), and React (admin panel).
 
 ---
 
-## 📋 Prerequisites
+## Project Structure
 
-Before running the project, ensure you have:
-
-- Flutter SDK **^3.29.2**
-- Dart SDK
-- Android Studio or VS Code with Flutter extensions
-- Android SDK / Xcode (iOS)
-
----
-
-## 📦 Dependencies Installation
-
-```bash
-flutter pub get
+```
+skill_link_gh/
+├── frontend/        # Flutter mobile app (iOS & Android)
+├── backend/         # Spring Boot recommendation engine (Java 17 + PostgreSQL)
+└── admin_panel/     # React admin dashboard (TypeScript + shadcn/ui)
 ```
 
 ---
 
-## ▶️ Run the Application
+## How It Works
 
+1. Artisans post services and upload reels (short videos)
+2. Clients discover artisans via a TikTok-style feed ranked by the recommendation engine
+3. The backend scores every post/reel using engagement, recency, location proximity, and personal category preferences
+4. Every interaction (like, save, skip, watch-time, booking) silently updates the user's preference profile
+5. Bookings are managed with Paystack payments and an escrow wallet system
+6. The admin panel gives operators full visibility over jobs, artisans, escrow, and disputes
+
+---
+
+## Quick Start
+
+### Prerequisites
+- Flutter SDK ^3.29.2
+- Java 17+
+- Maven 3.8+
+- PostgreSQL 14+
+- Node.js 18+ (admin panel)
+
+### 1. Backend
 ```bash
+cd backend
+# Set environment variables
+export DB_USERNAME=postgres
+export DB_PASSWORD=your_password
+export FIREBASE_PROJECT_ID=skill-link-gh
+export FIREBASE_SERVICE_ACCOUNT_PATH=firebase-service-account.json
+
+mvn spring-boot:run
+# Runs on http://localhost:8080
+```
+
+### 2. Frontend
+```bash
+cd frontend
+flutter pub get
 flutter run
 ```
 
----
-
-## 📁 Project Structure
-
-```
-flutter_app/
-├── android/                   # Android configuration
-├── ios/                       # iOS configuration
-├── lib/
-│   ├── core/                  # Core helpers, utilities, services
-│   │   └── utils/             # Utility functions
-│   ├── presentation/          # Screens & widgets
-│   │   ├── splash_screen/
-│   │   ├── in_app_messaging/
-│   │   ├── posts_homepage/
-│   │   ├── reels_screen/
-│   │   ├── artisan_profile_screen/
-│   │   ├── registration_screen/
-│   │   └── service_booking_screen/
-│   ├── routes/                # AppRoutes
-│   ├── theme/                 # Light & Dark themes
-│   ├── widgets/               # Reusable components
-│   └── main.dart              # Entry point
-├── assets/
-│   ├── images/
-│   └── screenshots/           
-├── pubspec.yaml
-└── README.md
-```
-
----
-
-## 🧩 Routing Configuration
-
-Routes are defined in `lib/routes/app_routes.dart`:
-
-```dart
-class AppRoutes {
-  static const String initial = '/';
-  static const String postsHomepage = '/posts-homepage';
-  static const String artisanProfile = '/artisan-profile-screen';
-  static const String reels = '/reels-screen';
-  static const String serviceBooking = '/service-booking-screen';
-  static const String registration = '/registration-screen';
-  static const String searchAndDiscovery = '/search-and-discovery-screen';
-  static const String inAppMessagingScreen = '/in-app-messaging-screen';
-
-  static Map<String, WidgetBuilder> routes = {
-    initial: (_) => const PostsHomepage(),
-    postsHomepage: (_) => const PostsHomepage(),
-    artisanProfile: (_) => const ArtisanProfileScreen(),
-    reels: (_) => const ReelsScreen(),
-    serviceBooking: (_) => const ServiceBookingScreen(),
-    registration: (_) => const RegistrationScreen(),
-    searchAndDiscovery: (_) => const SearchAndDiscoveryScreen(),
-    inAppMessagingScreen: (_) => const InAppMessaging(),
-  };
-}
-```
-
----
-
-## 🎨 Theming
-
-Access theme values:
-
-```dart
-final theme = Theme.of(context);
-final primary = theme.colorScheme.primary;
-```
-
-Supports:
-
-- Dark & light mode
-- Custom typography
-- Buttons
-- Text styles
-- Cards & surfaces
-- Input fields
-
----
-
-## 📱 Responsive UI (Sizer)
-
-Sizer helps scale UI dynamically:
-
-```dart
-Container(
-  width: 50.w,  // 50% of screen width
-  height: 20.h, // 20% of screen height
-  child: Text('Responsive'),
-)
-```
-
----
-
-## 🖼️ Screenshots
-
-All screenshots are in the `assets/screenshots/` folder:
-
-### App Preview (4 Per Row)
-
-| Screenshot                    | Screenshot                    | Screenshot                    | Screenshot                    |
-| ----------------------------- | ----------------------------- | ----------------------------- | ----------------------------- |
-| ![Screenshot 1](skill_link_gh/assets/screenshots/1.png) | ![Screenshot 2](skill_link_gh/assets/screenshots/2.png) | ![Screenshot 3](skill_link_gh/assets/screenshots/3.png) | ![Screenshot 4](skill_link_gh/assets/screenshots/4.png) |
-| ![Screenshot 5](skill_link_gh/assets/screenshots/5.png) | ![Screenshot 6](skill_link_gh/assets/screenshots/6.png) | ![Screenshot 7](skill_link_gh/assets/screenshots/7.png) | —                             |
-
-
-## ⚙️ Building for Release
-
-### Android (APK)
-
+### 3. Admin Panel
 ```bash
-flutter build apk --release
-```
-
-### iOS
-
-```bash
-flutter build ios --release
+cd admin_panel
+npm install
+npm run dev
+# Runs on http://localhost:5173
 ```
 
 ---
 
-## 🧪 Testing
+## Tech Stack
 
-Run all Flutter tests:
-
-```bash
-flutter test
-```
-
----
-
-## 🛠️ Tools & Tech
-
-- Flutter
-- Dart
-- Material 3
-- Sizer
-- Riverpod
-- Firebase functions(optional)
-- Clean architecture
-- Reusable widgets & services
+| Layer | Technology |
+|---|---|
+| Mobile | Flutter, Dart, Riverpod, Firebase |
+| Backend | Spring Boot 3, Java 17, PostgreSQL, Firebase Admin SDK |
+| Admin | React 18, TypeScript, Vite, Tailwind, shadcn/ui |
+| Payments | Paystack |
+| Auth | Firebase Auth (trusted by backend via ID token verification) |
+| Storage | Firebase Storage (videos, images) |
+| Realtime | Firestore (chat, live tracking) |
 
 ---
 
-## 👨‍💻 Development Workflow
+## License
 
-1. Create/modify features inside `presentation/`
-2. Add route to `AppRoutes`
-3. Add assets to `pubspec.yaml`
-4. Run `flutter pub get`
-5. Test on Android & iOS profiles
-6. Push with clear commit messages
-
----
-
-## 📄 License
-
-This project is licensed under the **MIT License**.
-
----
-
-## 💬 Contact
-
-For support, issues, or feature requests — open a GitHub issue.
+MIT
