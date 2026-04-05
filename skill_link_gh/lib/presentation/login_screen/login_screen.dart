@@ -208,6 +208,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final err = e.toString().toLowerCase();
       if (err.contains('no account found')) {
         msg = e.toString().replaceAll(RegExp(r'Exception:\s*'), '').trim();
+      } else if (err.contains('email & password') ||
+          err.contains('email and password') ||
+          err.contains('already exists') ||
+          err.contains('already registered')) {
+        msg = e
+            .toString()
+            .replaceAll(RegExp(r'Exception:\s*(Exception:\s*)?'), '')
+            .trim();
       } else if (err.contains('network') || err.contains('socket')) {
         msg = 'No internet connection. Please try again.';
       } else if (err.contains('cancelled') || err.contains('canceled')) {
