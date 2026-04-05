@@ -29,6 +29,12 @@ class ProfileRepository {
         final fallback = firestorePhoto.isNotEmpty ? firestorePhoto : authPhoto;
         if (fallback.isNotEmpty) {
           data['profileImage'] = fallback;
+          // Write it back so other users can see it too
+          await _firestore.collection('users').doc(user.uid).update({
+            'profileImage': fallback,
+            'photoUrl': fallback,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
         }
       }
 

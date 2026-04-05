@@ -184,6 +184,20 @@ class AuthRepository {
         );
       }
 
+      // Always sync the latest Google photo/name to Firestore so profile stays fresh
+      final existingPhoto = doc.data()?['profileImage'] as String? ?? '';
+      final googlePhoto = user.photoURL ?? '';
+      if (googlePhoto.isNotEmpty && existingPhoto.isEmpty) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({
+              'profileImage': googlePhoto,
+              'photoUrl': googlePhoto,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+      }
+
       return userCredential;
     } catch (e) {
       if (e is Exception && e.toString().contains('No account found')) {
