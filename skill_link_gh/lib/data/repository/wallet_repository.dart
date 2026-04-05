@@ -38,6 +38,49 @@ class WalletRepository {
     });
   }
 
+  /// Stream on-hold balance (earnings pending QR release)
+  Stream<double> onHoldStream() {
+    return _walletRef.snapshots().map((doc) {
+      if (!doc.exists) return 0.0;
+      return ((doc.data() as Map<String, dynamic>)['onHoldBalance'] ?? 0.0)
+          .toDouble();
+    });
+  }
+
+  /// Place artisan payment on hold when booking is confirmed
+  Future<bool> holdPaymentForArtisan({
+    required String bookingId,
+    required String artisanId,
+    required double amount,
+  }) async {
+    try {
+      final artisanWallet = _firestore.collection('wallets').doc(artisanId);
+      await _firestore.runTransaction((tx) async {
+        final snap = await tx.get(artisanWallet);
+        final current = snap.exists
+            ? ((snap.data()!['onHoldBalance'] ?? 0.0) as num).toDouble()
+            : 0.0;
+        tx.set(artisanWallet, {
+          'onHoldBalance': current + amount,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        tx.set(artisanWallet.collection('transactions').doc(), {
+          'type': 'onHold',
+          'status': 'pending',
+          'amount': amount,
+          'description': 'Payment on hold for booking $bookingId',
+          'reference': bookingId,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      });
+      log('✅ Payment held for artisan $artisanId');
+      return true;
+    } catch (e) {
+      log('Error holding payment: $e');
+      return false;
+    }
+  }
+
   /// Get transaction history
   Future<List<WalletTransaction>> getTransactions({int limit = 20}) async {
     try {
@@ -97,39 +140,42 @@ class WalletRepository {
   }
 
   /// Release payment to artisan after QR scan verification
+  /// Moves amount from onHoldBalance → spendable balance
   Future<bool> releasePaymentToArtisan({
     required String bookingId,
     required String artisanId,
     required double amount,
   }) async {
     try {
-      // Mark booking as payment released in Firestore
-      await _firestore.collection('bookings').doc(bookingId).update({
-        'paymentReleased': true,
-        'paymentReleasedAt': FieldValue.serverTimestamp(),
-        'status': 'completed',
-      });
-
-      // Credit artisan wallet
       final artisanWallet = _firestore.collection('wallets').doc(artisanId);
       await _firestore.runTransaction((tx) async {
         final snap = await tx.get(artisanWallet);
-        final current = snap.exists
+        final currentBalance = snap.exists
             ? ((snap.data()!['balance'] ?? 0.0) as num).toDouble()
             : 0.0;
+        final currentHold = snap.exists
+            ? ((snap.data()!['onHoldBalance'] ?? 0.0) as num).toDouble()
+            : 0.0;
+        // Move from onHold → spendable balance
         tx.set(artisanWallet, {
-          'balance': current + amount,
+          'balance': currentBalance + amount,
+          'onHoldBalance': (currentHold - amount).clamp(0.0, double.infinity),
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
-        // Add transaction record
         tx.set(artisanWallet.collection('transactions').doc(), {
           'type': 'payment',
           'status': 'success',
           'amount': amount,
-          'description': 'Payment received for booking $bookingId',
+          'description': 'Payment released for booking $bookingId',
           'reference': bookingId,
           'createdAt': FieldValue.serverTimestamp(),
         });
+      });
+      // Mark booking completed
+      await _firestore.collection('bookings').doc(bookingId).update({
+        'paymentReleased': true,
+        'paymentReleasedAt': FieldValue.serverTimestamp(),
+        'status': 'completed',
       });
       log('✅ Payment released to artisan $artisanId');
       return true;

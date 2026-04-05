@@ -5,6 +5,7 @@ import 'package:skill_link_gh/domain/models/wallet_model.dart';
 
 class WalletState {
   final double balance;
+  final double onHoldBalance;
   final List<WalletTransaction> transactions;
   final bool isLoading;
   final bool isProcessing;
@@ -12,6 +13,7 @@ class WalletState {
 
   const WalletState({
     this.balance = 0.0,
+    this.onHoldBalance = 0.0,
     this.transactions = const [],
     this.isLoading = false,
     this.isProcessing = false,
@@ -20,12 +22,14 @@ class WalletState {
 
   WalletState copyWith({
     double? balance,
+    double? onHoldBalance,
     List<WalletTransaction>? transactions,
     bool? isLoading,
     bool? isProcessing,
     String? error,
   }) => WalletState(
     balance: balance ?? this.balance,
+    onHoldBalance: onHoldBalance ?? this.onHoldBalance,
     transactions: transactions ?? this.transactions,
     isLoading: isLoading ?? this.isLoading,
     isProcessing: isProcessing ?? this.isProcessing,
@@ -40,17 +44,24 @@ final walletRepositoryProvider = Provider<WalletRepository>(
 class WalletNotifier extends Notifier<WalletState> {
   WalletRepository get _repo => ref.read(walletRepositoryProvider);
   StreamSubscription<double>? _balanceSub;
+  StreamSubscription<double>? _holdSub;
 
   @override
   WalletState build() {
     Future.microtask(() => _init());
-    ref.onDispose(() => _balanceSub?.cancel());
+    ref.onDispose(() {
+      _balanceSub?.cancel();
+      _holdSub?.cancel();
+    });
     return const WalletState(isLoading: true);
   }
 
   void _init() {
     _balanceSub = _repo.balanceStream().listen(
       (balance) => state = state.copyWith(balance: balance),
+    );
+    _holdSub = _repo.onHoldStream().listen(
+      (hold) => state = state.copyWith(onHoldBalance: hold),
     );
     loadTransactions();
   }
@@ -107,6 +118,26 @@ class WalletNotifier extends Notifier<WalletState> {
     } catch (e) {
       state = state.copyWith(isProcessing: false, error: e.toString());
       rethrow;
+    }
+  }
+
+  Future<bool> holdPaymentForArtisan({
+    required String bookingId,
+    required String artisanId,
+    required double amount,
+  }) async {
+    state = state.copyWith(isProcessing: true, error: null);
+    try {
+      final success = await _repo.holdPaymentForArtisan(
+        bookingId: bookingId,
+        artisanId: artisanId,
+        amount: amount,
+      );
+      state = state.copyWith(isProcessing: false);
+      return success;
+    } catch (e) {
+      state = state.copyWith(isProcessing: false, error: e.toString());
+      return false;
     }
   }
 

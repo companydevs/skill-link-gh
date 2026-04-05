@@ -340,6 +340,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
               flexibleSpace: FlexibleSpaceBar(
                 background: _WalletHeroCard(
                   balance: walletState.balance,
+                  onHoldBalance: walletState.onHoldBalance,
                   isProcessing: walletState.isProcessing,
                   balanceVisible: _balanceVisible,
                   onToggleVisibility: () =>
@@ -429,6 +430,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
 // ─── Hero balance card (inside FlexibleSpaceBar) ────────────────────────────
 class _WalletHeroCard extends StatelessWidget {
   final double balance;
+  final double onHoldBalance;
   final bool isProcessing;
   final bool balanceVisible;
   final VoidCallback onToggleVisibility;
@@ -437,6 +439,7 @@ class _WalletHeroCard extends StatelessWidget {
 
   const _WalletHeroCard({
     required this.balance,
+    required this.onHoldBalance,
     required this.isProcessing,
     required this.balanceVisible,
     required this.onToggleVisibility,
@@ -514,6 +517,42 @@ class _WalletHeroCard extends StatelessWidget {
                         ),
                       ),
               ),
+              // On-hold balance chip (only shown when > 0)
+              if (onHoldBalance > 0) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.lock_clock,
+                        color: Colors.white70,
+                        size: 14,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'GHS ${NumberFormat('#,##0.00').format(onHoldBalance)} on hold',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const Spacer(),
               SizedBox(
                 width: double.infinity,
@@ -615,9 +654,10 @@ class _QuickStats extends StatelessWidget {
         if (tx.type == TransactionType.topUp ||
             tx.type == TransactionType.refund) {
           totalIn += tx.amount;
-        } else {
+        } else if (tx.type == TransactionType.payment) {
           totalOut += tx.amount;
         }
+        // onHold is excluded from both totals until released
       }
     }
 
@@ -752,8 +792,9 @@ class _TransactionCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isCredit =
         tx.type == TransactionType.topUp || tx.type == TransactionType.refund;
-    final color = isCredit ? _kGreen : _kRed;
-    final prefix = isCredit ? '+' : '-';
+    final isOnHold = tx.type == TransactionType.onHold;
+    final color = isOnHold ? _kAmber : (isCredit ? _kGreen : _kRed);
+    final prefix = isOnHold ? '⏳' : (isCredit ? '+' : '-');
 
     IconData icon;
     String typeLabel;
@@ -769,6 +810,10 @@ class _TransactionCard extends StatelessWidget {
       case TransactionType.refund:
         icon = Icons.replay_rounded;
         typeLabel = 'Refund';
+        break;
+      case TransactionType.onHold:
+        icon = Icons.lock_clock;
+        typeLabel = 'On Hold';
         break;
     }
 
