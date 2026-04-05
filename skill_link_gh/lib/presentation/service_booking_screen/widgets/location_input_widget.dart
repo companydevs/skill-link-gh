@@ -77,8 +77,8 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
       widget.onLocationSelected(ll);
       if (mounted) setState(() => _pickedLatLng = ll);
       if (mounted) {
-        widget.addressController.text =
-            '${ll.latitude.toStringAsFixed(5)}, ${ll.longitude.toStringAsFixed(5)}';
+        // Temporary label while geocoding — use Ghana Post GPS style
+        widget.addressController.text = _toGhanaPostGps(ll);
       }
       final addr = await _geocode(ll);
       dev.log('📍 Geocode: $addr', name: 'Location');
@@ -265,8 +265,6 @@ class _LocationInputWidgetState extends State<LocationInputWidget> {
             ),
           ),
         ),
-
-
       ],
     );
   }

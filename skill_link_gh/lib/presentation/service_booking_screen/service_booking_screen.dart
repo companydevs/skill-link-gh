@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:skill_link_gh/domain/models/booking_model.dart';
 import 'package:skill_link_gh/provider/booking_provider.dart';
+import 'package:skill_link_gh/provider/wallet_provider.dart';
 
 import '../../core/app_export.dart';
 import '../../services/transport_fare_service.dart';
@@ -539,16 +540,39 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
 
       if (result != null && result['success'] == true) {
         if (mounted) {
-          Navigator.pushReplacementNamed(
-            context,
-            '/payment-verification',
-            arguments: {
-              'paymentUrl': result['paymentUrl'],
-              'bookingId': result['bookingId'],
-              'reference': result['bookingReference'],
-              'email': FirebaseAuth.instance.currentUser?.email ?? '',
-            },
-          );
+          final bookingId = result['bookingId'] as String? ?? '';
+
+          // ── Wallet payment: deduct immediately, skip Paystack webview ──
+          if (_selectedPaymentMethod == 'wallet') {
+            final walletSuccess = await ref
+                .read(walletNotifierProvider.notifier)
+                .payWithWallet(bookingId: bookingId, amount: totalAmount);
+
+            if (!mounted) return;
+            if (walletSuccess) {
+              Navigator.pushReplacementNamed(
+                context,
+                '/booking-tracking-screen',
+                arguments: {'bookingId': bookingId},
+              );
+            } else {
+              throw Exception(
+                'Wallet payment failed. Please top up and try again.',
+              );
+            }
+          } else {
+            // ── Card/Paystack: open webview ────────────────────────────
+            Navigator.pushReplacementNamed(
+              context,
+              '/payment-verification',
+              arguments: {
+                'paymentUrl': result['paymentUrl'],
+                'bookingId': bookingId,
+                'reference': result['bookingReference'],
+                'email': FirebaseAuth.instance.currentUser?.email ?? '',
+              },
+            );
+          }
         }
       } else {
         throw Exception(
