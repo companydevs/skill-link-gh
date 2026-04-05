@@ -676,8 +676,8 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen>
             ),
           ),
           SizedBox(height: 1.h),
-          Expanded(
-            flex: 5,
+          SizedBox(
+            height: 28.h,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: Padding(
