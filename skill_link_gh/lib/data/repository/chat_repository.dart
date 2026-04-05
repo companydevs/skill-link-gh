@@ -117,4 +117,30 @@ class ChatRepository {
         .doc(conversationId(otherUid))
         .snapshots();
   }
+
+  /// Fetch the live profile photo URL for any user from the users collection.
+  /// Checks `profileImage` first, then falls back to `photoUrl`.
+  Future<String> getUserPhotoUrl(String uid) async {
+    try {
+      final doc = await _firestore.collection('users').doc(uid).get();
+      if (!doc.exists) return '';
+      final data = doc.data()!;
+      final profileImage = data['profileImage'] as String? ?? '';
+      if (profileImage.isNotEmpty) return profileImage;
+      return data['photoUrl'] as String? ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// Stream of a user's profile photo URL so it stays in sync.
+  Stream<String> userPhotoStream(String uid) {
+    return _firestore.collection('users').doc(uid).snapshots().map((doc) {
+      if (!doc.exists) return '';
+      final data = doc.data()!;
+      final profileImage = data['profileImage'] as String? ?? '';
+      if (profileImage.isNotEmpty) return profileImage;
+      return data['photoUrl'] as String? ?? '';
+    });
+  }
 }

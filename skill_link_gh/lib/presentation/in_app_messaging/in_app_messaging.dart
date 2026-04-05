@@ -39,6 +39,8 @@ class _InAppMessagingState extends State<InAppMessaging> {
   late String _otherUid;
   late String _otherName;
   late String _otherAvatar;
+  String _liveAvatar = ''; // fetched fresh from users collection
+  String _myLiveAvatar = ''; // current user's live profile photo
 
   bool _isOtherTyping = false;
   StreamSubscription? _typingSubscription;
@@ -68,6 +70,23 @@ class _InAppMessagingState extends State<InAppMessaging> {
             otherAvatar: _otherAvatar,
           )
           .then((_) => _chatRepo.markAsRead(_otherUid));
+
+      // Fetch live profile photo so it always matches the user's actual profile
+      _chatRepo.getUserPhotoUrl(_otherUid).then((url) {
+        if (mounted && url.isNotEmpty) {
+          setState(() => _liveAvatar = url);
+        }
+      });
+
+      // Fetch current user's live photo for their own message bubbles
+      final myUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      if (myUid.isNotEmpty) {
+        _chatRepo.getUserPhotoUrl(myUid).then((url) {
+          if (mounted && url.isNotEmpty) {
+            setState(() => _myLiveAvatar = url);
+          }
+        });
+      }
 
       _typingSubscription = _chatRepo.typingStream(_otherUid).listen((snap) {
         if (!snap.exists) return;
@@ -170,8 +189,10 @@ class _InAppMessagingState extends State<InAppMessaging> {
       'isCurrentUser': isCurrentUser,
       'status': data['status'] ?? 'sent',
       'avatar': isCurrentUser
-          ? (FirebaseAuth.instance.currentUser?.photoURL ?? '')
-          : _otherAvatar,
+          ? (_myLiveAvatar.isNotEmpty
+                ? _myLiveAvatar
+                : (FirebaseAuth.instance.currentUser?.photoURL ?? ''))
+          : (_liveAvatar.isNotEmpty ? _liveAvatar : _otherAvatar),
       'avatarLabel': isCurrentUser ? 'You' : _otherName,
       // image
       if (data['imageUrl'] != null) 'imageUrl': data['imageUrl'],
@@ -303,10 +324,15 @@ class _InAppMessagingState extends State<InAppMessaging> {
             CircleAvatar(
               radius: 5.w,
               backgroundColor: theme.colorScheme.primaryContainer,
-              foregroundImage: _otherAvatar.isNotEmpty
-                  ? NetworkImage(_otherAvatar)
+              foregroundImage:
+                  (_liveAvatar.isNotEmpty ? _liveAvatar : _otherAvatar)
+                      .isNotEmpty
+                  ? NetworkImage(
+                      _liveAvatar.isNotEmpty ? _liveAvatar : _otherAvatar,
+                    )
                   : null,
-              onForegroundImageError: _otherAvatar.isNotEmpty
+              onForegroundImageError:
+                  (_liveAvatar.isNotEmpty || _otherAvatar.isNotEmpty)
                   ? (_, __) {}
                   : null,
               child: Text(

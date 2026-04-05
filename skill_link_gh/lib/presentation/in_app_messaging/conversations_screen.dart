@@ -193,14 +193,27 @@ class _ConversationsScreenState extends State<ConversationsScreen>
             horizontal: 4.w,
             vertical: 0.5.h,
           ),
-          leading: CircleAvatar(
-            radius: 6.w,
-            backgroundImage: otherAvatar.isNotEmpty
-                ? NetworkImage(otherAvatar)
-                : null,
-            child: otherAvatar.isEmpty
-                ? Text(otherName.isNotEmpty ? otherName[0].toUpperCase() : '?')
-                : null,
+          leading: StreamBuilder<String>(
+            stream: ChatRepository().userPhotoStream(otherUid),
+            initialData: otherAvatar,
+            builder: (context, snap) {
+              final photoUrl = snap.data ?? otherAvatar;
+              return CircleAvatar(
+                radius: 6.w,
+                backgroundColor: theme.colorScheme.primaryContainer,
+                foregroundImage: photoUrl.isNotEmpty
+                    ? NetworkImage(photoUrl)
+                    : null,
+                onForegroundImageError: photoUrl.isNotEmpty ? (_, __) {} : null,
+                child: Text(
+                  otherName.isNotEmpty ? otherName[0].toUpperCase() : '?',
+                  style: TextStyle(
+                    color: theme.colorScheme.onPrimaryContainer,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              );
+            },
           ),
           title: Text(
             otherName,
