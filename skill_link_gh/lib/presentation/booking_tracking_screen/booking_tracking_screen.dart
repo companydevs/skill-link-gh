@@ -526,7 +526,7 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen>
                 const SizedBox(width: 8),
                 _InfoChip(
                   icon: Icons.straighten_outlined,
-                  label: '\ km',
+                  label: '${_distanceKm.toStringAsFixed(1)} km',
                   theme: theme,
                 ),
               ],
