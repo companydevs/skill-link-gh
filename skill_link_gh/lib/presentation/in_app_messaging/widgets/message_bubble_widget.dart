@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../widgets/user_avatar_widget.dart';
 
 /// Message bubble widget for displaying individual messages
 /// Supports text, images, voice messages, and booking cards
@@ -55,22 +56,12 @@ class MessageBubbleWidget extends StatelessWidget {
   }
 
   Widget _buildAvatar(BuildContext context) {
-    final theme = Theme.of(context);
     final avatarUrl = message['avatar'] as String? ?? '';
     final label = message['avatarLabel'] as String? ?? '?';
-    return CircleAvatar(
-      radius: 4.w,
-      backgroundColor: theme.colorScheme.primaryContainer,
-      foregroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
-      onForegroundImageError: avatarUrl.isNotEmpty ? (_, __) {} : null,
-      child: Text(
-        label.isNotEmpty ? label[0].toUpperCase() : '?',
-        style: TextStyle(
-          fontSize: 12.sp,
-          color: theme.colorScheme.onPrimaryContainer,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
+    return UserAvatarWidget(
+      imageUrl: avatarUrl.isNotEmpty ? avatarUrl : null,
+      name: label,
+      size: 8.w,
     );
   }
 

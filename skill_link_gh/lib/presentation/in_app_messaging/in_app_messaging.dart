@@ -322,27 +322,14 @@ class _InAppMessagingState extends State<InAppMessaging> {
       appBar: AppBar(
         title: Row(
           children: [
-            CircleAvatar(
-              radius: 5.w,
-              backgroundColor: theme.colorScheme.primaryContainer,
-              foregroundImage:
+            UserAvatarWidget(
+              imageUrl:
                   (_liveAvatar.isNotEmpty ? _liveAvatar : _otherAvatar)
                       .isNotEmpty
-                  ? NetworkImage(
-                      _liveAvatar.isNotEmpty ? _liveAvatar : _otherAvatar,
-                    )
+                  ? (_liveAvatar.isNotEmpty ? _liveAvatar : _otherAvatar)
                   : null,
-              onForegroundImageError:
-                  (_liveAvatar.isNotEmpty || _otherAvatar.isNotEmpty)
-                  ? (_, __) {}
-                  : null,
-              child: Text(
-                _otherName.isNotEmpty ? _otherName[0].toUpperCase() : '?',
-                style: TextStyle(
-                  color: theme.colorScheme.onPrimaryContainer,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              name: _otherName,
+              size: 10.w,
             ),
             SizedBox(width: 3.w),
             Expanded(
