@@ -86,6 +86,15 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
       final data = doc.data()!;
       data['id'] = userId;
 
+      // Resolve profile photo: profileImage → photoUrl → photoURL (Google sign-in field)
+      final profileImage = data['profileImage'] as String? ?? '';
+      if (profileImage.isEmpty) {
+        final photoUrl = data['photoUrl'] as String? ?? '';
+        final photoURL = data['photoURL'] as String? ?? '';
+        final resolved = photoUrl.isNotEmpty ? photoUrl : photoURL;
+        if (resolved.isNotEmpty) data['profileImage'] = resolved;
+      }
+
       final results = await Future.wait<List<Map<String, dynamic>>>([
         ref.read(profileRepositoryProvider).getPortfolioImages(userId),
         ref.read(profileRepositoryProvider).getReviews(userId),

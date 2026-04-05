@@ -72,11 +72,14 @@ class ProfileHeaderWidget extends StatelessWidget {
                   ],
                 ),
                 child: UserAvatarWidget(
-                  imageUrl:
-                      (artisanData['profileImage'] as String?)?.isNotEmpty ==
-                          true
-                      ? artisanData['profileImage'] as String?
-                      : artisanData['photoUrl'] as String?,
+                  imageUrl: (() {
+                    final img = artisanData['profileImage'] as String? ?? '';
+                    if (img.isNotEmpty) return img;
+                    final url = artisanData['photoUrl'] as String? ?? '';
+                    if (url.isNotEmpty) return url;
+                    final url2 = artisanData['photoURL'] as String? ?? '';
+                    return url2.isNotEmpty ? url2 : null;
+                  })(),
                   name: name,
                   size: _avatarRadius * 2,
                   isOnline: isOnline,
