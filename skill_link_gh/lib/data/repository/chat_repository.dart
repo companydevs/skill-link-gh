@@ -127,7 +127,13 @@ class ChatRepository {
       final data = doc.data()!;
       final profileImage = data['profileImage'] as String? ?? '';
       if (profileImage.isNotEmpty) return profileImage;
-      return data['photoUrl'] as String? ?? '';
+      final photoUrl = data['photoUrl'] as String? ?? '';
+      if (photoUrl.isNotEmpty) return photoUrl;
+      // Last resort: Firebase Auth photoURL (covers Google sign-in users)
+      if (uid == currentUid) {
+        return _auth.currentUser?.photoURL ?? '';
+      }
+      return '';
     } catch (_) {
       return '';
     }

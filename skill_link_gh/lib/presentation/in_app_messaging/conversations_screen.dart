@@ -8,6 +8,7 @@ import '../../data/repository/chat_repository.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/custom_bottom_bar.dart';
+import '../../widgets/user_avatar_widget.dart';
 import 'in_app_messaging.dart';
 
 class ConversationsScreen extends StatefulWidget {
@@ -198,20 +199,10 @@ class _ConversationsScreenState extends State<ConversationsScreen>
             initialData: otherAvatar,
             builder: (context, snap) {
               final photoUrl = snap.data ?? otherAvatar;
-              return CircleAvatar(
-                radius: 6.w,
-                backgroundColor: theme.colorScheme.primaryContainer,
-                foregroundImage: photoUrl.isNotEmpty
-                    ? NetworkImage(photoUrl)
-                    : null,
-                onForegroundImageError: photoUrl.isNotEmpty ? (_, __) {} : null,
-                child: Text(
-                  otherName.isNotEmpty ? otherName[0].toUpperCase() : '?',
-                  style: TextStyle(
-                    color: theme.colorScheme.onPrimaryContainer,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+              return UserAvatarWidget(
+                imageUrl: photoUrl.isNotEmpty ? photoUrl : null,
+                name: otherName,
+                size: 12.w,
               );
             },
           ),

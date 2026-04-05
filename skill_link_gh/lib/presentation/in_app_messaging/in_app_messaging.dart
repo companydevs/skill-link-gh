@@ -11,6 +11,7 @@ import '../../data/repository/chat_repository.dart';
 import './widgets/message_bubble_widget.dart';
 import './widgets/message_input_widget.dart';
 import './widgets/typing_indicator_widget.dart';
+import '../../widgets/user_avatar_widget.dart';
 
 /// Arguments passed when navigating to this screen
 class ChatArgs {
