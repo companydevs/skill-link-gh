@@ -8,6 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:sizer/sizer.dart';
@@ -194,7 +195,38 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen>
       }
 
       final cl = booking.clientLocation;
-      if (_artisanStaticLocation != null) {
+
+      // ── Artisan location: stored coords → device GPS → near client ──
+      if (_artisanStaticLocation == null) {
+        // Try device GPS if current user IS the artisan
+        if (_isArtisan) {
+          try {
+            final perm = await Geolocator.checkPermission();
+            if (perm == LocationPermission.whileInUse ||
+                perm == LocationPermission.always) {
+              Position? pos = await Geolocator.getLastKnownPosition();
+              pos ??= await Geolocator.getCurrentPosition(
+                locationSettings: AndroidSettings(
+                  accuracy: LocationAccuracy.low,
+                  forceLocationManager: true,
+                  timeLimit: const Duration(seconds: 8),
+                ),
+              );
+              _artisanStaticLocation = LatLng(pos.latitude, pos.longitude);
+            }
+          } catch (_) {}
+        }
+        // Final fallback: place artisan marker near client location
+        if (_artisanStaticLocation == null && cl.latitude != 0) {
+          _artisanStaticLocation = LatLng(
+            cl.latitude + 0.01,
+            cl.longitude + 0.01,
+          );
+        }
+      }
+
+      // ── Distance calculation ─────────────────────────────────────────
+      if (_artisanStaticLocation != null && cl.latitude != 0) {
         final artLoc = _artisanStaticLocation!;
         final dLat = (cl.latitude - artLoc.latitude) * math.pi / 180;
         final dLng = (cl.longitude - artLoc.longitude) * math.pi / 180;
@@ -226,6 +258,10 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen>
           _fullRoute = route;
           _routeAnim.forward(from: 0);
         }
+        await _buildMarkers(clientLatLng);
+      } else if (cl.latitude != 0) {
+        // At minimum show the client marker
+        final clientLatLng = LatLng(cl.latitude, cl.longitude);
         await _buildMarkers(clientLatLng);
       }
 
@@ -306,44 +342,67 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen>
   }
 
   Future<void> _buildMarkers(LatLng clientLatLng) async {
-    final artisanMarker = await _buildAvatarMarker(
-      id: 'artisan',
-      latLng: _artisanStaticLocation!,
-      imageUrl: _artisanAvatar,
-      label: _artisanName,
-    );
+    final markers = <Marker>{};
+
+    // Client marker — always shown
     final clientMarker = await _buildAvatarMarker(
       id: 'client',
       latLng: clientLatLng,
       imageUrl: _clientAvatar,
-      label: _clientName,
+      label: '$_clientName (Client)',
     );
-    if (mounted) setState(() => _markers = {artisanMarker, clientMarker});
-    _mapController?.animateCamera(
-      CameraUpdate.newLatLngBounds(
-        LatLngBounds(
-          southwest: LatLng(
-            math.min(clientLatLng.latitude, _artisanStaticLocation!.latitude) -
-                0.01,
-            math.min(
-                  clientLatLng.longitude,
-                  _artisanStaticLocation!.longitude,
-                ) -
-                0.01,
+    markers.add(clientMarker);
+
+    // Artisan marker — only if we have a location
+    if (_artisanStaticLocation != null) {
+      final artisanMarker = await _buildAvatarMarker(
+        id: 'artisan',
+        latLng: _artisanStaticLocation!,
+        imageUrl: _artisanAvatar,
+        label: '$_artisanName (Artisan)',
+      );
+      markers.add(artisanMarker);
+    }
+
+    if (mounted) setState(() => _markers = markers);
+
+    if (_artisanStaticLocation != null) {
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLngBounds(
+          LatLngBounds(
+            southwest: LatLng(
+              math.min(
+                    clientLatLng.latitude,
+                    _artisanStaticLocation!.latitude,
+                  ) -
+                  0.01,
+              math.min(
+                    clientLatLng.longitude,
+                    _artisanStaticLocation!.longitude,
+                  ) -
+                  0.01,
+            ),
+            northeast: LatLng(
+              math.max(
+                    clientLatLng.latitude,
+                    _artisanStaticLocation!.latitude,
+                  ) +
+                  0.01,
+              math.max(
+                    clientLatLng.longitude,
+                    _artisanStaticLocation!.longitude,
+                  ) +
+                  0.01,
+            ),
           ),
-          northeast: LatLng(
-            math.max(clientLatLng.latitude, _artisanStaticLocation!.latitude) +
-                0.01,
-            math.max(
-                  clientLatLng.longitude,
-                  _artisanStaticLocation!.longitude,
-                ) +
-                0.01,
-          ),
+          60,
         ),
-        60,
-      ),
-    );
+      );
+    } else {
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLngZoom(clientLatLng, 15),
+      );
+    }
   }
 
   Future<Marker> _buildAvatarMarker({
@@ -725,6 +784,30 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen>
                     ),
                   ],
                 ),
+                const SizedBox(height: 8),
+                // Get Directions button — opens Google Maps to client location
+                if (cl.latitude != 0)
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final uri = Uri.parse(
+                          'https://www.google.com/maps/dir/?api=1'
+                          '&destination=${cl.latitude},${cl.longitude}'
+                          '&travelmode=driving',
+                        );
+                        if (await canLaunchUrl(uri)) {
+                          launchUrl(uri, mode: LaunchMode.externalApplication);
+                        }
+                      },
+                      icon: const Icon(Icons.directions_outlined, size: 18),
+                      label: const Text('Get Directions to Client'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF1A73E8),
+                        side: const BorderSide(color: Color(0xFF1A73E8)),
+                      ),
+                    ),
+                  ),
                 const SizedBox(height: 8),
                 if (!isCompleted && !isCancelled)
                   SizedBox(
