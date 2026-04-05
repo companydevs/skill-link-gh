@@ -1,22 +1,28 @@
 # Skill Link GH – Flutter App
 
-A modern Flutter-based mobile application designed for seamless cross-platform performance, clean UI, in-app messaging, artisan discovery, bookings, reels, and more.  
-Built for speed, scalability, and modern mobile UX.
+A modern Flutter-based mobile application connecting clients with skilled artisans in Ghana.  
+Built for speed, scalability, and modern mobile UX — with a TikTok-style discovery feed, escrow payments, real-time tracking, and in-app messaging.
 
 ---
 
 ## ✨ Features
 
-- 🔍 **Artisan Search & Discovery** — location-aware, sorted by proximity
-- 💬 **In-App Messaging** — real-time chat between clients and artisans
-- 🎥 **Reels / Short Videos** — TikTok-style feed with watch-time tracking
-- 📄 **Service Booking** — multi-step booking with scheduling and payment
-- 👤 **Artisan Profile Pages** — portfolio, reviews, services, ratings
-- 🏠 **Posts Homepage** — personalised feed ranked by recommendation engine
-- 💳 **Wallet & Payments** — Paystack integration with escrow hold/release
-- 📍 **Real-time Tracking** — live artisan location during active bookings
+- 🔍 **Artisan Search & Discovery** — location-aware, sorted by proximity with map view
+- 🏠 **Posts Feed** — personalised feed ranked by recommendation engine (engagement + location + preferences)
+- 🎥 **Reels** — TikTok-style short video feed with watch-time tracking and upload
+- 💬 **Comments** — nested comments with likes and replies on reels and posts
+- 📩 **In-App Messaging** — real-time chat between clients and artisans with typing indicators
+- 👤 **Artisan Profiles** — portfolio images, services, reviews, ratings, verification badge
+- 📅 **Service Booking** — multi-step flow: date/time picker → service details → location → payment
+- 📍 **Real-time Tracking** — live artisan GPS location during active bookings
+- 🔐 **QR Code Payment Release** — client scans artisan QR to release escrow payment on job completion
+- 💳 **Wallet System** — top-up via Paystack, pay with wallet, on-hold escrow balance, transaction history
+- 💰 **Paystack Payments** — card payments with redirect verification
+- 🔄 **Auto Refunds** — automatic refund if artisan doesn't accept before booking date
+- 🛡️ **Identity Verification** — artisan document verification flow
+- 🔔 **OTP Verification** — email OTP on registration
+- 🌗 **Light & Dark Theme** — system-aware theming
 - 📱 **Responsive UI** — Sizer-based adaptive layout
-- 🎨 **Light & Dark Theme** — system-aware theming
 
 ---
 
@@ -27,6 +33,26 @@ Built for speed, scalability, and modern mobile UX.
 | ![](assets/screenshots/1.png) | ![](assets/screenshots/2.png) | ![](assets/screenshots/3.png) |
 | ![](assets/screenshots/4.png) | ![](assets/screenshots/5.png) | ![](assets/screenshots/6.png) |
 | ![](assets/screenshots/7.png) | | |
+
+---
+
+## 💳 Payment & Escrow Flow
+
+```
+Client books service
+        ↓
+Pays via Paystack card OR wallet balance
+        ↓
+Payment held in artisan's on-hold balance (escrow)
+        ↓
+Artisan accepts → travels to client → completes job
+        ↓
+Client scans artisan's QR code to verify completion
+        ↓
+On-hold balance released → artisan's spendable wallet
+        ↓
+If artisan never accepts → auto refund to client wallet
+```
 
 ---
 
@@ -51,9 +77,7 @@ flutter run
 
 ## 🔗 Backend Integration
 
-The app connects to the Spring Boot recommendation backend at `http://10.0.2.2:8080` (Android emulator) by default.
-
-Update `_baseUrl` in `lib/services/backend_api_service.dart` to match your environment:
+The app connects to the Spring Boot recommendation backend. Update `_baseUrl` in `lib/services/backend_api_service.dart`:
 
 ```dart
 static const String _baseUrl = 'http://10.0.2.2:8080';    // Android emulator
@@ -61,13 +85,11 @@ static const String _baseUrl = 'http://10.0.2.2:8080';    // Android emulator
 // static const String _baseUrl = 'https://your-api.com';  // Production
 ```
 
-The app automatically falls back to Firestore if the backend is unreachable — no crashes, no user impact.
+Falls back to Firestore automatically if the backend is unreachable.
 
 ### Interaction tracking (automatic)
 
-Every user action sends an event to the backend to improve recommendations:
-
-| Action | Event |
+| Action | Event sent to backend |
 |---|---|
 | Like a post/reel | `LIKE` |
 | Unlike | `UNLIKE` |
@@ -83,39 +105,54 @@ Every user action sends an event to the backend to improve recommendations:
 
 ```
 lib/
-├── core/                    # Theme, exports, app config
+├── core/                        # Theme, exports, app config
 ├── data/
-│   └── repository/          # Data layer (Firestore + backend API)
-│       ├── post_repository.dart
-│       ├── reels_repositoty.dart
-│       ├── booking_repository.dart
-│       ├── artisan_repository.dart
-│       ├── auth_repository.dart
-│       ├── comments_repository.dart
-│       ├── profile_repository.dart
-│       └── wallet_repository.dart
+│   └── repository/
+│       ├── post_repository.dart         # Posts feed (backend-first, Firestore fallback)
+│       ├── reels_repositoty.dart        # Reels feed (backend-first, Firestore fallback)
+│       ├── booking_repository.dart      # Bookings, location, payment verification
+│       ├── artisan_repository.dart      # Artisan discovery with road distance
+│       ├── auth_repository.dart         # Firebase Auth + Google Sign-In
+│       ├── comments_repository.dart     # Reel comments with likes/replies
+│       ├── profile_repository.dart      # User profile, portfolio, reviews, services
+│       └── wallet_repository.dart       # Wallet balance, top-up, escrow, refunds
 ├── domain/
-│   └── models/              # Data models
-├── notifier/                # StateNotifiers
-├── presentation/            # Screens
-│   ├── posts_homepage/
-│   ├── reels_screen/
-│   ├── artisan_profile_screen/
-│   ├── service_booking_screen/
-│   ├── booking_tracking_screen/
-│   ├── wallet_screen/
+│   └── models/                  # Data models
+│       ├── post_model.dart
+│       ├── reel_model.dart
+│       ├── booking_model.dart
+│       ├── comment_model.dart
+│       ├── wallet_model.dart
+│       └── user_model.dart
+├── notifier/                    # StateNotifiers
+├── presentation/                # Screens
+│   ├── posts_homepage/          # Main feed
+│   ├── reels_screen/            # TikTok-style reels
+│   ├── posts_comments_detail_screen/
+│   ├── artisan_profile_screen/  # Portfolio, reviews, services
+│   ├── search_and_discovery_screen/
+│   ├── service_booking_screen/  # Multi-step booking
+│   ├── booking_management/      # View & manage bookings
+│   ├── booking_tracking_screen/ # Live tracking + QR release
+│   ├── wallet_screen/           # Balance, top-up, transactions
+│   ├── in_app_messaging/        # Real-time chat
 │   ├── login_screen/
 │   ├── registration_screen/
-│   └── search_and_discovery_screen/
-├── provider/                # Riverpod providers
-│   ├── backend_provider.dart
-│   ├── post_provider.dart
-│   ├── reels_provider.dart
-│   └── booking_provider.dart
-├── routes/                  # AppRoutes
+│   ├── otp_verification_screen/
+│   ├── verification_screen/     # Artisan identity verification
+│   ├── edit_profile_screen/
+│   ├── user_profile_view_screen/
+│   └── payment_verification_screen/
+├── provider/                    # Riverpod providers
+│   ├── backend_provider.dart    # Spring Boot API client singleton
+│   ├── post_provider.dart       # Posts feed + interaction tracking
+│   ├── reels_provider.dart      # Reels feed + watch-time tracking
+│   ├── booking_provider.dart
+│   └── wallet_provider.dart
+├── routes/                      # AppRoutes
 ├── services/
-│   ├── backend_api_service.dart   # Spring Boot API client
-│   └── presence_service.dart
+│   ├── backend_api_service.dart # Spring Boot HTTP client (Dio + Firebase token)
+│   └── presence_service.dart    # Online/offline status
 └── main.dart
 ```
 
@@ -123,17 +160,20 @@ lib/
 
 ## 🧩 Routing
 
-Routes defined in `lib/routes/app_routes.dart`:
-
 ```dart
-static const String postsHomepage    = '/posts-homepage';
-static const String reels            = '/reels-screen';
-static const String artisanProfile   = '/artisan-profile-screen';
-static const String serviceBooking   = '/service-booking-screen';
-static const String bookingTracking  = '/booking-tracking-screen';
-static const String walletScreen     = '/wallet-screen';
-static const String searchAndDiscovery = '/search-and-discovery-screen';
-static const String inAppMessaging   = '/in-app-messaging-screen';
+/posts-homepage          → Main feed
+/reels-screen            → TikTok-style reels
+/artisan-profile-screen  → Artisan profile
+/service-booking-screen  → Book a service
+/booking-tracking-screen → Live tracking + QR release
+/wallet-screen           → Wallet & payments
+/search-and-discovery-screen
+/in-app-messaging-screen
+/conversations-screen
+/payment-verification    → Paystack redirect handler
+/user-profile-view       → View any user's profile
+/edit-profile-screen
+/verification-screen     → Artisan identity verification
 ```
 
 ---
@@ -146,17 +186,6 @@ final primary = theme.colorScheme.primary;
 ```
 
 Supports dark & light mode, custom typography, buttons, cards, input fields.
-
----
-
-## 📱 Responsive UI (Sizer)
-
-```dart
-Container(
-  width: 50.w,   // 50% of screen width
-  height: 20.h,  // 20% of screen height
-)
-```
 
 ---
 
@@ -174,14 +203,21 @@ flutter build ios --release
 
 ## 🛠️ Tech Stack
 
-- Flutter + Dart
-- Riverpod (state management)
-- Firebase Auth, Firestore, Storage, Cloud Functions
-- Dio (HTTP client for backend API)
-- Geolocator + Geocoding
-- Paystack (payments)
-- Video Compress + Video Player
-- Google Maps + Distance Matrix API
+| Package | Purpose |
+|---|---|
+| flutter_riverpod | State management |
+| firebase_auth | Authentication |
+| cloud_firestore | Database + real-time |
+| firebase_storage | Video & image storage |
+| cloud_functions | Secure server-side logic |
+| dio | HTTP client for backend API |
+| geolocator + geocoding | Location services |
+| google_maps_flutter | Map view |
+| video_compress + video_player | Reel upload & playback |
+| flutter_paystack_plus | Paystack payments |
+| qr_flutter + mobile_scanner | QR code generation & scanning |
+| share_plus | Social sharing |
+| sizer | Responsive UI |
 
 ---
 
