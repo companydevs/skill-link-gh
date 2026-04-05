@@ -596,300 +596,307 @@ class _BookingTrackingScreenState extends ConsumerState<BookingTrackingScreen>
         backgroundColor: theme.colorScheme.surface,
         elevation: 0,
       ),
-      body: Column(
-        children: [
-          Container(
-            margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-            padding: EdgeInsets.all(3.w),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.access_time_rounded, color: statusColor, size: 22),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        statusLabel,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          color: statusColor,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Text(
-                        booking.serviceTitle,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (isCancelled)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.errorContainer,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'Refunded',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.error,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4.w),
-            child: Row(
-              children: [
-                _InfoChip(
-                  icon: Icons.calendar_today_outlined,
-                  label: booking.scheduledDate,
-                  theme: theme,
-                ),
-                const SizedBox(width: 8),
-                _InfoChip(
-                  icon: Icons.access_time_outlined,
-                  label: booking.scheduledTime,
-                  theme: theme,
-                ),
-                const SizedBox(width: 8),
-                _InfoChip(
-                  icon: Icons.straighten_outlined,
-                  label: '${_distanceKm.toStringAsFixed(1)} km',
-                  theme: theme,
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 1.h),
-          SizedBox(
-            height: 28.h,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4.w),
-                child: GoogleMap(
-                  onMapCreated: (c) => _mapController = c,
-                  initialCameraPosition: CameraPosition(
-                    target: clientLatLng,
-                    zoom: 13,
-                  ),
-                  markers: _markers,
-                  polylines: _polylines,
-                  myLocationEnabled: false,
-                  zoomControlsEnabled: false,
-                  mapToolbarEnabled: false,
-                ),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            Container(
+              margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+              padding: EdgeInsets.all(3.w),
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: statusColor.withValues(alpha: 0.3)),
               ),
-            ),
-          ),
-          SizedBox(height: 1.h),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4.w),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _ProfileTile(
-                    label: 'Artisan',
-                    name: _artisanName,
-                    avatar: _artisanAvatar,
-                    theme: theme,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _ProfileTile(
-                    label: 'Client',
-                    name: _clientName,
-                    avatar: _clientAvatar,
-                    theme: theme,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 1.h),
-          if (cl.address.isNotEmpty || _resolvedAddress.isNotEmpty)
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4.w),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.5,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: theme.colorScheme.outline.withValues(alpha: 0.15),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.location_on,
-                      color: theme.colorScheme.primary,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _resolvedAddress.isNotEmpty
-                            ? _resolvedAddress
-                            : cl.address,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          SizedBox(height: 1.h),
-          Padding(
-            padding: EdgeInsets.fromLTRB(4.w, 0, 4.w, 2.h),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => Navigator.pushNamed(
-                          context,
-                          '/in-app-messaging-screen',
-                          arguments: ChatArgs(
-                            otherUserId: _isArtisan
-                                ? booking.clientId
-                                : booking.artisanId,
-                            otherUserName: _isArtisan
-                                ? _clientName
-                                : _artisanName,
-                            otherUserAvatar: _isArtisan
-                                ? _clientAvatar
-                                : _artisanAvatar,
+              child: Row(
+                children: [
+                  Icon(Icons.access_time_rounded, color: statusColor, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          statusLabel,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: statusColor,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                        label: const Text('Message'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () async {
-                          final uri = Uri.parse('tel:${booking.contactPhone}');
-                          if (await canLaunchUrl(uri)) launchUrl(uri);
-                        },
-                        icon: const Icon(Icons.call_outlined, size: 18),
-                        label: const Text('Call'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                // Get Directions button — opens Google Maps to client location
-                if (cl.latitude != 0)
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final uri = Uri.parse(
-                          'https://www.google.com/maps/dir/?api=1'
-                          '&destination=${cl.latitude},${cl.longitude}'
-                          '&travelmode=driving',
-                        );
-                        if (await canLaunchUrl(uri)) {
-                          launchUrl(uri, mode: LaunchMode.externalApplication);
-                        }
-                      },
-                      icon: const Icon(Icons.directions_outlined, size: 18),
-                      label: const Text('Get Directions to Client'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF1A73E8),
-                        side: const BorderSide(color: Color(0xFF1A73E8)),
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 8),
-                if (!isCompleted && !isCancelled)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _isArtisan
-                          ? _openArtisanScanner
-                          : _showClientQr,
-                      icon: Icon(
-                        _isArtisan ? Icons.qr_code_scanner : Icons.qr_code,
-                        size: 20,
-                      ),
-                      label: Text(
-                        _isArtisan
-                            ? 'Scan Client QR to Release Payment'
-                            : 'Show QR Code for Payment',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                if (isCompleted)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.green.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.check_circle,
-                          color: Colors.green,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
                         Text(
-                          'Payment Released — Job Complete',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: Colors.green,
-                            fontWeight: FontWeight.w600,
+                          booking.serviceTitle,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
                     ),
                   ),
-              ],
+                  if (isCancelled)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.errorContainer,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        'Refunded',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.error,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4.w),
+              child: Row(
+                children: [
+                  _InfoChip(
+                    icon: Icons.calendar_today_outlined,
+                    label: booking.scheduledDate,
+                    theme: theme,
+                  ),
+                  const SizedBox(width: 8),
+                  _InfoChip(
+                    icon: Icons.access_time_outlined,
+                    label: booking.scheduledTime,
+                    theme: theme,
+                  ),
+                  const SizedBox(width: 8),
+                  _InfoChip(
+                    icon: Icons.straighten_outlined,
+                    label: '${_distanceKm.toStringAsFixed(1)} km',
+                    theme: theme,
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 1.h),
+            SizedBox(
+              height: 28.h,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4.w),
+                  child: GoogleMap(
+                    onMapCreated: (c) => _mapController = c,
+                    initialCameraPosition: CameraPosition(
+                      target: clientLatLng,
+                      zoom: 13,
+                    ),
+                    markers: _markers,
+                    polylines: _polylines,
+                    myLocationEnabled: false,
+                    zoomControlsEnabled: false,
+                    mapToolbarEnabled: false,
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(height: 1.h),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4.w),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _ProfileTile(
+                      label: 'Artisan',
+                      name: _artisanName,
+                      avatar: _artisanAvatar,
+                      theme: theme,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _ProfileTile(
+                      label: 'Client',
+                      name: _clientName,
+                      avatar: _clientAvatar,
+                      theme: theme,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 1.h),
+            if (cl.address.isNotEmpty || _resolvedAddress.isNotEmpty)
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4.w),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.5,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: theme.colorScheme.outline.withValues(alpha: 0.15),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.location_on,
+                        color: theme.colorScheme.primary,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _resolvedAddress.isNotEmpty
+                              ? _resolvedAddress
+                              : cl.address,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            SizedBox(height: 1.h),
+            Padding(
+              padding: EdgeInsets.fromLTRB(4.w, 0, 4.w, 2.h),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => Navigator.pushNamed(
+                            context,
+                            '/in-app-messaging-screen',
+                            arguments: ChatArgs(
+                              otherUserId: _isArtisan
+                                  ? booking.clientId
+                                  : booking.artisanId,
+                              otherUserName: _isArtisan
+                                  ? _clientName
+                                  : _artisanName,
+                              otherUserAvatar: _isArtisan
+                                  ? _clientAvatar
+                                  : _artisanAvatar,
+                            ),
+                          ),
+                          icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                          label: const Text('Message'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final uri = Uri.parse(
+                              'tel:${booking.contactPhone}',
+                            );
+                            if (await canLaunchUrl(uri)) launchUrl(uri);
+                          },
+                          icon: const Icon(Icons.call_outlined, size: 18),
+                          label: const Text('Call'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Get Directions button — opens Google Maps to client location
+                  if (cl.latitude != 0)
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          final uri = Uri.parse(
+                            'https://www.google.com/maps/dir/?api=1'
+                            '&destination=${cl.latitude},${cl.longitude}'
+                            '&travelmode=driving',
+                          );
+                          if (await canLaunchUrl(uri)) {
+                            launchUrl(
+                              uri,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.directions_outlined, size: 18),
+                        label: const Text('Get Directions to Client'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF1A73E8),
+                          side: const BorderSide(color: Color(0xFF1A73E8)),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  if (!isCompleted && !isCancelled)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _isArtisan
+                            ? _openArtisanScanner
+                            : _showClientQr,
+                        icon: Icon(
+                          _isArtisan ? Icons.qr_code_scanner : Icons.qr_code,
+                          size: 20,
+                        ),
+                        label: Text(
+                          _isArtisan
+                              ? 'Scan Client QR to Release Payment'
+                              : 'Show QR Code for Payment',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (isCompleted)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.green.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Payment Released — Job Complete',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: Colors.green,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ), // Column
+      ), // SingleChildScrollView
     );
   }
 
