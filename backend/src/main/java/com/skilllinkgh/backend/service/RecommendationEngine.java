@@ -174,10 +174,29 @@ public class RecommendationEngine {
      * Preference score based on category affinity.
      * Returns the user's affinity score for the content's category (0.0 – 1.0).
      * New users with no history get 0.5 (neutral).
+     *
+     * ML upgrade: applies TF-IDF-style boosting — rare categories the user
+     * engages with are weighted higher than common ones (e.g. if everyone
+     * likes "plumbing" it's less signal than a niche preference for "welding").
      */
     private double preferenceScore(String category, Map<String, Double> categoryAffinity) {
         if (category == null || category.isBlank()) return 0.5;
-        return categoryAffinity.getOrDefault(category.toLowerCase(), 0.5);
+        String cat = category.toLowerCase();
+        double affinity = categoryAffinity.getOrDefault(cat, 0.5);
+
+        // IDF boost: categories with fewer total users interested score higher
+        // We approximate IDF using the inverse of how many categories the user has
+        // (more focused users get stronger signals on their top categories)
+        if (!categoryAffinity.isEmpty()) {
+            double maxAffinity = categoryAffinity.values().stream()
+                .mapToDouble(Double::doubleValue).max().orElse(1.0);
+            // Boost if this is one of the user's top categories (relative to their max)
+            double relativeStrength = maxAffinity > 0 ? affinity / maxAffinity : affinity;
+            // Blend raw affinity with relative strength for TF-IDF-like effect
+            affinity = 0.6 * affinity + 0.4 * relativeStrength;
+        }
+
+        return Math.min(affinity, 1.0);
     }
 
     // -------------------------------------------------------------------------

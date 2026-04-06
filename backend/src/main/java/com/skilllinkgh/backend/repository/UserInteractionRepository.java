@@ -35,4 +35,22 @@ public interface UserInteractionRepository extends JpaRepository<UserInteraction
 
     /** Recent interactions for a user (for preference refresh) */
     List<UserInteraction> findTop200ByUserIdOrderByCreatedAtDesc(String userId);
+
+    /** Count interactions grouped by type — for analytics */
+    @Query("SELECT i.interactionType, COUNT(i) FROM UserInteraction i GROUP BY i.interactionType")
+    List<Object[]> countByInteractionType();
+
+    /** Top categories by positive engagement — for analytics */
+    @Query("""
+        SELECT i.category, COUNT(i) FROM UserInteraction i
+        WHERE i.interactionType IN ('LIKE', 'SAVE', 'BOOK', 'COMMENT')
+          AND i.category IS NOT NULL
+        GROUP BY i.category
+        ORDER BY COUNT(i) DESC
+    """)
+    List<Object[]> findTopCategories();
+
+    /** Count distinct users who have interacted */
+    @Query("SELECT COUNT(DISTINCT i.userId) FROM UserInteraction i")
+    long countDistinctUsers();
 }

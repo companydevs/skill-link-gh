@@ -24,6 +24,9 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health").permitAll()
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                // Analytics open for admin panel (no Firebase token from React)
+                .requestMatchers("/api/admin/**").permitAll()
                 // Sync endpoint restricted to admin/service accounts
                 .requestMatchers("/api/sync/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
