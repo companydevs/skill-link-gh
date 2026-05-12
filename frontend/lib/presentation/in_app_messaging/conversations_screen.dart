@@ -66,6 +66,12 @@ class _ConversationsScreenState extends State<ConversationsScreen>
             '💬 Conversations: state=$state docs=${docs.length} hadData=$_hasEverHadData err=${snapshot.error}',
           );
 
+          // Check for errors (e.g., permission denied)
+          if (snapshot.hasError) {
+            debugPrint('❌ Conversations error: ${snapshot.error}');
+            return _buildError(theme, context, snapshot.error.toString());
+          }
+
           if (docs.isNotEmpty) _hasEverHadData = true;
 
           // Only shimmer on the very first load before ANY data arrives
@@ -156,6 +162,82 @@ class _ConversationsScreenState extends State<ConversationsScreen>
     );
   }
 
+  Widget _buildError(ThemeData theme, BuildContext context, String error) {
+    final isPermissionError =
+        error.toLowerCase().contains('permission') ||
+        error.toLowerCase().contains('denied');
+
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 6.w),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.errorContainer,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isPermissionError ? Icons.lock_outline : Icons.error_outline,
+                size: 36,
+                color: theme.colorScheme.error,
+              ),
+            ),
+            SizedBox(height: 2.h),
+            Text(
+              isPermissionError ? 'Permission Denied' : 'Something went wrong',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.error,
+              ),
+            ),
+            SizedBox(height: 0.8.h),
+            Text(
+              isPermissionError
+                  ? 'You don\'t have permission to view messages. Please check your Firestore security rules.'
+                  : 'Unable to load conversations. Please try again.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 1.h),
+            Text(
+              'Error: $error',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.6,
+                ),
+                fontSize: 10,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 3.h),
+            ElevatedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _stream = ChatRepository().conversationsStream();
+                  _hasEverHadData = false;
+                });
+              },
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.5.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildList(
     BuildContext context,
     ThemeData theme,
@@ -223,40 +305,46 @@ class _ConversationsScreenState extends State<ConversationsScreen>
               fontWeight: unread > 0 ? FontWeight.w600 : FontWeight.normal,
             ),
           ),
-          trailing: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (lastTime != null)
-                Text(
-                  _formatDate(lastTime.toDate()),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: unread > 0
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurfaceVariant,
+          trailing: SizedBox(
+            width: 15.w, // Constrain the width
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (lastTime != null)
+                  Text(
+                    _formatDate(lastTime.toDate()),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: unread > 0
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              if (unread > 0) ...[
-                SizedBox(height: 0.5.h),
-                Container(
-                  padding: EdgeInsets.all(1.w),
-                  constraints: BoxConstraints(minWidth: 5.w, minHeight: 5.w),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      unread > 99 ? '99+' : '$unread',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onPrimary,
-                        fontSize: 9.sp,
+                if (unread > 0) ...[
+                  SizedBox(height: 0.5.h),
+                  Container(
+                    padding: EdgeInsets.all(1.w),
+                    constraints: BoxConstraints(minWidth: 5.w, minHeight: 5.w),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        unread > 99 ? '99+' : '$unread',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onPrimary,
+                          fontSize: 9.sp,
+                        ),
                       ),
                     ),
                   ),
-                ),
+                ],
               ],
-            ],
+            ),
           ),
           onTap: () => Navigator.pushNamed(
             context,

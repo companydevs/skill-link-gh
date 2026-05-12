@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:skill_link_gh/provider/reels_provider.dart';
-import 'package:skill_link_gh/widgets/custom_bottom_bar.dart';
+import 'package:skill_link_gh/widgets/tiktok_bottom_bar.dart';
 import 'package:skill_link_gh/utils/fix_negative_likes.dart';
 import './widgets/reel_info_overlay_widget.dart';
 import './widgets/reel_interaction_overlay_widget.dart';
@@ -63,11 +63,12 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
       _animatingReelId = reelId;
     });
     Future.delayed(const Duration(milliseconds: 800), () {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _showLikeAnimation = false;
           _animatingReelId = null;
         });
+      }
     });
     ref.read(reelsNotifierProvider.notifier).toggleLike(reelId);
   }
@@ -96,33 +97,68 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
       return;
     }
 
+    // Variables to track progress
+    final ValueNotifier<double> progressNotifier = ValueNotifier(0.0);
+    final ValueNotifier<String> statusNotifier = ValueNotifier(
+      "Preparing video...",
+    );
+
     // Show uploading dialog with progress
-    double uploadProgress = 0.0;
-    String progressText = "Compressing video...";
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text("Uploading Reel..."),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                "Original size: ${(fileSize / (1024 * 1024)).toStringAsFixed(1)} MB",
-              ),
-              const SizedBox(height: 8),
-              Text(
-                progressText,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              const SizedBox(height: 16),
-              LinearProgressIndicator(value: uploadProgress),
-              const SizedBox(height: 8),
-              Text("${(uploadProgress * 100).toInt()}%"),
-            ],
-          ),
-        ),
+      builder: (dialogContext) => ValueListenableBuilder<double>(
+        valueListenable: progressNotifier,
+        builder: (context, progress, child) {
+          return ValueListenableBuilder<String>(
+            valueListenable: statusNotifier,
+            builder: (context, status, child) {
+              return AlertDialog(
+                backgroundColor: const Color(0xFF1C1C1E),
+                title: const Text(
+                  "Uploading Reel...",
+                  style: TextStyle(color: Colors.white),
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      "Size: ${(fileSize / (1024 * 1024)).toStringAsFixed(1)} MB",
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      status,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.blue,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    LinearProgressIndicator(
+                      value: progress,
+                      backgroundColor: Colors.grey[800],
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        Colors.blue,
+                      ),
+                      minHeight: 6,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      "${(progress * 100).toInt()}%",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
       ),
     );
 
@@ -131,12 +167,18 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
 
       final videoUrl = await repository.uploadVideo(file, (progress) {
         if (mounted) {
-          uploadProgress = progress;
-          // Update progress text based on stage
-          if (progress < 0.3) {
-            progressText = "Compressing video...";
+          print('📊 Upload progress callback: ${(progress * 100).toInt()}%');
+          progressNotifier.value = progress;
+
+          // Update status text based on progress
+          if (progress < 0.1) {
+            statusNotifier.value = "Preparing video...";
+          } else if (progress < 0.3) {
+            statusNotifier.value = "Compressing video...";
+          } else if (progress < 0.95) {
+            statusNotifier.value = "Uploading to cloud...";
           } else {
-            progressText = "Uploading to cloud...";
+            statusNotifier.value = "Finalizing upload...";
           }
         }
       });
@@ -189,7 +231,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
     );
   }
 
-  void _showUploadSheet() {
+  void _showReelCaptionSheet() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -200,23 +242,42 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
         ),
         child: Container(
           padding: const EdgeInsets.all(20),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1C1C1E), // Dark background like TikTok
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
                 "Create New Reel",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(height: 20),
               TextField(
                 controller: _captionController,
-                decoration: const InputDecoration(
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
                   hintText: "Write a caption...",
-                  border: OutlineInputBorder(),
+                  hintStyle: TextStyle(color: Colors.grey[500]),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey[800]!),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey[800]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.blue, width: 2),
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFF2C2C2E),
                 ),
                 maxLines: 3,
               ),
@@ -226,10 +287,17 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                   Navigator.pop(context);
                   _pickAndUploadVideo();
                 },
-                icon: const Icon(Icons.video_library),
-                label: const Text("Select Video & Upload"),
+                icon: const Icon(Icons.video_library, color: Colors.white),
+                label: const Text(
+                  "Select Video & Upload",
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 50),
+                  backgroundColor: Colors.blue,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
@@ -244,13 +312,6 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
   Widget build(BuildContext context) {
     final reelsAsync = ref.watch(reelsNotifierProvider);
     final theme = Theme.of(context);
-
-    // Trigger load if we have empty data
-    if (reelsAsync.hasValue && reelsAsync.value!.isEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(reelsNotifierProvider.notifier).loadInitialReels();
-      });
-    }
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -322,6 +383,21 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                         "Be the first to share your craft!",
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: Colors.white70,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          HapticFeedback.mediumImpact();
+                          _showReelCaptionSheet();
+                        },
+                        icon: const Icon(Icons.add),
+                        label: const Text('Create Reel'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 16,
+                          ),
                         ),
                       ),
                     ],
@@ -554,7 +630,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
             },
           ),
 
-          // Top bar with title and camera
+          // Top bar with title only (camera removed - create is now in bottom bar)
           Positioned(
             top: MediaQuery.of(context).padding.top + 16,
             left: 16,
@@ -569,23 +645,46 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.camera_alt,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                  onPressed: () {
-                    HapticFeedback.lightImpact();
-                    _showUploadSheet();
-                  },
-                ),
               ],
             ),
           ),
         ],
       ),
-      bottomNavigationBar: const CustomBottomBar(currentIndex: 1),
+      bottomNavigationBar: TikTokBottomBar(
+        currentIndex: 1, // Reels tab
+        onTap: (index) {
+          switch (index) {
+            case 0:
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/posts-homepage',
+                (route) => false,
+              );
+              break;
+            case 1:
+              // Already on reels
+              break;
+            case 3:
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/conversations-screen',
+                (route) => false,
+              );
+              break;
+            case 4:
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/artisan-profile-screen',
+                (route) => false,
+              );
+              break;
+          }
+        },
+        onCreateTap: () {
+          HapticFeedback.mediumImpact();
+          _showReelCaptionSheet();
+        },
+      ),
     );
   }
 }

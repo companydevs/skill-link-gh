@@ -133,6 +133,7 @@ class CustomBottomBar extends StatelessWidget {
           } else {
             if (!isSelected) {
               HapticFeedback.lightImpact();
+              debugPrint('🔄 Navigating to: ${item.route} (${item.label})');
               // Clear back stack and go to the route fresh
               Navigator.pushNamedAndRemoveUntil(
                 context,
