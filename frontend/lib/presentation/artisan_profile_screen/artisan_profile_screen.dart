@@ -221,8 +221,8 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
     if (profileState.isLoading && profileState.profileData == null) {
       return Scaffold(
         appBar: _buildAppBar(theme, null),
-        bottomNavigationBar: UnifiedBottomBar(
-          currentIndex: context.currentBottomBarIndex,
+        bottomNavigationBar: const UnifiedBottomBar(
+          currentIndex: 4, // Profile tab
         ),
         body: _buildSkeleton(theme),
       );
@@ -260,8 +260,8 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
 
     return Scaffold(
       appBar: _buildAppBar(theme, data),
-      bottomNavigationBar: UnifiedBottomBar(
-        currentIndex: context.currentBottomBarIndex,
+      bottomNavigationBar: const UnifiedBottomBar(
+        currentIndex: 4, // Profile tab
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: 'profile_create_post',

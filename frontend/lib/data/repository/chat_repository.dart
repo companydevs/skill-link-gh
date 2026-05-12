@@ -95,11 +95,19 @@ class ChatRepository {
 
   /// Stream of all conversations for the current user
   Stream<QuerySnapshot> conversationsStream() {
-    return _firestore
-        .collection('conversations')
-        .where('participants', arrayContains: currentUid)
-        .orderBy('lastMessageTime', descending: true)
-        .snapshots();
+    try {
+      return _firestore
+          .collection('conversations')
+          .where('participants', arrayContains: currentUid)
+          .orderBy('lastMessageTime', descending: true)
+          .snapshots();
+    } catch (e) {
+      // If orderBy fails (e.g., missing index), fall back to simple query
+      return _firestore
+          .collection('conversations')
+          .where('participants', arrayContains: currentUid)
+          .snapshots();
+    }
   }
 
   /// Set typing indicator
