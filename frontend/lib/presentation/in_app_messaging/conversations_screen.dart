@@ -7,7 +7,7 @@ import '../../core/app_export.dart';
 import '../../data/repository/chat_repository.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/custom_app_bar.dart';
-import '../../widgets/custom_bottom_bar.dart';
+import '../../widgets/unified_bottom_bar.dart';
 import '../../widgets/user_avatar_widget.dart';
 import 'in_app_messaging.dart';
 
@@ -54,7 +54,7 @@ class _ConversationsScreenState extends State<ConversationsScreen>
 
     return Scaffold(
       appBar: CustomAppBar(title: 'Messages', variant: AppBarVariant.standard),
-      bottomNavigationBar: const CustomBottomBar(currentIndex: 3),
+      bottomNavigationBar: const UnifiedBottomBar(currentIndex: 3),
       body: StreamBuilder<QuerySnapshot>(
         stream: _stream,
         builder: (context, snapshot) {

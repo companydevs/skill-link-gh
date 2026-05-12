@@ -9,7 +9,7 @@ import '../../data/repository/artisan_repository.dart';
 import '../../presentation/in_app_messaging/in_app_messaging.dart';
 import '../../services/presence_service.dart';
 import '../../services/transport_fare_service.dart';
-import '../../widgets/custom_bottom_bar.dart';
+import '../../widgets/unified_bottom_bar.dart';
 import './widgets/filter_bottom_sheet_widget.dart';
 import './widgets/map_view_widget.dart';
 
@@ -457,7 +457,7 @@ class _SearchAndDiscoveryScreenState extends State<SearchAndDiscoveryScreen> {
             ),
         ],
       ),
-      bottomNavigationBar: const CustomBottomBar(currentIndex: 2),
+      bottomNavigationBar: const UnifiedBottomBar(currentIndex: 2),
     );
   }
 }

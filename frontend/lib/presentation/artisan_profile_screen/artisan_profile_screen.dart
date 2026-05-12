@@ -17,7 +17,7 @@ import '../../data/repository/booking_repository.dart';
 import '../../data/repository/post_repository.dart';
 import '../../domain/models/booking_model.dart';
 import '../../domain/models/post_model.dart';
-import '../../widgets/custom_bottom_bar.dart';
+import '../../widgets/unified_bottom_bar.dart';
 import '../../widgets/user_avatar_widget.dart';
 import './widgets/about_section_widget.dart';
 import './widgets/portfolio_section_widget.dart';
@@ -221,7 +221,7 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
     if (profileState.isLoading && profileState.profileData == null) {
       return Scaffold(
         appBar: _buildAppBar(theme, null),
-        bottomNavigationBar: CustomBottomBar(
+        bottomNavigationBar: UnifiedBottomBar(
           currentIndex: context.currentBottomBarIndex,
         ),
         body: _buildSkeleton(theme),
@@ -260,7 +260,7 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
 
     return Scaffold(
       appBar: _buildAppBar(theme, data),
-      bottomNavigationBar: CustomBottomBar(
+      bottomNavigationBar: UnifiedBottomBar(
         currentIndex: context.currentBottomBarIndex,
       ),
       floatingActionButton: FloatingActionButton(

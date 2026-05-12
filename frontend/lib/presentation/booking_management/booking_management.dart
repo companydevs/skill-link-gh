@@ -4,7 +4,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
 import '../../widgets/custom_app_bar.dart';
-import '../../widgets/custom_bottom_bar.dart';
+import '../../widgets/unified_bottom_bar.dart';
 import '../../widgets/custom_icon_widget.dart';
 import './widgets/booking_card_widget.dart';
 import './widgets/booking_details_sheet.dart';
@@ -491,7 +491,7 @@ class _BookingManagementState extends State<BookingManagement>
         ),
         label: Text('New Booking'),
       ),
-      bottomNavigationBar: CustomBottomBar(currentIndex: 4),
+      bottomNavigationBar: UnifiedBottomBar(currentIndex: 4),
     );
   }
 }

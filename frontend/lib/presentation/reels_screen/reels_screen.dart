@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:skill_link_gh/provider/reels_provider.dart';
-import 'package:skill_link_gh/widgets/tiktok_bottom_bar.dart';
+import 'package:skill_link_gh/widgets/unified_bottom_bar.dart';
 import 'package:skill_link_gh/utils/fix_negative_likes.dart';
 import './widgets/reel_info_overlay_widget.dart';
 import './widgets/reel_interaction_overlay_widget.dart';
@@ -650,7 +650,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: TikTokBottomBar(
+      bottomNavigationBar: UnifiedBottomBar(
         currentIndex: 1, // Reels tab
         onTap: (index) {
           switch (index) {
@@ -663,6 +663,13 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
               break;
             case 1:
               // Already on reels
+              break;
+            case 2:
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/search-and-discovery-screen',
+                (route) => false,
+              );
               break;
             case 3:
               Navigator.pushNamedAndRemoveUntil(

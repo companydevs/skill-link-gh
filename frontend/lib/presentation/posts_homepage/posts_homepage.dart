@@ -9,7 +9,7 @@ import 'package:skill_link_gh/widgets/custom_app_toast.dart';
 import 'package:skill_link_gh/widgets/post_shimmer_widget.dart';
 
 import '../../core/app_export.dart';
-import '../../widgets/custom_bottom_bar.dart';
+import '../../widgets/unified_bottom_bar.dart';
 import '../../widgets/custom_icon_widget.dart';
 import './widgets/post_card_widget.dart';
 
@@ -371,7 +371,7 @@ class _PostsHomepageState extends ConsumerState<PostsHomepage> {
           size: 24,
         ),
       ),
-      bottomNavigationBar: const CustomBottomBar(currentIndex: 0),
+      bottomNavigationBar: const UnifiedBottomBar(currentIndex: 0),
     );
   }
 
