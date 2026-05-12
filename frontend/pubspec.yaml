@@ -39,6 +39,8 @@ dependencies:
   firebase_core: ^4.2.1
   firebase_auth: ^6.1.2
   cloud_firestore: ^6.1.0
+  firebase_messaging: ^16.1.0
+  flutter_local_notifications: ^18.0.1
   introduction_screen: ^4.0.0
   flutter_animate: ^4.5.2
   pinput: ^6.0.1
