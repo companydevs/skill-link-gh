@@ -12,8 +12,10 @@ import 'package:skill_link_gh/presentation/edit_profile_screen/edit_profile_scre
 import 'package:skill_link_gh/presentation/verification_screen/verification_screen.dart';
 import 'package:skill_link_gh/presentation/payment_verification_screen/payment_verification_screen.dart';
 import 'package:skill_link_gh/presentation/booking_tracking_screen/booking_tracking_screen.dart';
+import 'package:skill_link_gh/presentation/booking_management/booking_management.dart';
 import 'package:skill_link_gh/presentation/debug_screen/fix_data_screen.dart';
 import 'package:skill_link_gh/presentation/debug_screen/cleanup_videos_screen.dart';
+import 'package:skill_link_gh/presentation/notifications_screen/notifications_screen.dart';
 import 'package:skill_link_gh/test_reels_screen.dart';
 import '../presentation/artisan_profile_screen/artisan_profile_screen.dart';
 import '../presentation/reels_screen/reels_screen.dart';
@@ -23,9 +25,9 @@ import '../presentation/search_and_discovery_screen/search_and_discovery_screen.
 import '../presentation/posts_homepage/posts_homepage.dart';
 import 'package:skill_link_gh/presentation/user_profile_view_screen/user_profile_view_screen.dart';
 import 'package:skill_link_gh/presentation/wallet_screen/wallet_screen.dart';
+import 'package:skill_link_gh/presentation/withdrawal_screen/withdrawal_screen.dart';
 
 class AppRoutes {
-  // TODO: Add your routes here
   static const String initial = '/';
   static const String splashScreen = '/splash-screen';
   static const String onboardingScreen = '/onboarding-screen';
@@ -46,13 +48,15 @@ class AppRoutes {
   static const String verificationScreen = '/verification-screen';
   static const String paymentVerificationScreen =
       '/payment-verification-screen';
-  static const String paymentVerification =
-      '/payment-verification'; // alias used by booking function
+  static const String paymentVerification = '/payment-verification';
   static const String bookingTrackingScreen = '/booking-tracking-screen';
+  static const String bookingManagement = '/booking-management';
   static const String fixDataScreen = '/fix-data-screen';
   static const String walletScreen = '/wallet-screen';
+  static const String withdrawalScreen = '/withdrawal-screen';
   static const String userProfileView = '/user-profile-view';
   static const String cleanupVideosScreen = '/cleanup-videos-screen';
+  static const String notificationsScreen = '/notifications-screen';
 
   static Map<String, WidgetBuilder> routes = {
     initial: (context) => const SplashScreen(),
@@ -65,11 +69,10 @@ class AppRoutes {
           ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       final email = args?['email'] as String?;
       if (email == null) {
-        throw Exception("Email is required for OTP verification");
+        throw Exception('Email is required for OTP verification');
       }
       return OtpVerificationScreen(email: email);
     },
-
     artisanProfile: (context) => const ArtisanProfileScreen(),
     reels: (context) => ReelsScreen(),
     '/user-profile-view': (context) {
@@ -89,7 +92,6 @@ class AppRoutes {
       }
       return PostCommentsDetailsScreen(post: post);
     },
-
     inAppMessagingScreen: (context) => const InAppMessaging(),
     conversationsScreen: (context) => const ConversationsScreen(),
     testReels: (context) => const TestReelsScreen(),
@@ -98,8 +100,11 @@ class AppRoutes {
     paymentVerificationScreen: (context) => const PaymentVerificationScreen(),
     '/payment-verification': (context) => const PaymentVerificationScreen(),
     bookingTrackingScreen: (context) => const BookingTrackingScreen(),
+    bookingManagement: (context) => const BookingManagement(),
     fixDataScreen: (context) => const FixDataScreen(),
     cleanupVideosScreen: (context) => const CleanupVideosScreen(),
     walletScreen: (context) => const WalletScreen(),
+    withdrawalScreen: (context) => const WithdrawalScreen(),
+    notificationsScreen: (context) => const NotificationsScreen(),
   };
 }

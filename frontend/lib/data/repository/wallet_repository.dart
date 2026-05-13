@@ -185,6 +185,47 @@ class WalletRepository {
     }
   }
 
+  /// Initiate a withdrawal to mobile money or bank account
+  Future<Map<String, dynamic>> initiateWithdrawal({
+    required double amount,
+    required String method,
+    required String accountNumber,
+    required String accountName,
+    String? network,
+    String? bankCode,
+    String? bankName,
+  }) async {
+    try {
+      final callable = _functions.httpsCallable('initiateWithdrawal');
+      final result = await callable.call({
+        'amount': amount,
+        'method': method,
+        'accountNumber': accountNumber,
+        'accountName': accountName,
+        if (network != null) 'network': network,
+        if (bankCode != null) 'bankCode': bankCode,
+        if (bankName != null) 'bankName': bankName,
+      });
+      return Map<String, dynamic>.from(result.data);
+    } catch (e) {
+      log('Error initiating withdrawal: $e');
+      rethrow;
+    }
+  }
+
+  /// Get withdrawal history
+  Future<List<Map<String, dynamic>>> getWithdrawalHistory() async {
+    try {
+      final callable = _functions.httpsCallable('getWithdrawalHistory');
+      final result = await callable.call();
+      final data = Map<String, dynamic>.from(result.data);
+      return List<Map<String, dynamic>>.from(data['withdrawals'] ?? []);
+    } catch (e) {
+      log('Error fetching withdrawal history: $e');
+      return [];
+    }
+  }
+
   /// Refund client wallet when booking expires without artisan acceptance
   Future<bool> refundExpiredBooking({
     required String bookingId,

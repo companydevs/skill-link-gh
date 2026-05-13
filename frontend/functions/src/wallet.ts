@@ -253,3 +253,172 @@ export const payWithWallet = onCall(async (request) => {
 
   return {success: true, reference};
 });
+
+// ─── initiateWithdrawal ──────────────────────────────────────────────────────
+
+/**
+ * Artisan requests a withdrawal to mobile money or bank account.
+ * Deducts from balance immediately, creates a pending payout record.
+ * Returns { success: boolean, withdrawalId: string }
+ */
+export const initiateWithdrawal = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be signed in");
+  }
+
+  const uid = request.auth.uid;
+  const {amount, method, accountNumber, accountName, network, bankCode, bankName} =
+    request.data as {
+      amount: number;
+      method: "mobile_money" | "bank_transfer";
+      accountNumber: string;
+      accountName: string;
+      network?: string;   // MTN, Vodafone, AirtelTigo
+      bankCode?: string;
+      bankName?: string;
+    };
+
+  // Validate inputs
+  if (!amount || amount < 10) {
+    throw new HttpsError("invalid-argument", "Minimum withdrawal is GHS 10");
+  }
+  if (!accountNumber || !accountName) {
+    throw new HttpsError("invalid-argument", "Account details are required");
+  }
+  if (method === "mobile_money" && !network) {
+    throw new HttpsError("invalid-argument", "Mobile network is required");
+  }
+  if (method === "bank_transfer" && !bankCode) {
+    throw new HttpsError("invalid-argument", "Bank is required");
+  }
+
+  const walletRef = await getOrCreateWallet(uid);
+  const reference = generateReference("WDRAW");
+
+  // Atomic: check balance, deduct, create withdrawal record
+  let withdrawalId = "";
+  try {
+    await db.runTransaction(async (t) => {
+      const walletSnap = await t.get(walletRef);
+      const balance: number = walletSnap.data()?.balance ?? 0;
+
+      if (balance < amount) {
+        throw new HttpsError(
+          "failed-precondition",
+          `Insufficient balance. Available: GHS ${balance.toFixed(2)}`
+        );
+      }
+
+      // Deduct from wallet
+      t.update(walletRef, {
+        balance: FieldValue.increment(-amount),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
+      // Record withdrawal transaction
+      const txRef = walletRef.collection("transactions").doc();
+      t.set(txRef, {
+        type: "withdrawal",
+        status: "pending",
+        amount,
+        description: `Withdrawal to ${method === "mobile_money" ? `${network} ${accountNumber}` : `${bankName} ${accountNumber}`}`,
+        reference,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+
+      // Create payout record for admin tracking
+      const payoutRef = db.collection("payouts").doc();
+      withdrawalId = payoutRef.id;
+      t.set(payoutRef, {
+        userId: uid,
+        amount,
+        method,
+        accountNumber,
+        accountName,
+        network: network ?? null,
+        bankCode: bankCode ?? null,
+        bankName: bankName ?? null,
+        reference,
+        status: "pending",   // pending | processing | completed | failed
+        adminNote: "",
+        requestedAt: FieldValue.serverTimestamp(),
+        processedAt: null,
+      });
+    });
+  } catch (err) {
+    if (err instanceof HttpsError) throw err;
+    console.error("initiateWithdrawal error:", err);
+    throw new HttpsError("internal", "Withdrawal failed. Try again.");
+  }
+
+  // Attempt Paystack transfer (mobile money)
+  if (method === "mobile_money") {
+    try {
+      // Create transfer recipient
+      const recipientRes = await axios.post(
+        `${PAYSTACK_BASE_URL}/transferrecipient`,
+        {
+          type: "mobile_money",
+          name: accountName,
+          account_number: accountNumber,
+          bank_code: network === "MTN" ? "MTN" : network === "Vodafone" ? "VOD" : "ATL",
+          currency: "GHS",
+        },
+        {headers: {Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`}}
+      );
+
+      const recipientCode = recipientRes.data?.data?.recipient_code;
+      if (recipientCode) {
+        // Initiate transfer
+        await axios.post(
+          `${PAYSTACK_BASE_URL}/transfer`,
+          {
+            source: "balance",
+            amount: Math.round(amount * 100),
+            recipient: recipientCode,
+            reason: `SkillLink withdrawal - ${reference}`,
+            reference,
+          },
+          {headers: {Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`}}
+        );
+
+        // Update payout status to processing
+        await db.collection("payouts").doc(withdrawalId).update({
+          status: "processing",
+          recipientCode,
+        });
+      }
+    } catch (paystackErr: any) {
+      console.error("Paystack transfer error:", paystackErr?.response?.data ?? paystackErr?.message);
+      // Don't fail — admin can process manually
+      await db.collection("payouts").doc(withdrawalId).update({
+        adminNote: "Paystack auto-transfer failed. Manual processing required.",
+      });
+    }
+  }
+
+  return {success: true, withdrawalId, reference};
+});
+
+// ─── getWithdrawalHistory ────────────────────────────────────────────────────
+
+/**
+ * Returns the artisan's withdrawal history.
+ */
+export const getWithdrawalHistory = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be signed in");
+  }
+
+  const uid = request.auth.uid;
+  const snap = await db
+    .collection("payouts")
+    .where("userId", "==", uid)
+    .orderBy("requestedAt", "desc")
+    .limit(20)
+    .get();
+
+  return {
+    withdrawals: snap.docs.map((d) => ({id: d.id, ...d.data()})),
+  };
+});

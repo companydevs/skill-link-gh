@@ -554,37 +554,66 @@ class _WalletHeroCard extends StatelessWidget {
                 ),
               ],
               const Spacer(),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: isProcessing ? null : onTopUp,
-                  icon: isProcessing
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: _kBlue1,
-                          ),
-                        )
-                      : const Icon(Icons.add_rounded, size: 18),
-                  label: Text(
-                    isProcessing ? 'Processing...' : 'Top Up Wallet',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
+              Row(
+                children: [
+                  // Top Up button
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: isProcessing ? null : onTopUp,
+                      icon: isProcessing
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: _kBlue1,
+                              ),
+                            )
+                          : const Icon(Icons.add_rounded, size: 18),
+                      label: Text(
+                        isProcessing ? 'Processing...' : 'Top Up',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: _kBlue1,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 0,
+                      ),
                     ),
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: _kBlue1,
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                  const SizedBox(width: 12),
+                  // Withdraw button
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () =>
+                          Navigator.pushNamed(context, '/withdrawal-screen'),
+                      icon: const Icon(Icons.arrow_upward_rounded, size: 18),
+                      label: const Text(
+                        'Withdraw',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 0,
+                      ),
                     ),
-                    elevation: 0,
                   ),
-                ),
+                ],
               ),
             ],
           ),

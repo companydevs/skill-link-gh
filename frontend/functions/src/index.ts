@@ -33,6 +33,8 @@ export {
   initiateWalletTopUp,
   verifyWalletTopUp,
   payWithWallet,
+  initiateWithdrawal,
+  getWithdrawalHistory,
 } from "./wallet";
 
 // Utility functions
