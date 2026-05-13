@@ -43,11 +43,11 @@ void main() async {
         '185174877312-oo3rdb2hgmel0b30apn6p06st7asudh3.apps.googleusercontent.com',
   );
 
-  // Configure Firebase App Check for debug/development
+  // Configure Firebase App Check
   await FirebaseAppCheck.instance.activate(
-    // For debug builds, use debug provider
-    androidProvider: AndroidProvider.debug,
-    appleProvider: AppleProvider.debug,
+    // Use Play Integrity for release, debug for development
+    androidProvider: AndroidProvider.playIntegrity,
+    appleProvider: AppleProvider.deviceCheck,
   );
 
   bool hasShownError = false;

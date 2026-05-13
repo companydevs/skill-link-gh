@@ -51,6 +51,8 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
   static const _tabs = [
     'About',
     'Portfolio',
+    'Posts',
+    'Reels',
     'Reviews',
     'Services',
     'Bookings',
@@ -363,16 +365,24 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
       case 1:
         return PortfolioSectionWidget(portfolioImages: portfolio);
       case 2:
+        return _MyPostsTab(
+          userId: FirebaseAuth.instance.currentUser?.uid ?? '',
+        );
+      case 3:
+        return _MyReelsTab(
+          userId: FirebaseAuth.instance.currentUser?.uid ?? '',
+        );
+      case 4:
         return ReviewsSectionWidget(
           reviews: reviews,
           averageRating: (data['rating'] as num?)?.toDouble() ?? 0.0,
           totalReviews: reviews.length,
         );
-      case 3:
-        return ServicesSectionWidget(services: services);
-      case 4:
-        return const _BookingsTab();
       case 5:
+        return ServicesSectionWidget(services: services);
+      case 6:
+        return const _BookingsTab();
+      case 7:
         return const _SavedPostsTab();
       default:
         return const SizedBox.shrink();
@@ -1097,29 +1107,33 @@ class _SavedPostsTabState extends State<_SavedPostsTab>
 
     if (_savedPosts.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.bookmark_border,
-              size: 56,
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'No saved posts yet',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.bookmark_border,
+                size: 56,
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.4,
+                ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Posts you save will appear here',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+              const SizedBox(height: 12),
+              Text(
+                'No saved posts yet',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 6),
+              Text(
+                'Posts you save will appear here',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -1166,6 +1180,358 @@ class _SavedPostsTabState extends State<_SavedPostsTab>
                       ),
                     ),
                   ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ─── My Posts Tab ─────────────────────────────────────────────────────────────
+class _MyPostsTab extends StatefulWidget {
+  final String userId;
+  const _MyPostsTab({required this.userId});
+
+  @override
+  State<_MyPostsTab> createState() => _MyPostsTabState();
+}
+
+class _MyPostsTabState extends State<_MyPostsTab>
+    with AutomaticKeepAliveClientMixin {
+  List<QueryDocumentSnapshot> _posts = [];
+  bool _loading = true;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('posts')
+          .where('userId', isEqualTo: widget.userId)
+          .orderBy('createdAt', descending: true)
+          .get();
+      if (mounted)
+        setState(() {
+          _posts = snap.docs;
+          _loading = false;
+        });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _deletePost(String postId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Post'),
+        content: const Text(
+          'Are you sure you want to delete this post? This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await FirebaseFirestore.instance.collection('posts').doc(postId).delete();
+    _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final theme = Theme.of(context);
+
+    if (_loading) return const Center(child: CircularProgressIndicator());
+
+    if (_posts.isEmpty) {
+      return Center(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.photo_library_outlined,
+                size: 56,
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.4,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text('No posts yet', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 6),
+              Text(
+                'Your posts will appear here',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: GridView.builder(
+        padding: const EdgeInsets.all(2),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 2,
+          mainAxisSpacing: 2,
+          childAspectRatio: 1,
+        ),
+        itemCount: _posts.length,
+        itemBuilder: (context, i) {
+          final data = _posts[i].data() as Map<String, dynamic>;
+          final images = data['postImages'] as List? ?? [];
+          final imageUrl = images.isNotEmpty
+              ? (images[0] as Map<String, dynamic>)['url'] as String? ?? ''
+              : '';
+          return GestureDetector(
+            onLongPress: () => _deletePost(_posts[i].id),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                imageUrl.isNotEmpty
+                    ? Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: theme.colorScheme.surfaceContainerHighest,
+                        ),
+                      )
+                    : Container(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        child: const Icon(Icons.image_outlined),
+                      ),
+                // Delete hint overlay
+                Positioned(
+                  bottom: 4,
+                  right: 4,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.white,
+                      size: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ─── My Reels Tab ─────────────────────────────────────────────────────────────
+class _MyReelsTab extends StatefulWidget {
+  final String userId;
+  const _MyReelsTab({required this.userId});
+
+  @override
+  State<_MyReelsTab> createState() => _MyReelsTabState();
+}
+
+class _MyReelsTabState extends State<_MyReelsTab>
+    with AutomaticKeepAliveClientMixin {
+  List<QueryDocumentSnapshot> _reels = [];
+  bool _loading = true;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('reels')
+          .where('userId', isEqualTo: widget.userId)
+          .orderBy('createdAt', descending: true)
+          .get();
+      if (mounted)
+        setState(() {
+          _reels = snap.docs;
+          _loading = false;
+        });
+    } catch (_) {
+      // Try artisanId field as fallback
+      try {
+        final snap = await FirebaseFirestore.instance
+            .collection('reels')
+            .where('artisanId', isEqualTo: widget.userId)
+            .orderBy('createdAt', descending: true)
+            .get();
+        if (mounted)
+          setState(() {
+            _reels = snap.docs;
+            _loading = false;
+          });
+      } catch (_) {
+        if (mounted) setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _deleteReel(String reelId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Reel'),
+        content: const Text(
+          'Are you sure you want to delete this reel? This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await FirebaseFirestore.instance.collection('reels').doc(reelId).delete();
+    _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final theme = Theme.of(context);
+
+    if (_loading) return const Center(child: CircularProgressIndicator());
+
+    if (_reels.isEmpty) {
+      return Center(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.play_circle_outline,
+                size: 56,
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.4,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text('No reels yet', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 6),
+              Text(
+                'Your reels will appear here',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: GridView.builder(
+        padding: const EdgeInsets.all(2),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 2,
+          mainAxisSpacing: 2,
+          childAspectRatio: 9 / 16,
+        ),
+        itemCount: _reels.length,
+        itemBuilder: (context, i) {
+          final data = _reels[i].data() as Map<String, dynamic>;
+          final thumbnail = data['thumbnailUrl'] as String? ?? '';
+          return GestureDetector(
+            onLongPress: () => _deleteReel(_reels[i].id),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                thumbnail.isNotEmpty
+                    ? Image.network(
+                        thumbnail,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: Colors.black,
+                          child: const Icon(
+                            Icons.play_circle_outline,
+                            color: Colors.white54,
+                            size: 32,
+                          ),
+                        ),
+                      )
+                    : Container(
+                        color: Colors.black,
+                        child: const Icon(
+                          Icons.play_circle_outline,
+                          color: Colors.white54,
+                          size: 32,
+                        ),
+                      ),
+                // Play icon overlay
+                const Center(
+                  child: Icon(
+                    Icons.play_arrow_rounded,
+                    color: Colors.white70,
+                    size: 28,
+                  ),
+                ),
+                // Delete hint
+                Positioned(
+                  bottom: 4,
+                  right: 4,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.white,
+                      size: 14,
+                    ),
+                  ),
+                ),
               ],
             ),
           );

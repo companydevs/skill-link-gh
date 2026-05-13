@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
+import 'package:skill_link_gh/notifier/wallet_notifier.dart';
 import 'package:skill_link_gh/provider/wallet_provider.dart';
 import 'package:skill_link_gh/widgets/custom_app_bar.dart';
 import 'package:skill_link_gh/widgets/custom_app_toast.dart';
@@ -214,9 +215,14 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen>
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  suffixWidget: TextButton(
+                  suffix: TextButton(
                     onPressed: () =>
                         _amountCtrl.text = balance.toStringAsFixed(2),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
                     child: Text(
                       'Max',
                       style: TextStyle(color: theme.colorScheme.primary),

@@ -844,6 +844,10 @@ class _TransactionCard extends StatelessWidget {
         icon = Icons.lock_clock;
         typeLabel = 'On Hold';
         break;
+      case TransactionType.withdrawal:
+        icon = Icons.arrow_upward_rounded;
+        typeLabel = 'Withdrawal';
+        break;
     }
 
     return Container(
