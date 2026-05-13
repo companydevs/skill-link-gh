@@ -80,9 +80,10 @@ service cloud.firestore {
     
     // Posts collection - only artisans can create
     match /posts/{postId} {
-      allow read: if true; // Allow unauthenticated reads for admin panel
+      allow read: if true;
       allow create: if isSignedIn() && 
-                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'artisan';
+                       (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'artisan' ||
+                        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'artisan');
       allow update, delete: if isSignedIn() && 
                                (resource.data.artisanId == request.auth.uid || 
                                 resource.data.userId == request.auth.uid);
@@ -90,9 +91,10 @@ service cloud.firestore {
     
     // Reels collection - only artisans can create
     match /reels/{reelId} {
-      allow read: if true; // Allow unauthenticated reads for admin panel
+      allow read: if true;
       allow create: if isSignedIn() && 
-                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'artisan';
+                       (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'artisan' ||
+                        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'artisan');
       allow update, delete: if isSignedIn() && 
                                (resource.data.artisanId == request.auth.uid || 
                                 resource.data.userId == request.auth.uid);

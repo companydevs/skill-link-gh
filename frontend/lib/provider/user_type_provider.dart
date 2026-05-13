@@ -15,10 +15,35 @@ final isArtisanProvider = FutureProvider<bool>((ref) async {
 
     if (!doc.exists) return false;
 
-    final userType = doc.data()?['userType'] as String?;
-    return userType == 'artisan';
+    final data = doc.data()!;
+    // Check both 'userType' and 'role' fields for compatibility
+    final userType = data['userType'] as String?;
+    final role = data['role'] as String?;
+    return userType == 'artisan' || role == 'artisan';
   } catch (e) {
-    print('Error checking user type: $e');
     return false;
+  }
+});
+
+/// Provider to get the user type string
+final userTypeProvider = FutureProvider<String>((ref) async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return 'client';
+
+  try {
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+
+    if (!doc.exists) return 'client';
+
+    final data = doc.data()!;
+    // Check both 'userType' and 'role' fields for compatibility
+    final userType = data['userType'] as String?;
+    final role = data['role'] as String?;
+    return userType ?? role ?? 'client';
+  } catch (e) {
+    return 'client';
   }
 });
