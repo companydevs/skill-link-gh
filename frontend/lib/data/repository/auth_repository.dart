@@ -100,11 +100,14 @@ class AuthRepository {
           'uid': user.uid,
           'fullName': user.displayName ?? '',
           'email': user.email ?? '',
+          'userType': userType,
           'role': userType,
           'profileImage': user.photoURL ?? '',
           'photoUrl': user.photoURL ?? '',
           'provider': 'google',
-          'isVerified': true,
+          'isEmailVerified': true, // Google confirmed the email
+          'isVerified': false, // Admin identity verification — NOT auto-granted
+          'verificationStatus': '', // Not submitted yet
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         });

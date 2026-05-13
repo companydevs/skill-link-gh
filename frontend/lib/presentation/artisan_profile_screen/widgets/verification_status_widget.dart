@@ -123,7 +123,7 @@ class VerificationStatusWidget extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Verification Pending ⏳',
+                          'Verification Pending',
                           style: theme.textTheme.titleSmall?.copyWith(
                             color: Colors.orange.shade700,
                             fontWeight: FontWeight.w700,
