@@ -139,63 +139,73 @@ class AuthRepository {
       final user = userCredential.user;
       if (user == null) throw Exception('Google sign-in returned no user');
 
-      // Verify this Google account has a registered profile in Firestore
-      final doc = await FirebaseFirestore.instance
+      // Check Firestore for existing profile
+      final docRef = FirebaseFirestore.instance
           .collection('users')
-          .doc(user.uid)
-          .get();
+          .doc(user.uid);
+      final doc = await docRef.get();
 
       if (!doc.exists) {
-        // Check if an account exists with this email but a different provider
+        // No doc by UID — check if email exists under a different UID
+        // (manually created account scenario)
         final emailQuery = await FirebaseFirestore.instance
             .collection('users')
             .where('email', isEqualTo: user.email)
             .limit(1)
             .get();
 
-        await _auth.signOut();
-        await _googleSignIn.signOut();
-
         if (emailQuery.docs.isNotEmpty) {
-          final existingProvider =
-              emailQuery.docs.first.data()['provider'] as String? ?? 'password';
-          if (existingProvider != 'google') {
-            throw Exception(
-              'This email is registered with email & password. '
-              'Please sign in with your email and password instead.',
-            );
+          // Account exists with same email — migrate it to this Google UID
+          final existingData = emailQuery.docs.first.data();
+          final oldUid = emailQuery.docs.first.id;
+
+          // Copy data to new UID doc, update provider to google
+          await docRef.set({
+            ...existingData,
+            'uid': user.uid,
+            'provider': 'google',
+            'userType':
+                existingData['userType'] ?? 'artisan', // preserve userType
+            'profileImage':
+                (existingData['profileImage'] as String?)?.isNotEmpty == true
+                ? existingData['profileImage']
+                : (user.photoURL ?? ''),
+            'photoUrl':
+                (existingData['photoUrl'] as String?)?.isNotEmpty == true
+                ? existingData['photoUrl']
+                : (user.photoURL ?? ''),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+
+          // Delete old doc if different UID
+          if (oldUid != user.uid) {
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(oldUid)
+                .delete();
           }
+        } else {
+          // Completely new — no account at all
+          await _auth.signOut();
+          await _googleSignIn.signOut();
+          throw Exception(
+            'No account found for this Google account. Please sign up first.',
+          );
         }
+      } else {
+        // Doc exists — update provider to google and sync photo if needed
+        final data = doc.data()!;
+        final existingPhoto = data['profileImage'] as String? ?? '';
+        final googlePhoto = user.photoURL ?? '';
 
-        throw Exception(
-          'No account found for this Google account. Please sign up first.',
-        );
-      }
-
-      // Account exists — check it was registered with Google
-      final registeredProvider =
-          doc.data()?['provider'] as String? ?? 'password';
-      if (registeredProvider != 'google') {
-        await _auth.signOut();
-        await _googleSignIn.signOut();
-        throw Exception(
-          'This account was registered with email & password. '
-          'Please sign in with your email and password instead.',
-        );
-      }
-
-      // Always sync the latest Google photo/name to Firestore so profile stays fresh
-      final existingPhoto = doc.data()?['profileImage'] as String? ?? '';
-      final googlePhoto = user.photoURL ?? '';
-      if (googlePhoto.isNotEmpty && existingPhoto.isEmpty) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .update({
-              'profileImage': googlePhoto,
-              'photoUrl': googlePhoto,
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
+        await docRef.update({
+          'provider': 'google',
+          if (googlePhoto.isNotEmpty && existingPhoto.isEmpty)
+            'profileImage': googlePhoto,
+          if (googlePhoto.isNotEmpty && existingPhoto.isEmpty)
+            'photoUrl': googlePhoto,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
       }
 
       return userCredential;
