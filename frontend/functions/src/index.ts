@@ -1,16 +1,75 @@
-import * as functions from "firebase-functions";
+// ============================================================================
+// EXISTING FUNCTIONS - DO NOT REMOVE
+// ============================================================================
+
+// Authentication functions
+export {registerUser} from "./authentication/createUser";
+export {signInUser} from "./authentication/signInUser";
+export {verifyEmailCode} from "./authentication/verifyEmailCode";
+export {resendVerificationCode} from "./authentication/email_verification";
+export {resetPassword} from "./authentication/resetPassword";
+export {checkUserStatus} from "./authentication/checkUserStatus";
+export {deleteUserAccount} from "./authentication/deleteUserAccount";
+
+// Booking functions
+export {
+  createBooking,
+  getBookingDetails,
+  getUserBookings,
+  updateBookingStatus,
+  verifyPayment,
+  updateArtisanLocation,
+} from "./booking";
+
+// Post functions
+export {createPost} from "./posts/createPost";
+export {deleteComment} from "./posts/deleteComment";
+
+// Reel functions
+export {createReel} from "./reels/createReel";
+
+// Wallet functions
+export {
+  initiateWalletTopUp,
+  verifyWalletTopUp,
+  payWithWallet,
+} from "./wallet";
+
+// Utility functions
+export {getDistanceMatrix} from "./distanceMatrix";
+export {syncUserProfile} from "./syncUserProfile";
+export {cleanup4KVideos, listVideoSizes} from "./cleanupVideos";
+
+// ============================================================================
+// NEW NOTIFICATION FUNCTIONS
+// ============================================================================
+
+import {onDocumentCreated, onDocumentUpdated} from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 
-admin.initializeApp();
+// Initialize admin only if not already initialized
+// (booking.ts and other files may have already initialized it)
+try {
+  if (!admin.apps.length) {
+    admin.initializeApp();
+  }
+} catch (e) {
+  // Already initialized, ignore
+}
 
 /**
  * Send notification when a new message is sent
  */
-export const onNewMessage = functions.firestore
-  .document("conversations/{conversationId}/messages/{messageId}")
-  .onCreate(async (snapshot, context) => {
-    const message = snapshot.data();
-    const {conversationId} = context.params;
+export const onNewMessage = onDocumentCreated(
+  "conversations/{conversationId}/messages/{messageId}",
+  async (event) => {
+    const message = event.data?.data();
+    const conversationId = event.params.conversationId;
+
+    if (!message) {
+      console.log("❌ No message data");
+      return;
+    }
 
     console.log("📬 New message in conversation:", conversationId);
 
@@ -24,7 +83,7 @@ export const onNewMessage = functions.firestore
 
       if (!conversationDoc.exists) {
         console.log("❌ Conversation not found");
-        return null;
+        return;
       }
 
       const conversation = conversationDoc.data()!;
@@ -35,7 +94,7 @@ export const onNewMessage = functions.firestore
       const recipientId = participants.find((id) => id !== senderId);
       if (!recipientId) {
         console.log("❌ Recipient not found");
-        return null;
+        return;
       }
 
       // Get recipient's FCM token
@@ -47,7 +106,7 @@ export const onNewMessage = functions.firestore
 
       if (!recipientDoc.exists) {
         console.log("❌ Recipient user not found");
-        return null;
+        return;
       }
 
       const recipient = recipientDoc.data()!;
@@ -55,7 +114,7 @@ export const onNewMessage = functions.firestore
 
       if (!fcmToken) {
         console.log("⚠️ Recipient has no FCM token");
-        return null;
+        return;
       }
 
       // Get sender's name
@@ -73,6 +132,26 @@ export const onNewMessage = functions.firestore
       const messageContent = message.type === "text" ?
         message.content :
         `[${message.type}]`;
+
+      // Save notification to Firestore
+      await admin.firestore().collection("notifications").add({
+        userId: recipientId,
+        title: senderName,
+        message: messageContent,
+        type: "chat",
+        data: {
+          conversationId: conversationId,
+          senderId: senderId,
+          senderName: senderName,
+          otherUserId: senderId,
+          otherUserName: senderName,
+          otherUserAvatar: senderDoc.data()?.profileImage || "",
+        },
+        isRead: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      console.log("✅ Notification saved to Firestore");
 
       const payload: admin.messaging.Message = {
         token: fcmToken,
@@ -112,22 +191,28 @@ export const onNewMessage = functions.firestore
       await admin.messaging().send(payload);
       console.log("✅ Chat notification sent to:", recipientId);
 
-      return null;
+      return;
     } catch (error) {
       console.error("❌ Error sending chat notification:", error);
-      return null;
+      return;
     }
-  });
+  }
+);
 
 /**
  * Send notification when payment is made
  */
-export const onPaymentMade = functions.firestore
-  .document("bookings/{bookingId}")
-  .onUpdate(async (change, context) => {
-    const before = change.before.data();
-    const after = change.after.data();
-    const {bookingId} = context.params;
+export const onPaymentMade = onDocumentUpdated(
+  "bookings/{bookingId}",
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    const bookingId = event.params.bookingId;
+
+    if (!before || !after) {
+      console.log("❌ No booking data");
+      return;
+    }
 
     // Check if payment status changed to paid
     if (before.paymentStatus !== "paid" && after.paymentStatus === "paid") {
@@ -167,24 +252,30 @@ export const onPaymentMade = functions.firestore
         );
 
         console.log("✅ Payment notifications sent");
-        return null;
+        return;
       } catch (error) {
         console.error("❌ Error sending payment notification:", error);
-        return null;
+        return;
       }
     }
 
-    return null;
-  });
+    return;
+  }
+);
 
 /**
  * Send notification when new booking is created
  */
-export const onNewBooking = functions.firestore
-  .document("bookings/{bookingId}")
-  .onCreate(async (snapshot, context) => {
-    const booking = snapshot.data();
-    const {bookingId} = context.params;
+export const onNewBooking = onDocumentCreated(
+  "bookings/{bookingId}",
+  async (event) => {
+    const booking = event.data?.data();
+    const bookingId = event.params.bookingId;
+
+    if (!booking) {
+      console.log("❌ No booking data");
+      return;
+    }
 
     console.log("📅 New booking created:", bookingId);
 
@@ -208,22 +299,28 @@ export const onNewBooking = functions.firestore
       );
 
       console.log("✅ New booking notification sent to artisan");
-      return null;
+      return;
     } catch (error) {
       console.error("❌ Error sending booking notification:", error);
-      return null;
+      return;
     }
-  });
+  }
+);
 
 /**
  * Send notification when booking status changes
  */
-export const onBookingStatusChange = functions.firestore
-  .document("bookings/{bookingId}")
-  .onUpdate(async (change, context) => {
-    const before = change.before.data();
-    const after = change.after.data();
-    const {bookingId} = context.params;
+export const onBookingStatusChange = onDocumentUpdated(
+  "bookings/{bookingId}",
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    const bookingId = event.params.bookingId;
+
+    if (!before || !after) {
+      console.log("❌ No booking data");
+      return;
+    }
 
     // Check if status changed
     if (before.status !== after.status) {
@@ -259,7 +356,7 @@ export const onBookingStatusChange = functions.firestore
           body = `Your booking with ${artisanName} was cancelled`;
           break;
         default:
-          return null;
+          return;
         }
 
         // Send notification to customer
@@ -277,25 +374,31 @@ export const onBookingStatusChange = functions.firestore
         );
 
         console.log("✅ Booking status notification sent");
-        return null;
+        return;
       } catch (error) {
         console.error("❌ Error sending status notification:", error);
-        return null;
+        return;
       }
     }
 
-    return null;
-  });
+    return;
+  }
+);
 
 /**
  * Send notification when escrow is released
  */
-export const onEscrowRelease = functions.firestore
-  .document("escrow/{escrowId}")
-  .onUpdate(async (change, context) => {
-    const before = change.before.data();
-    const after = change.after.data();
-    const {escrowId} = context.params;
+export const onEscrowRelease = onDocumentUpdated(
+  "escrow/{escrowId}",
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    const escrowId = event.params.escrowId;
+
+    if (!before || !after) {
+      console.log("❌ No escrow data");
+      return;
+    }
 
     // Check if escrow was released
     if (before.status !== "released" && after.status === "released") {
@@ -319,24 +422,81 @@ export const onEscrowRelease = functions.firestore
         );
 
         console.log("✅ Escrow release notification sent");
-        return null;
+        return;
       } catch (error) {
         console.error("❌ Error sending escrow notification:", error);
-        return null;
+        return;
       }
     }
 
-    return null;
-  });
+    return;
+  }
+);
+
+/**
+ * Trigger when admin approves or rejects a verification request.
+ * Sends push notification to artisan immediately.
+ */
+export const onVerificationDecision = onDocumentUpdated(
+  "verifications/{userId}",
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    const userId = event.params.userId;
+
+    if (!before || !after) return;
+
+    // Only fire when status changes
+    if (before.status === after.status) return;
+
+    const newStatus = after.status as string;
+    if (newStatus !== "approved" && newStatus !== "rejected") return;
+
+    console.log(`🔐 Verification ${newStatus} for user: ${userId}`);
+
+    const isApproved = newStatus === "approved";
+    const adminNote = after.adminNote as string || "";
+
+    const title = isApproved
+      ? "🎉 You're Verified!"
+      : "Verification Update";
+
+    const body = isApproved
+      ? "Congratulations! Your identity has been verified. You now have a verified badge on your profile."
+      : `Your verification was not approved. ${adminNote ? "Reason: " + adminNote : "Please resubmit with clearer documents."}`;
+
+    try {
+      await sendNotificationToUser(
+        userId,
+        title,
+        body,
+        {
+          type: "verification",
+          status: newStatus,
+          adminNote: adminNote,
+        },
+        "general"
+      );
+      console.log(`✅ Verification notification sent to: ${userId}`);
+    } catch (error) {
+      console.error("❌ Error sending verification notification:", error);
+    }
+  }
+);
 
 /**
  * Send notification when review is received
  */
-export const onNewReview = functions.firestore
-  .document("reviews/{reviewId}")
-  .onCreate(async (snapshot, context) => {
-    const review = snapshot.data();
-    const {reviewId} = context.params;
+export const onNewReview = onDocumentCreated(
+  "reviews/{reviewId}",
+  async (event) => {
+    const review = event.data?.data();
+    const reviewId = event.params.reviewId;
+
+    if (!review) {
+      console.log("❌ No review data");
+      return;
+    }
 
     console.log("⭐ New review created:", reviewId);
 
@@ -359,12 +519,13 @@ export const onNewReview = functions.firestore
       );
 
       console.log("✅ Review notification sent");
-      return null;
+      return;
     } catch (error) {
       console.error("❌ Error sending review notification:", error);
-      return null;
+      return;
     }
-  });
+  }
+);
 
 /**
  * Helper function to send notification to a user
@@ -377,12 +538,23 @@ async function sendNotificationToUser(
   channelId: string = "general"
 ): Promise<void> {
   try {
+    const db = admin.firestore();
+
+    // Save notification to Firestore
+    await db.collection("notifications").add({
+      userId: userId,
+      title: title,
+      message: body,
+      type: data.type || "general",
+      data: data,
+      isRead: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    console.log("✅ Notification saved to Firestore for:", userId);
+
     // Get user's FCM token
-    const userDoc = await admin
-      .firestore()
-      .collection("users")
-      .doc(userId)
-      .get();
+    const userDoc = await db.collection("users").doc(userId).get();
 
     if (!userDoc.exists) {
       console.log("❌ User not found:", userId);
@@ -426,7 +598,7 @@ async function sendNotificationToUser(
 
     // Send notification
     await admin.messaging().send(payload);
-    console.log("✅ Notification sent to:", userId);
+    console.log("✅ Push notification sent to:", userId);
   } catch (error) {
     console.error("❌ Error sending notification:", error);
     throw error;
