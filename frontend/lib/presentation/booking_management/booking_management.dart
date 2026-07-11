@@ -1,184 +1,78 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../domain/models/booking_model.dart';
+import '../../provider/booking_provider.dart';
+import '../../routes/app_routes.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/unified_bottom_bar.dart';
 import '../../widgets/custom_icon_widget.dart';
-import './widgets/booking_card_widget.dart';
-import './widgets/booking_details_sheet.dart';
+import '../in_app_messaging/in_app_messaging.dart';
 import './widgets/booking_filter_sheet.dart';
 import './widgets/empty_state_widget.dart';
 
-/// Booking Management screen for comprehensive appointment overview and control
-class BookingManagement extends StatefulWidget {
+class BookingManagement extends ConsumerStatefulWidget {
   const BookingManagement({super.key});
 
   @override
-  State<BookingManagement> createState() => _BookingManagementState();
+  ConsumerState<BookingManagement> createState() => _BookingManagementState();
 }
 
-class _BookingManagementState extends State<BookingManagement>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _BookingManagementState extends ConsumerState<BookingManagement> {
   String _selectedStatus = 'Upcoming';
   DateTime? _filterStartDate;
   DateTime? _filterEndDate;
-  bool _isRefreshing = false;
 
   final List<String> _statusOptions = ['Upcoming', 'Completed', 'Cancelled'];
-
-  // Mock booking data
-  final List<Map<String, dynamic>> _allBookings = [
-    {
-      'bookingId': 'BK001',
-      'serviceType': 'Plumbing Repair',
-      'serviceIcon': 'plumbing',
-      'artisanName': 'Kwame Mensah',
-      'date': DateTime.now().add(Duration(days: 2)),
-      'time': '10:00 AM',
-      'duration': '2 hours',
-      'status': 'Confirmed',
-      'price': 'GHS 150.00',
-      'paymentStatus': 'Pending',
-      'description':
-          'Fix leaking kitchen sink and replace worn-out pipes. Includes inspection of water pressure and drainage system.',
-      'location': '123 Independence Avenue, Accra',
-    },
-    {
-      'bookingId': 'BK002',
-      'serviceType': 'Electrical Work',
-      'serviceIcon': 'electrical_services',
-      'artisanName': 'Ama Osei',
-      'date': DateTime.now().add(Duration(days: 5)),
-      'time': '2:00 PM',
-      'duration': '3 hours',
-      'status': 'Pending',
-      'price': 'GHS 200.00',
-      'paymentStatus': 'Pending',
-      'description':
-          'Install new ceiling fan and repair faulty light switches in living room and bedroom.',
-      'location': '45 Cantonments Road, Accra',
-    },
-    {
-      'bookingId': 'BK003',
-      'serviceType': 'Carpentry',
-      'serviceIcon': 'carpenter',
-      'artisanName': 'Kofi Asante',
-      'date': DateTime.now().subtract(Duration(days: 10)),
-      'time': '9:00 AM',
-      'duration': '4 hours',
-      'status': 'Completed',
-      'price': 'GHS 300.00',
-      'paymentStatus': 'Paid',
-      'description':
-          'Custom wardrobe installation with shelving and drawers. Includes measurements and material sourcing.',
-      'location': '78 Osu Oxford Street, Accra',
-    },
-    {
-      'bookingId': 'BK004',
-      'serviceType': 'Painting',
-      'serviceIcon': 'format_paint',
-      'artisanName': 'Abena Boateng',
-      'date': DateTime.now().subtract(Duration(days: 5)),
-      'time': '8:00 AM',
-      'duration': '6 hours',
-      'status': 'Completed',
-      'price': 'GHS 450.00',
-      'paymentStatus': 'Paid',
-      'description':
-          'Interior painting of two bedrooms including wall preparation, primer application, and two coats of paint.',
-      'location': '12 Labone Crescent, Accra',
-    },
-    {
-      'bookingId': 'BK005',
-      'serviceType': 'AC Repair',
-      'serviceIcon': 'ac_unit',
-      'artisanName': 'Yaw Owusu',
-      'date': DateTime.now().subtract(Duration(days: 15)),
-      'time': '11:00 AM',
-      'duration': '2 hours',
-      'status': 'Cancelled',
-      'price': 'GHS 180.00',
-      'paymentStatus': 'Refunded',
-      'description':
-          'Air conditioning unit maintenance and gas refill. Cancelled due to scheduling conflict.',
-      'location': '56 East Legon, Accra',
-    },
-    {
-      'bookingId': 'BK006',
-      'serviceType': 'Tiling',
-      'serviceIcon': 'grid_on',
-      'artisanName': 'Akua Darko',
-      'date': DateTime.now().add(Duration(hours: 5)),
-      'time': '1:00 PM',
-      'duration': '5 hours',
-      'status': 'In-Progress',
-      'price': 'GHS 500.00',
-      'paymentStatus': 'Partial',
-      'description':
-          'Bathroom floor and wall tiling with waterproofing. Currently in progress.',
-      'location': '34 Airport Residential, Accra',
-    },
-  ];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 1, vsync: this);
+    // Load real bookings from Firestore on init
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(bookingNotifierProvider.notifier).loadUserBookings('client');
+    });
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  List<Map<String, dynamic>> _getFilteredBookings() {
-    List<Map<String, dynamic>> filtered = _allBookings.where((booking) {
-      final status = booking['status'] as String;
-      final bookingDate = booking['date'] as DateTime;
-
+  List<BookingModel> _getFilteredBookings(List<BookingModel> all) {
+    return all.where((b) {
+      // Status filter
       bool statusMatch = false;
       if (_selectedStatus == 'Upcoming') {
         statusMatch =
-            status == 'Confirmed' ||
-            status == 'Pending' ||
-            status == 'In-Progress';
+            b.status == BookingStatus.pending ||
+            b.status == BookingStatus.confirmed ||
+            b.status == BookingStatus.inProgress ||
+            b.status == BookingStatus.paymentPending;
       } else if (_selectedStatus == 'Completed') {
-        statusMatch = status == 'Completed';
+        statusMatch = b.status == BookingStatus.completed;
       } else if (_selectedStatus == 'Cancelled') {
-        statusMatch = status == 'Cancelled';
+        statusMatch =
+            b.status == BookingStatus.cancelled ||
+            b.status == BookingStatus.paymentFailed;
       }
 
+      // Date filter
       bool dateMatch = true;
       if (_filterStartDate != null && _filterEndDate != null) {
+        final bookingDate = DateTime.tryParse(b.scheduledDate) ?? b.createdAt;
         dateMatch =
             bookingDate.isAfter(
-              _filterStartDate!.subtract(Duration(days: 1)),
+              _filterStartDate!.subtract(const Duration(days: 1)),
             ) &&
-            bookingDate.isBefore(_filterEndDate!.add(Duration(days: 1)));
+            bookingDate.isBefore(_filterEndDate!.add(const Duration(days: 1)));
       }
 
       return statusMatch && dateMatch;
-    }).toList();
-
-    filtered.sort((a, b) {
-      final dateA = a['date'] as DateTime;
-      final dateB = b['date'] as DateTime;
+    }).toList()..sort((a, b) {
+      final dateA = DateTime.tryParse(a.scheduledDate) ?? a.createdAt;
+      final dateB = DateTime.tryParse(b.scheduledDate) ?? b.createdAt;
       return _selectedStatus == 'Upcoming'
           ? dateA.compareTo(dateB)
           : dateB.compareTo(dateA);
     });
-
-    return filtered;
-  }
-
-  Future<void> _refreshBookings() async {
-    setState(() => _isRefreshing = true);
-    await Future.delayed(Duration(seconds: 1));
-    setState(() => _isRefreshing = false);
   }
 
   void _showFilterSheet() {
@@ -199,92 +93,106 @@ class _BookingManagementState extends State<BookingManagement>
     );
   }
 
-  void _showBookingDetails(Map<String, dynamic> booking) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => BookingDetailsSheet(booking: booking),
-    );
-  }
-
-  void _handleMessage(Map<String, dynamic> booking) {
-    Navigator.pushNamed(context, '/in-app-messaging');
-  }
-
-  void _handleReschedule(Map<String, dynamic> booking) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Reschedule booking ${booking['bookingId']}'),
-        action: SnackBarAction(label: 'OK', onPressed: () {}),
+  void _handleMessage(BookingModel booking) {
+    // Navigate to real chat with the artisan
+    Navigator.pushNamed(
+      context,
+      AppRoutes.inAppMessagingScreen,
+      arguments: ChatArgs(
+        otherUserId: booking.artisanId,
+        otherUserName: booking.serviceTitle,
+        otherUserAvatar: '',
       ),
     );
   }
 
-  void _handleCancel(Map<String, dynamic> booking) {
+  void _handleCancel(BookingModel booking) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Cancel Booking'),
-        content: Text(
-          'Are you sure you want to cancel this booking? This action cannot be undone.',
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel Booking'),
+        content: const Text(
+          'Are you sure you want to cancel this booking? This cannot be undone.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('No'),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('No'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Booking cancelled successfully')),
-              );
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref
+                  .read(bookingNotifierProvider.notifier)
+                  .updateBookingStatus(
+                    bookingId: booking.id,
+                    status: BookingStatus.cancelled,
+                  );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Booking cancelled')),
+                );
+              }
             },
-            child: Text('Yes, Cancel'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Yes, Cancel'),
           ),
         ],
       ),
     );
   }
 
-  void _handleReview(Map<String, dynamic> booking) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Review artisan ${booking['artisanName']}'),
-        action: SnackBarAction(label: 'RATE', onPressed: () {}),
-      ),
-    );
-  }
-
-  void _handleRequestPayment(Map<String, dynamic> booking) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Payment request sent for ${booking['bookingId']}'),
-      ),
-    );
-  }
-
-  void _handleAddToCalendar(Map<String, dynamic> booking) {
-    ScaffoldMessenger.of(
+  void _handleViewTracking(BookingModel booking) {
+    Navigator.pushNamed(
       context,
-    ).showSnackBar(SnackBar(content: Text('Added to calendar')));
-  }
-
-  void _handleGetDirections(Map<String, dynamic> booking) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Opening directions to ${booking['location']}')),
+      AppRoutes.bookingTrackingScreen,
+      arguments: {'bookingId': booking.id},
     );
   }
 
-  void _createNewBooking() {
-    Navigator.pushNamed(context, '/service-booking');
+  String _statusLabel(BookingStatus status) {
+    switch (status) {
+      case BookingStatus.pending:
+        return 'Pending';
+      case BookingStatus.confirmed:
+        return 'Confirmed';
+      case BookingStatus.inProgress:
+        return 'In Progress';
+      case BookingStatus.completed:
+        return 'Completed';
+      case BookingStatus.cancelled:
+        return 'Cancelled';
+      case BookingStatus.paymentPending:
+        return 'Payment Pending';
+      case BookingStatus.paymentFailed:
+        return 'Payment Failed';
+    }
+  }
+
+  Color _statusColor(BookingStatus status, ThemeData theme) {
+    switch (status) {
+      case BookingStatus.confirmed:
+        return Colors.green;
+      case BookingStatus.inProgress:
+        return Colors.blue;
+      case BookingStatus.completed:
+        return Colors.teal;
+      case BookingStatus.cancelled:
+      case BookingStatus.paymentFailed:
+        return theme.colorScheme.error;
+      case BookingStatus.paymentPending:
+      case BookingStatus.pending:
+        return Colors.orange;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final filteredBookings = _getFilteredBookings();
+    final bookingState = ref.watch(bookingNotifierProvider);
+    final filtered = _getFilteredBookings(bookingState.bookings);
 
     return Scaffold(
       appBar: CustomAppBar(
@@ -292,11 +200,8 @@ class _BookingManagementState extends State<BookingManagement>
         title: 'Bookings',
         actions: [
           IconButton(
-            onPressed: () {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text('Notifications')));
-            },
+            onPressed: () =>
+                Navigator.pushNamed(context, AppRoutes.notificationsScreen),
             icon: CustomIconWidget(
               iconName: 'notifications_outlined',
               color: theme.colorScheme.onSurface,
@@ -315,7 +220,8 @@ class _BookingManagementState extends State<BookingManagement>
       ),
       body: Column(
         children: [
-          Container(
+          // Status tabs
+          Padding(
             padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
             child: Container(
               decoration: BoxDecoration(
@@ -359,51 +265,57 @@ class _BookingManagementState extends State<BookingManagement>
               ),
             ),
           ),
+
+          // Active date filter chip
           if (_filterStartDate != null && _filterEndDate != null)
-            Container(
-              margin: EdgeInsets.symmetric(horizontal: 4.w),
-              padding: EdgeInsets.all(2.w),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4.w),
               child: Row(
                 children: [
-                  CustomIconWidget(
-                    iconName: 'filter_list',
+                  Icon(
+                    Icons.filter_list,
                     color: theme.colorScheme.primary,
-                    size: 4.w,
+                    size: 16,
                   ),
                   SizedBox(width: 2.w),
                   Expanded(
                     child: Text(
-                      'Filtered: ${_filterStartDate!.day}/${_filterStartDate!.month}/${_filterStartDate!.year} - ${_filterEndDate!.day}/${_filterEndDate!.month}/${_filterEndDate!.year}',
+                      '${_filterStartDate!.day}/${_filterStartDate!.month}/${_filterStartDate!.year} - ${_filterEndDate!.day}/${_filterEndDate!.month}/${_filterEndDate!.year}',
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.primary,
                       ),
                     ),
                   ),
                   IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _filterStartDate = null;
-                        _filterEndDate = null;
-                      });
-                    },
-                    icon: CustomIconWidget(
-                      iconName: 'close',
+                    onPressed: () => setState(() {
+                      _filterStartDate = null;
+                      _filterEndDate = null;
+                    }),
+                    icon: Icon(
+                      Icons.close,
                       color: theme.colorScheme.primary,
-                      size: 4.w,
+                      size: 16,
                     ),
                     padding: EdgeInsets.zero,
-                    constraints: BoxConstraints(),
+                    constraints: const BoxConstraints(),
                   ),
                 ],
               ),
             ),
+
           SizedBox(height: 1.h),
+
+          // Content
           Expanded(
-            child: filteredBookings.isEmpty
+            child: bookingState.isLoading
+                ? Center(
+                    child: CircularProgressIndicator(
+                      color: theme.colorScheme.primary,
+                    ),
+                  )
+                : bookingState.error != null
+                ? _buildError(theme, bookingState.error!)
+                : filtered.isEmpty
                 ? EmptyStateWidget(
                     title: _selectedStatus == 'Upcoming'
                         ? 'No Upcoming Bookings'
@@ -418,62 +330,34 @@ class _BookingManagementState extends State<BookingManagement>
                     buttonText: _selectedStatus == 'Upcoming'
                         ? 'Book a Service'
                         : 'Browse Services',
-                    onButtonPressed: _createNewBooking,
+                    onButtonPressed: () => Navigator.pushNamed(
+                      context,
+                      AppRoutes.searchAndDiscovery,
+                    ),
                   )
                 : RefreshIndicator(
-                    onRefresh: _refreshBookings,
-                    child: ListView.builder(
-                      padding: EdgeInsets.only(bottom: 2.h),
-                      itemCount: filteredBookings.length,
+                    onRefresh: () => ref
+                        .read(bookingNotifierProvider.notifier)
+                        .loadUserBookings('client'),
+                    child: ListView.separated(
+                      padding: EdgeInsets.only(
+                        left: 4.w,
+                        right: 4.w,
+                        bottom: 2.h,
+                      ),
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) => SizedBox(height: 1.5.h),
                       itemBuilder: (context, index) {
-                        final booking = filteredBookings[index];
-                        return Slidable(
-                          key: ValueKey(booking['bookingId']),
-                          endActionPane: _selectedStatus == 'Upcoming'
-                              ? ActionPane(
-                                  motion: const ScrollMotion(),
-                                  children: [
-                                    SlidableAction(
-                                      onPressed: (_) =>
-                                          _handleAddToCalendar(booking),
-                                      backgroundColor:
-                                          theme.colorScheme.primary,
-                                      foregroundColor:
-                                          theme.colorScheme.onPrimary,
-                                      icon: Icons.calendar_today,
-                                      label: 'Calendar',
-                                    ),
-                                    SlidableAction(
-                                      onPressed: (_) =>
-                                          _handleGetDirections(booking),
-                                      backgroundColor:
-                                          theme.colorScheme.tertiary,
-                                      foregroundColor:
-                                          theme.colorScheme.onPrimary,
-                                      icon: Icons.directions,
-                                      label: 'Directions',
-                                    ),
-                                  ],
-                                )
+                        final booking = filtered[index];
+                        return _BookingCard(
+                          booking: booking,
+                          statusLabel: _statusLabel(booking.status),
+                          statusColor: _statusColor(booking.status, theme),
+                          onMessage: () => _handleMessage(booking),
+                          onTrack: () => _handleViewTracking(booking),
+                          onCancel: _selectedStatus == 'Upcoming'
+                              ? () => _handleCancel(booking)
                               : null,
-                          child: BookingCardWidget(
-                            booking: booking,
-                            bookingStatus: _selectedStatus,
-                            onTap: () => _showBookingDetails(booking),
-                            onMessage: () => _handleMessage(booking),
-                            onReschedule: _selectedStatus == 'Upcoming'
-                                ? () => _handleReschedule(booking)
-                                : null,
-                            onCancel: _selectedStatus == 'Upcoming'
-                                ? () => _handleCancel(booking)
-                                : null,
-                            onReview: _selectedStatus == 'Completed'
-                                ? () => _handleReview(booking)
-                                : null,
-                            onRequestPayment: _selectedStatus == 'Completed'
-                                ? () => _handleRequestPayment(booking)
-                                : null,
-                          ),
                         );
                       },
                     ),
@@ -482,16 +366,280 @@ class _BookingManagementState extends State<BookingManagement>
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        heroTag: "booking_create", // Add unique hero tag
-        onPressed: _createNewBooking,
+        heroTag: 'booking_create',
+        onPressed: () =>
+            Navigator.pushNamed(context, AppRoutes.searchAndDiscovery),
         icon: CustomIconWidget(
           iconName: 'add',
           color: theme.colorScheme.onPrimary,
           size: 6.w,
         ),
-        label: Text('New Booking'),
+        label: const Text('New Booking'),
       ),
-      bottomNavigationBar: UnifiedBottomBar(currentIndex: 4),
+      bottomNavigationBar: const UnifiedBottomBar(currentIndex: 4),
+    );
+  }
+
+  Widget _buildError(ThemeData theme, String error) {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 8.w),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+            SizedBox(height: 2.h),
+            Text('Failed to load bookings', style: theme.textTheme.titleMedium),
+            SizedBox(height: 1.h),
+            Text(
+              error,
+              style: theme.textTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 3.h),
+            ElevatedButton.icon(
+              onPressed: () => ref
+                  .read(bookingNotifierProvider.notifier)
+                  .loadUserBookings('client'),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Real booking card ─────────────────────────────────────────────────────────
+class _BookingCard extends StatelessWidget {
+  final BookingModel booking;
+  final String statusLabel;
+  final Color statusColor;
+  final VoidCallback onMessage;
+  final VoidCallback onTrack;
+  final VoidCallback? onCancel;
+
+  const _BookingCard({
+    required this.booking,
+    required this.statusLabel,
+    required this.statusColor,
+    required this.onMessage,
+    required this.onTrack,
+    this.onCancel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.15),
+        ),
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(4.w),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header row
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(2.w),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.build_outlined,
+                    color: theme.colorScheme.primary,
+                    size: 20,
+                  ),
+                ),
+                SizedBox(width: 3.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        booking.serviceTitle,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        'Ref: ${booking.bookingReference}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 2.w,
+                    vertical: 0.5.h,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    statusLabel,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: statusColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            SizedBox(height: 1.5.h),
+            Divider(
+              height: 1,
+              color: theme.colorScheme.outline.withValues(alpha: 0.15),
+            ),
+            SizedBox(height: 1.5.h),
+
+            // Date & time
+            Row(
+              children: [
+                Icon(
+                  Icons.calendar_today_outlined,
+                  size: 14,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                SizedBox(width: 1.w),
+                Text(
+                  booking.scheduledDate,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                SizedBox(width: 4.w),
+                Icon(
+                  Icons.access_time_outlined,
+                  size: 14,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                SizedBox(width: 1.w),
+                Text(
+                  booking.scheduledTime,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+
+            SizedBox(height: 0.8.h),
+
+            // Location
+            Row(
+              children: [
+                Icon(
+                  Icons.location_on_outlined,
+                  size: 14,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                SizedBox(width: 1.w),
+                Expanded(
+                  child: Text(
+                    booking.clientLocation.address.isNotEmpty
+                        ? booking.clientLocation.address
+                        : 'Location not specified',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+
+            SizedBox(height: 0.8.h),
+
+            // Amount
+            Row(
+              children: [
+                Icon(
+                  Icons.payments_outlined,
+                  size: 14,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                SizedBox(width: 1.w),
+                Text(
+                  'GH₵ ${booking.totalWithFees.toStringAsFixed(2)}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+
+            SizedBox(height: 1.5.h),
+
+            // Action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onMessage,
+                    icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                    label: const Text('Message'),
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 1.h),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 2.w),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: onTrack,
+                    icon: const Icon(Icons.track_changes_outlined, size: 16),
+                    label: const Text('Track'),
+                    style: ElevatedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 1.h),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            if (onCancel != null) ...[
+              SizedBox(height: 1.h),
+              Center(
+                child: TextButton.icon(
+                  onPressed: onCancel,
+                  icon: Icon(
+                    Icons.close,
+                    size: 14,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  label: Text(
+                    'Cancel Booking',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                      fontSize: 12.sp,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

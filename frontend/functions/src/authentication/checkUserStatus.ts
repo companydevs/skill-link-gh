@@ -25,7 +25,15 @@ export const checkUserStatus = onCall(async (request) => {
     // Optional: check OTP status from Firestore
     const userDoc = await firestore.collection("users").doc(uid).get();
     const userData = userDoc.data();
-    const isOtpVerified = userData?.isVerified ?? false;
+
+    // isOtpVerified = true for Google/OAuth users (they skip OTP)
+    // isOtpVerified = true for email users who completed OTP step
+    const provider = userData?.provider ?? "password";
+    const isGoogleUser = provider === "google" ||
+      userRecord.providerData.some((p) => p.providerId === "google.com");
+    const isOtpVerified = isGoogleUser
+      ? true
+      : (userData?.isOtpVerified ?? userData?.otpVerified ?? false);
 
     return {
       success: true,

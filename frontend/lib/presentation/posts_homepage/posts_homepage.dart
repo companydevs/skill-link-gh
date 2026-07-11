@@ -5,6 +5,7 @@ import 'package:sizer/sizer.dart';
 import 'package:skill_link_gh/domain/models/post_model.dart';
 import 'package:skill_link_gh/presentation/posts_homepage/widgets/filter_bottom_sheet_widget.dart';
 import 'package:skill_link_gh/provider/post_provider.dart';
+import 'package:skill_link_gh/provider/notifications_provider.dart';
 import 'package:skill_link_gh/widgets/custom_app_toast.dart';
 import 'package:skill_link_gh/widgets/post_shimmer_widget.dart';
 
@@ -264,6 +265,7 @@ class _PostsHomepageState extends ConsumerState<PostsHomepage> {
     final theme = Theme.of(context);
     final postsState = ref.watch(postsNotifierProvider);
     final notifier = ref.watch(postsNotifierProvider.notifier);
+    final unreadCountAsync = ref.watch(unreadCountStreamProvider);
 
     // Debug logging
     print(
@@ -307,12 +309,50 @@ class _PostsHomepageState extends ConsumerState<PostsHomepage> {
             onPressed: _navigateToSearch,
           ),
           IconButton(
-            icon: CustomIconWidget(
-              iconName: 'notifications_outlined',
-              color: theme.colorScheme.onSurface,
-              size: 24,
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                CustomIconWidget(
+                  iconName: 'notifications_outlined',
+                  color: theme.colorScheme.onSurface,
+                  size: 24,
+                ),
+                // Unread badge
+                unreadCountAsync.when(
+                  data: (count) => count > 0
+                      ? Positioned(
+                          right: 0,
+                          top: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.error,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
+                            child: Text(
+                              count > 99 ? '99+' : count.toString(),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 8.sp,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
+              ],
             ),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.pushNamed(context, '/notifications-screen');
+            },
           ),
           SizedBox(width: 2.w),
         ],

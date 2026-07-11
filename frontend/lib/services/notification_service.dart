@@ -353,20 +353,18 @@ class NotificationService {
     return map;
   }
 
-  /// Update badge count
+  /// Update badge count (iOS only - handled by system)
   Future<void> updateBadgeCount(int count) async {
-    if (Platform.isIOS) {
-      await _messaging.setApplicationIconBadgeNumber(count);
-    }
-    // Android badge count is handled by notification channels
+    // Badge count is now handled automatically by the system
+    // iOS: System manages badge based on notification count
+    // Android: Handled by notification channels
+    debugPrint('📊 Badge count: $count');
   }
 
   /// Clear all notifications
   Future<void> clearAllNotifications() async {
     await _localNotifications.cancelAll();
-    if (Platform.isIOS) {
-      await _messaging.setApplicationIconBadgeNumber(0);
-    }
+    debugPrint('🧹 All notifications cleared');
   }
 
   /// Subscribe to topic

@@ -244,16 +244,29 @@ class _ConversationsScreenState extends State<ConversationsScreen>
     List<QueryDocumentSnapshot> docs,
     String currentUid,
   ) {
+    // Sort in memory by lastMessageTime descending (handles null safely)
+    final sorted = List<QueryDocumentSnapshot>.from(docs)
+      ..sort((a, b) {
+        final aData = a.data() as Map<String, dynamic>;
+        final bData = b.data() as Map<String, dynamic>;
+        final aTime = aData['lastMessageTime'] as Timestamp?;
+        final bTime = bData['lastMessageTime'] as Timestamp?;
+        if (aTime == null && bTime == null) return 0;
+        if (aTime == null) return 1;
+        if (bTime == null) return -1;
+        return bTime.compareTo(aTime);
+      });
+
     return ListView.separated(
       padding: EdgeInsets.symmetric(vertical: 1.h),
-      itemCount: docs.length,
+      itemCount: sorted.length,
       separatorBuilder: (_, __) => Divider(
         height: 1,
         indent: 18.w,
         color: theme.colorScheme.outline.withValues(alpha: 0.15),
       ),
       itemBuilder: (context, index) {
-        final data = docs[index].data() as Map<String, dynamic>;
+        final data = sorted[index].data() as Map<String, dynamic>;
         final participants = List<String>.from(data['participants'] ?? []);
         final otherUid = participants.firstWhere(
           (id) => id != currentUid,
@@ -262,7 +275,11 @@ class _ConversationsScreenState extends State<ConversationsScreen>
 
         final names = data['participantNames'] as Map<String, dynamic>?;
         final avatars = data['participantAvatars'] as Map<String, dynamic>?;
-        final otherName = names?[otherUid] as String? ?? 'User';
+
+        // Get name - fallback to live Firestore lookup if empty
+        String otherName = names?[otherUid] as String? ?? '';
+        if (otherName.isEmpty) otherName = 'User';
+
         final otherAvatar = avatars?[otherUid] as String? ?? '';
         final lastMessage = data['lastMessage'] as String? ?? '';
         final lastTime = data['lastMessageTime'] as Timestamp?;
@@ -271,31 +288,131 @@ class _ConversationsScreenState extends State<ConversationsScreen>
                 as int? ??
             0;
 
+        return _ConversationTile(
+          otherUid: otherUid,
+          otherName: otherName,
+          otherAvatar: otherAvatar,
+          lastMessage: lastMessage,
+          lastTime: lastTime,
+          unread: unread,
+          theme: theme,
+          onTap: () => Navigator.pushNamed(
+            context,
+            AppRoutes.inAppMessagingScreen,
+            arguments: ChatArgs(
+              otherUserId: otherUid,
+              otherUserName: otherName,
+              otherUserAvatar: otherAvatar,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ── Conversation tile with live user data ─────────────────────────────────────
+class _ConversationTile extends StatelessWidget {
+  final String otherUid;
+  final String otherName;
+  final String otherAvatar;
+  final String lastMessage;
+  final Timestamp? lastTime;
+  final int unread;
+  final ThemeData theme;
+  final VoidCallback onTap;
+
+  const _ConversationTile({
+    required this.otherUid,
+    required this.otherName,
+    required this.otherAvatar,
+    required this.lastMessage,
+    required this.lastTime,
+    required this.unread,
+    required this.theme,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(otherUid)
+          .snapshots(),
+      builder: (context, snap) {
+        // Resolve name: live Firestore > stored name > "Deleted User"
+        String displayName = otherName;
+        String displayAvatar = otherAvatar;
+        bool isDeleted = false;
+
+        if (snap.hasData) {
+          if (!snap.data!.exists) {
+            // Account deleted
+            displayName = 'Deleted User';
+            displayAvatar = '';
+            isDeleted = true;
+          } else {
+            final d = snap.data!.data() as Map<String, dynamic>;
+            final liveFullName = d['fullName'] as String? ?? '';
+            final liveDisplayName = d['displayName'] as String? ?? '';
+            final liveName = liveFullName.isNotEmpty
+                ? liveFullName
+                : liveDisplayName;
+            if (liveName.isNotEmpty) displayName = liveName;
+
+            final livePhoto =
+                d['profileImage'] as String? ?? d['photoUrl'] as String? ?? '';
+            if (livePhoto.isNotEmpty) displayAvatar = livePhoto;
+          }
+        }
+
         return ListTile(
           contentPadding: EdgeInsets.symmetric(
             horizontal: 4.w,
             vertical: 0.5.h,
           ),
-          leading: StreamBuilder<String>(
-            stream: ChatRepository().userPhotoStream(otherUid),
-            initialData: otherAvatar,
-            builder: (context, snap) {
-              final photoUrl = snap.data ?? otherAvatar;
-              return UserAvatarWidget(
-                imageUrl: photoUrl.isNotEmpty ? photoUrl : null,
-                name: otherName,
+          leading: Stack(
+            children: [
+              UserAvatarWidget(
+                imageUrl: displayAvatar.isNotEmpty ? displayAvatar : null,
+                name: displayName,
                 size: 12.w,
-              );
-            },
+              ),
+              if (isDeleted)
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.error,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: theme.colorScheme.surface,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      size: 8,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+            ],
           ),
           title: Text(
-            otherName,
+            displayName,
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: unread > 0 ? FontWeight.w700 : FontWeight.w500,
+              color: isDeleted ? theme.colorScheme.onSurfaceVariant : null,
+              fontStyle: isDeleted ? FontStyle.italic : null,
             ),
           ),
           subtitle: Text(
-            lastMessage,
+            lastMessage.isEmpty ? 'No messages yet' : lastMessage,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodySmall?.copyWith(
@@ -306,7 +423,7 @@ class _ConversationsScreenState extends State<ConversationsScreen>
             ),
           ),
           trailing: SizedBox(
-            width: 15.w, // Constrain the width
+            width: 15.w,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -314,7 +431,7 @@ class _ConversationsScreenState extends State<ConversationsScreen>
               children: [
                 if (lastTime != null)
                   Text(
-                    _formatDate(lastTime.toDate()),
+                    _formatDate(lastTime!.toDate()),
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: unread > 0
                           ? theme.colorScheme.primary
@@ -346,15 +463,7 @@ class _ConversationsScreenState extends State<ConversationsScreen>
               ],
             ),
           ),
-          onTap: () => Navigator.pushNamed(
-            context,
-            AppRoutes.inAppMessagingScreen,
-            arguments: ChatArgs(
-              otherUserId: otherUid,
-              otherUserName: otherName,
-              otherUserAvatar: otherAvatar,
-            ),
-          ),
+          onTap: onTap,
         );
       },
     );

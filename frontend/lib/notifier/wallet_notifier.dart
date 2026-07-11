@@ -45,6 +45,7 @@ class WalletNotifier extends Notifier<WalletState> {
   WalletRepository get _repo => ref.read(walletRepositoryProvider);
   StreamSubscription<double>? _balanceSub;
   StreamSubscription<double>? _holdSub;
+  StreamSubscription<List<WalletTransaction>>? _txSub;
 
   @override
   WalletState build() {
@@ -52,6 +53,7 @@ class WalletNotifier extends Notifier<WalletState> {
     ref.onDispose(() {
       _balanceSub?.cancel();
       _holdSub?.cancel();
+      _txSub?.cancel();
     });
     return const WalletState(isLoading: true);
   }
@@ -63,17 +65,16 @@ class WalletNotifier extends Notifier<WalletState> {
     _holdSub = _repo.onHoldStream().listen(
       (hold) => state = state.copyWith(onHoldBalance: hold),
     );
-    loadTransactions();
+    // Stream transactions in real-time — picks up pending→success changes
+    // automatically without any manual refresh
+    _txSub = _repo.transactionsStream().listen(
+      (txs) => state = state.copyWith(transactions: txs, isLoading: false),
+      onError: (_) => state = state.copyWith(isLoading: false),
+    );
   }
 
   Future<void> loadTransactions() async {
-    state = state.copyWith(isLoading: true, error: null);
-    try {
-      final txs = await _repo.getTransactions();
-      state = state.copyWith(transactions: txs, isLoading: false);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
-    }
+    // No-op: transactions are now streamed live. Kept for API compatibility.
   }
 
   /// Returns {paymentUrl, reference} for the top-up flow
@@ -93,7 +94,7 @@ class WalletNotifier extends Notifier<WalletState> {
     state = state.copyWith(isProcessing: true, error: null);
     try {
       final success = await _repo.verifyTopUp(reference);
-      if (success) await loadTransactions();
+      // Balance stream auto-updates; transactions stream auto-updates
       state = state.copyWith(isProcessing: false);
       return success;
     } catch (e) {

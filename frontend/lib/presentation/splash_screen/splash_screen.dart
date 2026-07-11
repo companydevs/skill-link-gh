@@ -58,6 +58,21 @@ class _SplashScreenState extends State<SplashScreen> {
     try {
       await user.reload();
 
+      // Google / OAuth users are always considered verified —
+      // they don't go through email+OTP flow
+      final isGoogleUser = user.providerData.any(
+        (p) => p.providerId == 'google.com',
+      );
+
+      if (isGoogleUser) {
+        await _requestLocationPermission();
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, AppRoutes.postsHomepage);
+        }
+        return;
+      }
+
+      // Email/password users — check OTP verification via Cloud Function
       final response = await FirebaseFunctions.instance
           .httpsCallable('checkUserStatus')
           .call({'uid': user.uid});
@@ -68,22 +83,26 @@ class _SplashScreenState extends State<SplashScreen> {
 
       if (emailVerified && isOtpVerified) {
         await _requestLocationPermission();
-        if (mounted)
+        if (mounted) {
           Navigator.pushReplacementNamed(context, AppRoutes.postsHomepage);
+        }
       } else {
-        if (mounted)
+        if (mounted) {
           Navigator.pushReplacementNamed(context, AppRoutes.loginScreen);
+        }
       }
     } on FirebaseFunctionsException catch (e) {
       if (e.code == 'unavailable' || e.code == 'deadline-exceeded') {
         _showNoInternetDialog();
       } else {
+        // Function error but user is authenticated — let them through
         await _requestLocationPermission();
-        if (mounted)
+        if (mounted) {
           Navigator.pushReplacementNamed(context, AppRoutes.postsHomepage);
+        }
       }
     } catch (_) {
-      // Network error / socket error
+      // Network error — don't log out, show retry dialog
       _showNoInternetDialog();
     }
   }

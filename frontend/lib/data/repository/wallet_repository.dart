@@ -81,18 +81,13 @@ class WalletRepository {
     }
   }
 
-  /// Get transaction history
-  Future<List<WalletTransaction>> getTransactions({int limit = 20}) async {
-    try {
-      final snapshot = await _txRef
-          .orderBy('createdAt', descending: true)
-          .limit(limit)
-          .get();
-      return snapshot.docs.map(WalletTransaction.fromFirestore).toList();
-    } catch (e) {
-      log('Error fetching transactions: $e');
-      return [];
-    }
+  /// Stream transaction history in real-time
+  Stream<List<WalletTransaction>> transactionsStream({int limit = 50}) {
+    return _txRef
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snap) => snap.docs.map(WalletTransaction.fromFirestore).toList());
   }
 
   /// Initiate a top-up via Paystack — returns {paymentUrl, reference}

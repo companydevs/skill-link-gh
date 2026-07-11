@@ -409,7 +409,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (showDate) _DateDivider(date: tx.createdAt),
-                        _TransactionCard(tx: tx),
+                        _TransactionCard(
+                          tx: tx,
+                          onConfirmTopUp: (ref) => _verifyTopUp(ref),
+                        ),
                       ],
                     );
                   }, childCount: walletState.transactions.length),
@@ -814,7 +817,9 @@ class _DateDivider extends StatelessWidget {
 // ─── Transaction card ────────────────────────────────────────────────────────
 class _TransactionCard extends StatelessWidget {
   final WalletTransaction tx;
-  const _TransactionCard({required this.tx});
+  final Future<void> Function(String reference)? onConfirmTopUp;
+
+  const _TransactionCard({required this.tx, this.onConfirmTopUp});
 
   @override
   Widget build(BuildContext context) {
@@ -918,6 +923,17 @@ class _TransactionCard extends StatelessWidget {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
+              // ── Confirm button for pending top-ups ──────────────────
+              if (tx.type == TransactionType.topUp &&
+                  tx.status == TransactionStatus.pending &&
+                  tx.reference != null &&
+                  onConfirmTopUp != null) ...[
+                const SizedBox(height: 6),
+                _ConfirmTopUpButton(
+                  reference: tx.reference!,
+                  onConfirm: onConfirmTopUp!,
+                ),
+              ],
             ],
           ),
         ],
@@ -926,6 +942,67 @@ class _TransactionCard extends StatelessWidget {
   }
 }
 
+// ─── Confirm top-up button ───────────────────────────────────────────────────
+class _ConfirmTopUpButton extends StatefulWidget {
+  final String reference;
+  final Future<void> Function(String reference) onConfirm;
+
+  const _ConfirmTopUpButton({required this.reference, required this.onConfirm});
+
+  @override
+  State<_ConfirmTopUpButton> createState() => _ConfirmTopUpButtonState();
+}
+
+class _ConfirmTopUpButtonState extends State<_ConfirmTopUpButton> {
+  bool _loading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _loading
+          ? null
+          : () async {
+              setState(() => _loading = true);
+              await widget.onConfirm(widget.reference);
+              if (mounted) setState(() => _loading = false);
+            },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: _kAmber.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _kAmber.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _loading
+                ? const SizedBox(
+                    width: 11,
+                    height: 11,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.8,
+                      color: _kAmber,
+                    ),
+                  )
+                : const Icon(Icons.refresh_rounded, size: 12, color: _kAmber),
+            const SizedBox(width: 4),
+            Text(
+              _loading ? 'Checking...' : 'Confirm payment',
+              style: const TextStyle(
+                color: _kAmber,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Status dot ──────────────────────────────────────────────────────────────
 class _StatusDot extends StatelessWidget {
   final TransactionStatus status;
   const _StatusDot({required this.status});

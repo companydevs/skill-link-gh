@@ -5,7 +5,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:sizer/sizer.dart';
 import 'package:skill_link_gh/widgets/custom_app_toast.dart';
 import 'package:skill_link_gh/widgets/custom_text_form_field.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../provider/verification_provider.dart';
 import '../../widgets/custom_app_bar.dart';
 
 class VerificationScreen extends ConsumerStatefulWidget {
@@ -96,23 +99,34 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
     }
     setState(() => _isLoading = true);
     try {
-      // TODO: wire up verification provider
-      await Future.delayed(const Duration(seconds: 1));
+      final success = await ref
+          .read(verificationNotifierProvider.notifier)
+          .submitVerification(
+            idType: _selectedIdType,
+            idNumber: _idNumberController.text.trim(),
+            idFrontImage: _idFrontImage!,
+            idBackImage: _idBackImage!,
+            businessCertImage: _businessCertImage,
+            skillCertImage: _skillCertImage,
+            businessName: _businessNameController.text.trim(),
+            businessRegNumber: _businessRegNumberController.text.trim(),
+          );
       if (mounted) {
-        AppToast.show(
-          context,
-          message: "Submitted! We'll review within 24–48 hours.",
-          type: ToastType.success,
-        );
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      if (mounted) {
-        AppToast.show(
-          context,
-          message: 'Failed to submit: $e',
-          type: ToastType.error,
-        );
+        if (success) {
+          AppToast.show(
+            context,
+            message: "Submitted! We'll review within 24–48 hours.",
+            type: ToastType.success,
+          );
+          Navigator.pop(context);
+        } else {
+          final error = ref.read(verificationNotifierProvider).error;
+          AppToast.show(
+            context,
+            message: 'Failed to submit: ${error ?? 'Unknown error'}',
+            type: ToastType.error,
+          );
+        }
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -133,6 +147,22 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final verificationState = ref.watch(verificationNotifierProvider);
+
+    // If already submitted, show status screen
+    if (verificationState.isSubmitted && verificationState.status != null) {
+      return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        appBar: CustomAppBar(
+          variant: AppBarVariant.standard,
+          title: 'Verification Status',
+        ),
+        body: _VerificationStatusView(
+          status: verificationState.status!,
+          theme: theme,
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -206,6 +236,98 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
               SizedBox(height: 4.h),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Verification status view ──────────────────────────────────────────────────
+class _VerificationStatusView extends StatelessWidget {
+  final String status;
+  final ThemeData theme;
+  const _VerificationStatusView({required this.status, required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    final isPending = status == 'pending';
+    final isApproved = status == 'approved';
+    final isRejected = status == 'rejected';
+
+    final color = isApproved
+        ? Colors.green
+        : isRejected
+        ? theme.colorScheme.error
+        : Colors.orange;
+
+    final icon = isApproved
+        ? Icons.verified_rounded
+        : isRejected
+        ? Icons.cancel_outlined
+        : Icons.hourglass_top_rounded;
+
+    final title = isApproved
+        ? 'You\'re Verified! ✅'
+        : isRejected
+        ? 'Verification Rejected'
+        : 'Under Review';
+
+    final message = isApproved
+        ? 'Your identity has been verified. You now have a verified badge on your profile.'
+        : isRejected
+        ? 'Your verification was rejected. Please resubmit with clearer documents.'
+        : 'Your documents are being reviewed by our team. This usually takes 24–48 hours.';
+
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 8.w),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 50, color: color),
+            ),
+            SizedBox(height: 3.h),
+            Text(
+              title,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 1.h),
+            Text(
+              message,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (isRejected) ...[
+              SizedBox(height: 3.h),
+              ElevatedButton(
+                onPressed: () {
+                  // Allow resubmission by clearing Firestore doc
+                  FirebaseFirestore.instance
+                      .collection('verifications')
+                      .doc(FirebaseAuth.instance.currentUser?.uid)
+                      .delete();
+                  Navigator.pushReplacementNamed(
+                    context,
+                    '/verification-screen',
+                  );
+                },
+                child: const Text('Resubmit Documents'),
+              ),
+            ],
+          ],
         ),
       ),
     );

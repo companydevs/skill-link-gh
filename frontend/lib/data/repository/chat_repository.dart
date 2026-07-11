@@ -22,17 +22,67 @@ class ChatRepository {
     final convId = conversationId(otherUid);
     final ref = _firestore.collection('conversations').doc(convId);
     final snap = await ref.get();
+
+    // Fetch current user's own name and avatar from Firestore
+    String myName = '';
+    String myAvatar = '';
+    try {
+      final myDoc = await _firestore.collection('users').doc(currentUid).get();
+      if (myDoc.exists) {
+        final d = myDoc.data()!;
+        myName =
+            d['fullName'] as String? ??
+            d['displayName'] as String? ??
+            _auth.currentUser?.displayName ??
+            '';
+        myAvatar =
+            d['profileImage'] as String? ??
+            d['photoUrl'] as String? ??
+            _auth.currentUser?.photoURL ??
+            '';
+      }
+    } catch (_) {}
+
     if (!snap.exists) {
       await ref.set({
         'participants': [currentUid, otherUid],
-        'participantNames': {currentUid: '', otherUid: otherName},
-        'participantAvatars': {currentUid: '', otherUid: otherAvatar},
+        'participantNames': {currentUid: myName, otherUid: otherName},
+        'participantAvatars': {currentUid: myAvatar, otherUid: otherAvatar},
         'lastMessage': '',
         'lastMessageTime': FieldValue.serverTimestamp(),
         'lastSenderId': '',
         'unreadCount': {currentUid: 0, otherUid: 0},
         'createdAt': FieldValue.serverTimestamp(),
       });
+    } else {
+      // Update names/avatars in case they were empty before
+      final existingData = snap.data() as Map<String, dynamic>;
+      final existingNames =
+          existingData['participantNames'] as Map<String, dynamic>? ?? {};
+      final existingAvatars =
+          existingData['participantAvatars'] as Map<String, dynamic>? ?? {};
+
+      final updates = <String, dynamic>{};
+
+      // Fix empty current user name
+      if ((existingNames[currentUid] as String? ?? '').isEmpty &&
+          myName.isNotEmpty) {
+        updates['participantNames.$currentUid'] = myName;
+      }
+      // Fix empty current user avatar
+      if ((existingAvatars[currentUid] as String? ?? '').isEmpty &&
+          myAvatar.isNotEmpty) {
+        updates['participantAvatars.$currentUid'] = myAvatar;
+      }
+      // Fix empty other user name
+      if ((existingNames[otherUid] as String? ?? '').isEmpty &&
+          otherName.isNotEmpty) {
+        updates['participantNames.$otherUid'] = otherName;
+      }
+
+      if (updates.isNotEmpty) {
+        await ref.update(updates);
+      }
     }
   }
 
@@ -95,19 +145,12 @@ class ChatRepository {
 
   /// Stream of all conversations for the current user
   Stream<QuerySnapshot> conversationsStream() {
-    try {
-      return _firestore
-          .collection('conversations')
-          .where('participants', arrayContains: currentUid)
-          .orderBy('lastMessageTime', descending: true)
-          .snapshots();
-    } catch (e) {
-      // If orderBy fails (e.g., missing index), fall back to simple query
-      return _firestore
-          .collection('conversations')
-          .where('participants', arrayContains: currentUid)
-          .snapshots();
-    }
+    // Use simple query without orderBy to avoid index/null issues,
+    // then sort in the UI layer
+    return _firestore
+        .collection('conversations')
+        .where('participants', arrayContains: currentUid)
+        .snapshots();
   }
 
   /// Set typing indicator
