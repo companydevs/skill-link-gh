@@ -374,27 +374,33 @@ sequenceDiagram
 ### Diagram 6 — Recommendation Engine Scoring Pipeline
 
 ```mermaid
-flowchart TD
-    A([Feed Request\nfrom Flutter App]) --> B[Resolve User Location\nfrom request or stored prefs]
-    B --> C[Compute Bounding Box\nfor spatial pre-filter]
-    C --> D[(Query PostgreSQL\nfor candidate posts/reels\nwithin bounding box)]
-    D --> E[Exclude Already-Seen\ncontent from interaction log]
+flowchart LR
+    A([Feed Request]) --> B[Resolve Location]
+    B --> C[Bounding Box\nPre-filter]
+    C --> D[(Query PostgreSQL\ncandidates)]
+    D --> E[Exclude Seen\nContent]
     E --> F{Enough\ncandidates?}
-    F -- No --> G[Pad with recent\nglobal content]
+    F -- No --> G[Pad with\nGlobal Content]
+    F -- Yes --> H[Score Each\nCandidate]
     G --> H
-    F -- Yes --> H[Score each candidate]
 
-    subgraph Scoring["Weighted Scoring — per item"]
-        H --> E1["E — Engagement Score\n(saves×3 + likes×2 +\ncomments×1.5 + views×0.1)\nlog-normalised\nWeight: 30%"]
-        H --> R1["R — Recency Score\ne^(-hoursOld / 48)\nWeight: 20%"]
-        H --> L1["L — Location Score\nmax(0.05, 1 - dist/50km)\nHaversine formula\nWeight: 25%"]
-        H --> P1["P — Preference Score\nTF-IDF category affinity\nfrom user_preferences\nWeight: 25%"]
-        E1 & R1 & L1 & P1 --> TOTAL["Final Score =\n0.30×E + 0.20×R +\n0.25×L + 0.25×P"]
+    subgraph Scoring["Weighted Scoring per item"]
+        direction TB
+        E1["E Engagement\nsaves x3 likes x2\ncomments x1.5\nWeight 30%"]
+        R1["R Recency\nexp(-hoursOld/48)\nWeight 20%"]
+        L1["L Location\nHaversine 50km\nWeight 25%"]
+        P1["P Preference\nTF-IDF affinity\nWeight 25%"]
+        TOTAL["Final Score\n0.30E + 0.20R\n+ 0.25L + 0.25P"]
+        E1 --> TOTAL
+        R1 --> TOTAL
+        L1 --> TOTAL
+        P1 --> TOTAL
     end
 
-    TOTAL --> SORT[Sort descending\nby Final Score]
-    SORT --> PAGE[Apply cursor-based\npagination]
-    PAGE --> RETURN([Return ranked list\nto Flutter App])
+    H --> Scoring
+    TOTAL --> SORT[Sort by Score]
+    SORT --> PAGE[Paginate]
+    PAGE --> RETURN([Return to App])
 ```
 
 
@@ -440,24 +446,17 @@ flowchart LR
 ### Diagram 8 — Verification Workflow State Machine
 
 ```mermaid
-stateDiagram-v2
-    [*] --> Unverified : Artisan registers
-
-    Unverified --> DocumentsUploaded : Artisan submits\nID + certificates\non Verification Screen
-
-    DocumentsUploaded --> PendingReview : Firestore doc created\nstatus = pending
-
-    PendingReview --> UnderReview : Admin opens\nReview modal
-
-    UnderReview --> Approved : Admin clicks Approve\nisVerified = true\nverificationStatus = approved
-
-    UnderReview --> Rejected : Admin clicks Reject\nverificationStatus = rejected\nadminNote written
-
-    Rejected --> DocumentsUploaded : Artisan resubmits\ndocuments
-
-    Approved --> VerifiedBadge : Firestore listener\nupdates mobile app\nin real time
-
-    VerifiedBadge --> [*]
+flowchart LR
+    A([Artisan\nRegisters]) --> B[Unverified]
+    B --> C[Submits ID\nand Certificates]
+    C --> D[Firestore doc\nstatus = pending]
+    D --> E[Admin Opens\nReview Modal]
+    E --> F{Admin\nDecision}
+    F -- Approve --> G[isVerified = true\nstatus = approved]
+    F -- Reject --> H[status = rejected\nadminNote written]
+    H --> C
+    G --> I[Firestore listener\nupdates mobile app]
+    I --> J([Verified Badge\nDisplayed])
 ```
 
 ---
@@ -465,27 +464,23 @@ stateDiagram-v2
 ### Diagram 9 — Escrow Payment Flow
 
 ```mermaid
-flowchart TD
-    A([Client confirms booking]) --> B{Payment method?}
-    B -- Wallet --> C[Deduct from\nclient wallet balance]
-    B -- Paystack --> D[Open Paystack\nhosted payment page]
-    D --> E[Client pays via\nCard / Mobile Money]
-    E --> F[Paystack webhook\ncallback]
+flowchart LR
+    A([Client Confirms\nBooking]) --> B{Payment\nMethod?}
+    B -- Wallet --> C[Deduct from\nWallet Balance]
+    B -- Paystack --> D[Paystack\nHosted Page]
+    D --> E[Card or\nMobile Money]
+    E --> F[Webhook\nCallback]
     F --> G[verifyPayment\nCloud Function]
-    C --> H
-    G --> H[Write booking:\nstatus = confirmed\npaymentStatus = success]
-    H --> I[Funds held in\nescrow — Firestore ledger]
-    I --> J{Job completed?}
-    J -- QR Verified --> K[Artisan scans\nclient QR code]
-    K --> L[releasePayment\nCloud Function]
-    L --> M[Credit artisan wallet\nonHoldBalance → balance]
-    L --> N[booking:\npaymentReleased = true\nstatus = completed]
-    J -- Booking expires\nunaccepted --> O[Auto-refund\nCloud Function trigger]
-    O --> P[Refund client wallet\nstatus = cancelled]
-    J -- Dispute raised --> Q[Admin reviews\nin admin panel]
-    Q --> R{Admin decision}
-    R -- Release --> L
-    R -- Refund --> P
+    C --> H[Booking Confirmed\nFunds in Escrow]
+    G --> H
+    H --> I{Job\nCompleted?}
+    I -- QR Verified --> J[Artisan Scans\nClient QR]
+    J --> K[releasePayment\nCloud Function]
+    K --> L([Artisan Wallet\nCredited])
+    I -- Expired --> M[Auto-Refund\nto Client]
+    I -- Dispute --> N[Admin Reviews]
+    N -- Release --> K
+    N -- Refund --> M
 ```
 
 
@@ -494,31 +489,29 @@ flowchart TD
 ### Diagram 10 — Authentication & Onboarding Flow
 
 ```mermaid
-flowchart TD
-    A([App Launch]) --> B[Splash Screen]
-    B --> C{Firebase Auth\nstate?}
-    C -- Not logged in --> D[Onboarding Screen]
-    D --> E{Sign-up or Login?}
-    E -- Sign Up --> F[User Type Selection\nArtisan or Client]
-    F --> G[Registration Screen\nEmail / Password\nor Google OAuth]
-    G --> H{Google Sign-In?}
-    H -- Yes --> I[Google Auth Flow\ncheck existing account]
-    H -- No --> J[registerUser\nCloud Function]
-    I --> K[Write Firestore\nuser doc with role]
-    J --> L[Send OTP\nverification email]
-    L --> M[OTP Verification\nScreen]
-    M --> N{Email verified?}
-    N -- No --> M
+flowchart LR
+    A([App Launch]) --> B{Auth State?}
+    B -- Logged In --> O[Main Feed]
+    B -- Not Logged In --> C{Sign Up\nor Login?}
+
+    C -- Sign Up --> D[Select Role\nArtisan or Client]
+    D --> E{Google\nor Email?}
+    E -- Google --> F[Google OAuth\nCheck Existing Account]
+    E -- Email --> G[registerUser\nCloud Function]
+    F --> H[Write Firestore\nUser Doc with Role]
+    G --> I[Send OTP\nVerification Email]
+    I --> J{Email\nVerified?}
+    J -- No --> I
+    J -- Yes --> O
+    H --> O
+
+    C -- Login --> K{Auth\nMethod?}
+    K -- Email --> L[signInWithEmail\nPassword]
+    K -- Google --> M[Google Sign-In\nwith Account Merge]
+    L --> N{Email\nVerified?}
+    M --> N
+    N -- No --> I
     N -- Yes --> O
-    K --> O[Posts Homepage\nMain Feed]
-    E -- Login --> P[Login Screen]
-    P --> Q{Auth method?}
-    Q -- Email/Password --> R[FirebaseAuth\nsignInWithEmailAndPassword]
-    Q -- Google --> S[Google Sign-In\nwith account merge]
-    R & S --> T{Email\nverified?}
-    T -- No --> M
-    T -- Yes --> O
-    C -- Logged in and verified --> O
 ```
 
 ---
