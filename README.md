@@ -887,3 +887,175 @@ npm run dev
 ## License
 
 MIT
+
+---
+
+### Diagram 21 — Project Root Structure
+
+```mermaid
+graph TD
+    ROOT["📁 skill_link_gh\nProject Root"]
+
+    ROOT --> FRONTEND["📁 frontend\nFlutter Mobile App"]
+    ROOT --> BACKEND["📁 backend\nSpring Boot Recommendation Engine"]
+    ROOT --> ADMIN["📁 admin_panel\nReact Admin Dashboard"]
+    ROOT --> ENV[".env\nEnvironment Variables"]
+    ROOT --> README["📄 README.md\nDocumentation & Diagrams"]
+    ROOT --> GITIGNORE[".gitignore"]
+
+    subgraph FrontendFiles["frontend/"]
+        FRONTEND --> FLIB["📁 lib/"]
+        FRONTEND --> FANDROID["📁 android/"]
+        FRONTEND --> FIOS["📁 ios/"]
+        FRONTEND --> FPUBSPEC["📄 pubspec.yaml\nDependencies"]
+        FRONTEND --> FFIREBASE["📄 firebase.json\nFirebase Config"]
+        FRONTEND --> FRULES["📄 firestore.rules\nSecurity Rules"]
+
+        FLIB --> FMAIN["📄 main.dart\nApp Entry Point"]
+        FLIB --> FPRES["📁 presentation/\n22 Screens"]
+        FLIB --> FDATA["📁 data/\nRepositories"]
+        FLIB --> FDOMAIN["📁 domain/\nModels & Use Cases"]
+        FLIB --> FPROV["📁 provider/\nRiverpod Providers"]
+        FLIB --> FNOTIF["📁 notifier/\nState Notifiers"]
+        FLIB --> FSERV["📁 services/\nFCM, Presence, Fare"]
+        FLIB --> FROUTES["📁 routes/\napp_routes.dart"]
+        FLIB --> FWIDGETS["📁 widgets/\nShared UI Components"]
+    end
+
+    subgraph BackendFiles["backend/"]
+        BACKEND --> BSRC["📁 src/main/java/\ncom.skilllinkgh.backend"]
+        BACKEND --> BRES["📁 src/main/resources/\napplication.yml"]
+        BACKEND --> BPOM["📄 pom.xml\nMaven Build Config"]
+
+        BSRC --> BCTRL["📁 controller/\nFeed, Interaction,\nSync, Admin"]
+        BSRC --> BSERV["📁 service/\nRecommendation,\nFeed, Preferences,\nAnalytics, Sync, Seed"]
+        BSRC --> BMODEL["📁 model/\nPost, Reel,\nUserInteraction,\nUserPreference"]
+        BSRC --> BREPO["📁 repository/\nJPA Repositories"]
+        BSRC --> BCONF["📁 config/\nFirebase, Security,\nSwagger"]
+        BSRC --> BDTO["📁 dto/\nRequest & Response DTOs"]
+    end
+
+    subgraph AdminFiles["admin_panel/"]
+        ADMIN --> ASRC["📁 src/"]
+        ADMIN --> APKG["📄 package.json\nNode Dependencies"]
+        ADMIN --> AVITE["📄 vite.config.ts\nVite Build Config"]
+
+        ASRC --> APAGES["📁 pages/\nDashboard, Jobs,\nArtisans, Customers,\nVerifications, Reports,\nEscrow, Payouts,\nDisputes, Analytics"]
+        ASRC --> ACOMP["📁 components/\nAppSidebar,\nDashboardLayout,\nJobsTable, KPICard"]
+        ASRC --> AHOOKS["📁 hooks/\nuseFirestoreData,\nuseAnalytics,\nuseReports"]
+        ASRC --> ALIB["📁 lib/\nfirebase.ts,\nmockData.ts"]
+        ASRC --> ACTX["📁 contexts/\nAuthContext.tsx"]
+    end
+```
+
+
+---
+
+### Diagram 22 — SkillLink GH Tech Stack Overview (Bar Chart)
+
+```mermaid
+xychart-beta horizontal
+    title "SkillLink GH — Technology Stack by Component Count"
+    x-axis ["Mobile Framework", "State Management", "Backend Framework", "Database Layer", "Auth & Realtime", "Payment Integration", "Admin UI Libraries", "Dev & Build Tools", "Testing Frameworks", "Deployment & CI"]
+    y-axis "Tool Count" 0 --> 6
+    bar [2, 2, 3, 2, 5, 1, 4, 4, 2, 3]
+```
+
+---
+
+### Diagram 23 — Detailed Tech Stack Breakdown (Per Layer)
+
+```mermaid
+graph LR
+    subgraph Mobile["📱 Mobile Layer\nFlutter / Dart"]
+        M1["Flutter 3.10+\nCross-platform UI"]
+        M2["Riverpod 3.0\nState Management"]
+        M3["Dio 5.4\nHTTP Client"]
+        M4["Firebase SDK\nAuth, Firestore,\nStorage, FCM"]
+        M5["Google Maps\nLocation & Tracking"]
+        M6["Paystack Plus\nPayment Gateway"]
+        M7["Video Compress\nReel Optimization"]
+        M8["App Links\nDeep Link Handler"]
+    end
+
+    subgraph BackendLayer["⚙️ Backend Layer\nSpring Boot / Java 17"]
+        B1["Spring Boot 3.2.5\nREST API Framework"]
+        B2["Spring Security\nFirebase Token Filter"]
+        B3["JPA / Hibernate\nORM & Schema Mgmt"]
+        B4["PostgreSQL 14\nScoring Database"]
+        B5["Firebase Admin SDK\nToken Verification"]
+        B6["SpringDoc / Swagger\nAPI Documentation"]
+        B7["Maven 3.8\nBuild Tool"]
+        B8["Lombok\nBoilerplate Reduction"]
+    end
+
+    subgraph AdminLayer["🖥️ Admin Layer\nReact / TypeScript"]
+        A1["React 18.3\nUI Framework"]
+        A2["TypeScript 5.8\nType Safety"]
+        A3["Vite 5\nBuild Tool"]
+        A4["Tailwind CSS\nUtility Styling"]
+        A5["shadcn/ui\nComponent Library"]
+        A6["TanStack Query\nData Fetching"]
+        A7["Recharts\nAnalytics Charts"]
+        A8["Framer Motion\nAnimations"]
+    end
+
+    subgraph FirebaseLayer["🔥 Firebase Platform"]
+        F1["Firebase Auth\nIdentity & JWT"]
+        F2["Firestore\nReal-time NoSQL DB"]
+        F3["Firebase Storage\nVideos & Images"]
+        F4["Cloud Functions\nServerless Business Logic"]
+        F5["Firebase Messaging\nPush Notifications"]
+        F6["Firebase App Check\nPlay Integrity / DeviceCheck"]
+    end
+
+    Mobile -->|Bearer Token\nREST API| BackendLayer
+    Mobile -->|Firebase SDK| FirebaseLayer
+    AdminLayer -->|Firebase JS SDK| FirebaseLayer
+    AdminLayer -->|HTTP REST| BackendLayer
+    FirebaseLayer -->|Cloud Function\nSync Trigger| BackendLayer
+```
+
+---
+
+### Diagram 24 — Deployment Architecture
+
+```mermaid
+graph TB
+    subgraph Devices["User Devices"]
+        AND["📱 Android Device\nFlutter App APK"]
+        IOS["📱 iOS Device\nFlutter App IPA"]
+        BROWSER["🖥️ Browser\nAdmin Panel\nlocalhost:5173 / hosted"]
+    end
+
+    subgraph CloudFirebase["☁️ Firebase Cloud"]
+        FAUTH2["Firebase Auth\nIdentity Provider"]
+        FSTORE["Firestore\nReal-time Database"]
+        FSTORAGE["Firebase Storage\nMedia Files"]
+        FFCM2["FCM\nPush Notifications"]
+        FCF["Cloud Functions\nNode.js 18 Runtime"]
+        FAPPCHK["App Check\nFraud Prevention"]
+    end
+
+    subgraph BackendDeploy["⚙️ Backend Server\nLocal / Cloud VM"]
+        SPRING["Spring Boot JAR\njava -jar skilllink.jar\nPort 8080"]
+        PG2["PostgreSQL 14\nPort 5432"]
+        SPRING --> PG2
+    end
+
+    subgraph Paystack["💳 Paystack"]
+        PSAPI["Paystack API\nPayments & Verification"]
+        PSWH["Webhook Callbacks\nTransaction Results"]
+    end
+
+    AND & IOS -->|HTTPS REST| SPRING
+    AND & IOS -->|Firebase SDK| CloudFirebase
+    BROWSER -->|Firebase SDK| FSTORE
+    BROWSER -->|HTTP GET| SPRING
+    FCF -->|HTTPS POST\n/api/sync/**| SPRING
+    FCF -->|Read/Write| FSTORE
+    AND & IOS -->|HTTPS| PSAPI
+    PSAPI --> PSWH --> FCF
+    FAPPCHK -->|Validates| AND & IOS
+```
+
