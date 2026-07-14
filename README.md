@@ -518,7 +518,7 @@ flowchart TD
     R & S --> T{Email\nverified?}
     T -- No --> M
     T -- Yes --> O
-    C -- Logged in & verified --> O
+    C -- Logged in and verified --> O
 ```
 
 ---
@@ -567,7 +567,6 @@ erDiagram
         timestamp created_at
         boolean active
     }
-
     REELS {
         string firestore_id PK
         string artisan_id
@@ -584,7 +583,6 @@ erDiagram
         timestamp created_at
         boolean active
     }
-
     USER_INTERACTIONS {
         long id PK
         string user_id
@@ -597,7 +595,6 @@ erDiagram
         double content_lng
         timestamp created_at
     }
-
     USER_PREFERENCES {
         string user_id PK
         double last_lat
@@ -611,7 +608,6 @@ erDiagram
         int total_views
         timestamp updated_at
     }
-
     POSTS ||--o{ USER_INTERACTIONS : "tracked by"
     REELS ||--o{ USER_INTERACTIONS : "tracked by"
     USER_PREFERENCES ||--o{ USER_INTERACTIONS : "updated by"
