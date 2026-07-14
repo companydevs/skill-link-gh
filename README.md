@@ -64,14 +64,14 @@ mindmap
 
 ```mermaid
 flowchart TD
-    A["🔍 Database Search\nScopus & Web of Science\nn = 81"] --> B["📋 Records Identified\nn = 81"]
+    A["Database Search\nScopus and Web of Science\nn = 81"] --> B["Records Identified\nn = 81"]
     B --> C{"Screening"}
     C --> D["Records Screened\nn = 81"]
     D --> E["Records Excluded\nduplicates, off-topic\nn = 45"]
     D --> F["Full-text Assessed\nfor Eligibility\nn = 36"]
     F --> G["Full-text Excluded\ncriteria not met\nn = 18"]
-    F --> H["✅ Eligible Articles\nn = 18"]
-    H --> I["📚 Articles Included in Review\nn = 18\n(2019 – 2023)"]
+    F --> H["Eligible Articles\nn = 18"]
+    H --> I["Articles Included in Review\nn = 18\n2019 to 2023"]
 
     style A fill:#4A90D9,color:#fff
     style I fill:#27AE60,color:#fff
@@ -86,9 +86,9 @@ flowchart TD
 > *Integrative review of 127 scholarly articles (2018–2024) across Web of Science, Scopus, ACM Digital Library, and IEEE Xplore. Source: Leblanc & Roux [14]*
 
 ```mermaid
-pie title Research Focus Distribution — AI & Social Media Literature (n=127)
+pie title Research Focus Distribution AI and Social Media Literature n=127
     "Content Moderation" : 24
-    "Recommendation & Personalisation" : 31
+    "Recommendation and Personalisation" : 31
     "User Behaviour Analysis" : 22
     "Synthetic Media Generation" : 18
     "Societal Implications" : 32
@@ -104,10 +104,10 @@ pie title Research Focus Distribution — AI & Social Media Literature (n=127)
 pie title Geographic Context of Reviewed Studies
     "North America" : 42
     "Western Europe" : 31
-    "Asia (developed)" : 18
+    "Asia developed" : 18
     "Southeast Asia" : 9
-    "Global South / Africa" : 5
-    "Mixed / Cross-regional" : 22
+    "Global South and Africa" : 5
+    "Mixed Cross-regional" : 22
 ```
 
 ---
@@ -160,21 +160,21 @@ graph LR
 
 ```mermaid
 graph TB
-    subgraph Mobile["📱 Flutter Mobile App"]
-        UI[Presentation Layer\nScreens & Widgets]
-        NTF[Notifiers & Providers\nRiverpod]
+    subgraph Mobile["Flutter Mobile App"]
+        UI[Presentation Layer\nScreens and Widgets]
+        NTF[Notifiers and Providers\nRiverpod]
         REPO[Repository Layer\nData Access]
     end
 
-    subgraph Firebase["🔥 Firebase Platform"]
+    subgraph Firebase["Firebase Platform"]
         AUTH[Firebase Auth]
         FS[Firestore\nReal-time DB]
-        STOR[Firebase Storage\nVideos & Images]
+        STOR[Firebase Storage\nVideos and Images]
         FCM[Firebase Cloud\nMessaging]
         CF[Cloud Functions]
     end
 
-    subgraph Backend["⚙️ Spring Boot Backend"]
+    subgraph Backend["Spring Boot Backend"]
         SEC[Security Filter\nFirebase Token]
         FEED[Feed Controller]
         REC[Recommendation\nEngine]
@@ -182,7 +182,7 @@ graph TB
         PG[(PostgreSQL)]
     end
 
-    subgraph Admin["🖥️ React Admin Panel"]
+    subgraph Admin["React Admin Panel"]
         DASH[Dashboard\nKPI Cards]
         VER[Verifications]
         ESC[Escrow Manager]
@@ -214,23 +214,23 @@ graph TB
 
 ```mermaid
 graph LR
-    ARTISAN([👷 Artisan User])
-    CLIENT([👤 Client User])
-    ADMIN([🛡️ Admin Operator])
-    PAY([💳 Paystack])
+    ARTISAN([Artisan User])
+    CLIENT([Client User])
+    ADMIN([Admin Operator])
+    PAY([Paystack])
 
-    SYS[["⚙️ SkillLink GH\nPlatform"]]
+    SYS["SkillLink GH Platform"]
 
-    ARTISAN -->|Profile, Posts, Reels,\nAvailability| SYS
-    SYS -->|Booking Requests,\nPayment Confirmations,\nMessages| ARTISAN
+    ARTISAN -->|Profile, Posts, Reels, Availability| SYS
+    SYS -->|Booking Requests, Payment Confirmations, Messages| ARTISAN
 
-    CLIENT -->|Search Queries,\nBooking Requests,\nPayments, Ratings| SYS
-    SYS -->|Ranked Feed,\nArtisan Profiles,\nJob Status| CLIENT
+    CLIENT -->|Search Queries, Booking Requests, Payments, Ratings| SYS
+    SYS -->|Ranked Feed, Artisan Profiles, Job Status| CLIENT
 
-    ADMIN -->|Verification Decisions,\nDispute Resolutions,\nContent Actions| SYS
-    SYS -->|Dashboard Data,\nAnalytics, Reports| ADMIN
+    ADMIN -->|Verification Decisions, Dispute Resolutions, Content Actions| SYS
+    SYS -->|Dashboard Data, Analytics, Reports| ADMIN
 
-    PAY -->|Payment Callbacks,\nTransaction Results| SYS
+    PAY -->|Payment Callbacks, Transaction Results| SYS
     SYS -->|Payment Init Requests| PAY
 ```
 
@@ -704,16 +704,16 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    subgraph Mobile["Flutter App — Event Sources"]
+    subgraph Mobile["Flutter App - Event Sources"]
         EV1[User Views Reel\nwatchSeconds tracked]
         EV2[User Likes Post]
         EV3[User Saves Post]
-        EV4[User Skips Reel\n< 2 seconds]
+        EV4[User Skips Reel\nless than 2 seconds]
         EV5[User Books Artisan]
         EV6[User Reports Post]
     end
 
-    subgraph API["Spring Boot — Interaction API"]
+    subgraph API["Spring Boot - Interaction API"]
         EP[POST /api/interactions\nFirebase token verified]
         SAVE[Save to\nuser_interactions table]
         UPS[UserPreferenceService\nprocessInteraction]
@@ -732,13 +732,18 @@ flowchart LR
         TOPCATS[Top Categories\nPie Chart]
         TOPPOSTS[Top Posts Table\nlikes, views, comments]
         TOPREELS[Top Reels Table\nwatch time, shares]
-        KPIS[KPI Cards\nTotal interactions\nUsers with profiles\nAvg interactions/user\nIndexed content count]
+        KPIS[KPI Cards\nTotal interactions\nUsers with profiles\nAvg per user\nIndexed content count]
     end
 
-    EV1 & EV2 & EV3 & EV4 & EV5 & EV6 -->|fire-and-forget\nasync HTTP| EP
+    EV1 --> EP
+    EV2 --> EP
+    EV3 --> EP
+    EV4 --> EP
+    EV5 --> EP
+    EV6 --> EP
     EP --> SAVE
     EP --> UPS --> DELTA --> MERGE --> NORM --> WRITE
-    WRITE -->|feeds next\nfeed request| API
+    WRITE -->|feeds next feed request| API
 
     SAVE --> ANA
     WRITE --> ANA
