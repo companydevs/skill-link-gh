@@ -30,6 +30,129 @@ skill_link_gh/
 
 ---
 
+## Literature Review — Bibliometric Analysis
+
+### Figure 1.1 — Thematic Summary: Influence of Digital Platforms on Gig Workers
+
+> *Based on systematic review of 18 peer-reviewed articles (2019–2023) using PRISMA framework and thematic analysis. Source: Alauddin et al. [13]*
+
+```mermaid
+mindmap
+  root((Digital Platforms
+  & Gig Workers))
+    Opportunities
+      Low Barriers to Entry
+      Task Allocation
+      Transaction Facilitation
+      Flexible Work Arrangements
+      New Income Opportunities
+      Market Access Expansion
+    Challenges
+      Lack of Social Protection
+      Algorithmic Control
+      Downward Wage Pressure
+      Intense Competition
+      Power Asymmetry
+      Employment Status Ambiguity
+```
+
+---
+
+### Figure 1.2 — PRISMA Flow Diagram: Article Selection Process
+
+> *Systematic literature review on digital platform influence on gig economy workers. Source: Alauddin et al. [13]*
+
+```mermaid
+flowchart TD
+    A["🔍 Database Search\nScopus & Web of Science\nn = 81"] --> B["📋 Records Identified\nn = 81"]
+    B --> C{"Screening"}
+    C --> D["Records Screened\nn = 81"]
+    D --> E["Records Excluded\nduplicates, off-topic\nn = 45"]
+    D --> F["Full-text Assessed\nfor Eligibility\nn = 36"]
+    F --> G["Full-text Excluded\ncriteria not met\nn = 18"]
+    F --> H["✅ Eligible Articles\nn = 18"]
+    H --> I["📚 Articles Included in Review\nn = 18\n(2019 – 2023)"]
+
+    style A fill:#4A90D9,color:#fff
+    style I fill:#27AE60,color:#fff
+    style E fill:#E74C3C,color:#fff
+    style G fill:#E74C3C,color:#fff
+```
+
+---
+
+### Figure 1.3 — Bibliometric Analysis: Research Coverage of AI & Social Media Platforms
+
+> *Integrative review of 127 scholarly articles (2018–2024) across Web of Science, Scopus, ACM Digital Library, and IEEE Xplore. Source: Leblanc & Roux [14]*
+
+```mermaid
+pie title Research Focus Distribution — AI & Social Media Literature (n=127)
+    "Content Moderation" : 24
+    "Recommendation & Personalisation" : 31
+    "User Behaviour Analysis" : 22
+    "Synthetic Media Generation" : 18
+    "Societal Implications" : 32
+```
+
+---
+
+### Figure 1.4 — Geographic Distribution of Reviewed Studies
+
+> *Highlights the gap in Global South / African context research, motivating the SkillLink GH design choices.*
+
+```mermaid
+pie title Geographic Context of Reviewed Studies
+    "North America" : 42
+    "Western Europe" : 31
+    "Asia (developed)" : 18
+    "Southeast Asia" : 9
+    "Global South / Africa" : 5
+    "Mixed / Cross-regional" : 22
+```
+
+---
+
+### Figure 1.5 — Research Gap Map: Where SkillLink GH Sits
+
+> *Positioning of key research areas by literature coverage vs relevance to SkillLink GH. Areas in the bottom-right quadrant (high relevance, low coverage) represent the gap this project addresses.*
+
+| Research Area | Coverage in Literature | Relevance to SkillLink GH | Quadrant |
+|---|---|---|---|
+| Western gig platforms (Uber, Fiverr) | High | Medium | Well-covered, less relevant |
+| AI recommendation systems | High | High | Well-covered, highly relevant |
+| Social media trust frameworks | High | Medium-High | Well-covered, relevant |
+| Mobile payments in Africa | Medium | High | Moderately covered, highly relevant |
+| Informal economy digitalisation | Low | Very High | **Gap area** |
+| Artisan platforms in Sub-Saharan Africa | Very Low | Very High | **Core gap — SkillLink GH** |
+| Platform governance in Global South | Very Low | High | **Gap area** |
+
+```mermaid
+graph LR
+    subgraph HighCov["High Coverage in Literature"]
+        WGP[Western Gig Platforms\nUber - Fiverr - TaskRabbit]
+        ARS[AI Recommendation\nSystems]
+        STF[Social Media\nTrust Frameworks]
+    end
+
+    subgraph LowCov["Low Coverage - Research Gap"]
+        MPA[Mobile Payments\nin Africa]
+        IED[Informal Economy\nDigitalisation]
+        APG[Artisan Platforms\nSub-Saharan Africa]
+        PGS[Platform Governance\nGlobal South]
+    end
+
+    subgraph SLGH["SkillLink GH fills this gap"]
+        PROJ[SkillLink GH\nFirst integrated artisan\nmarketplace for Ghana]
+    end
+
+    APG --> PROJ
+    IED --> PROJ
+    PGS --> PROJ
+    MPA --> PROJ
+```
+
+---
+
 ## System Architecture Diagrams
 
 
@@ -502,39 +625,39 @@ erDiagram
 ```mermaid
 graph TD
     subgraph Firestore["Firestore Collections"]
-        USERS["users/{uid}\n─────────────\nfullName, email, role\nprofileImage, isVerified\nverificationStatus\nfcmToken, isOnline\nlastSeen, latitude, longitude"]
+        USERS["users/uid\nfullName · email · role\nprofileImage · isVerified\nverificationStatus\nfcmToken · isOnline\nlastSeen · latitude · longitude"]
 
-        BOOKINGS["bookings/{bookingId}\n─────────────\nclientId, artisanId\nserviceTitle, status\npaymentStatus, totalAmount\nserviceFee, scheduledDate\nbookingReference\npaymentReleased\nclientLocation{lat,lng,address}"]
+        BOOKINGS["bookings/bookingId\nclientId · artisanId\nserviceTitle · status\npaymentStatus · totalAmount\nserviceFee · scheduledDate\nbookingReference\npaymentReleased · clientLocation"]
 
-        CONVERSATIONS["conversations/{convId}\n─────────────\nparticipants[]\nparticipantNames{}\nlastMessage, lastMessageTime\nunreadCount{uid: count}\ntyping{uid: bool}"]
+        CONVERSATIONS["conversations/convId\nparticipants array\nparticipantNames map\nlastMessage · lastMessageTime\nunreadCount map · typing map"]
 
-        MESSAGES["conversations/{id}/messages/{msgId}\n─────────────\nsenderId, content, type\ntimestamp, status"]
+        MESSAGES["conversations/id/messages/msgId\nsenderId · content · type\ntimestamp · status"]
 
-        POSTS["posts/{postId}\n─────────────\nartisanId, artisanName\nserviceCategory, description\npricing, likes, comments\ncreatedAt"]
+        POSTS["posts/postId\nartisanId · artisanName\nserviceCategory · description\npricing · likes · comments\ncreatedAt"]
 
-        REELS["reels/{reelId}\n─────────────\nartisanId, videoUrl\nartisanCategory, description\nlikes, comments, shares\ncreatedAt"]
+        REELS["reels/reelId\nartisanId · videoUrl\nartisanCategory · description\nlikes · comments · shares\ncreatedAt"]
 
-        VERIF["verifications/{uid}\n─────────────\nidType, idNumber\nidFrontUrl, idBackUrl\nbusinessCertUrl, skillCertUrl\nstatus, adminNote\nsubmittedAt, reviewedAt"]
+        VERIF["verifications/uid\nidType · idNumber\nidFrontUrl · idBackUrl\nbusinessCertUrl · skillCertUrl\nstatus · adminNote\nsubmittedAt · reviewedAt"]
 
-        WALLETS["wallets/{uid}\n─────────────\nbalance, onHoldBalance\nupdatedAt"]
+        WALLETS["wallets/uid\nbalance · onHoldBalance\nupdatedAt"]
 
-        TRANSACTIONS["wallets/{uid}/transactions/{id}\n─────────────\ntype, status, amount\ndescription, reference\ncreatedAt"]
+        TRANSACTIONS["wallets/uid/transactions/id\ntype · status · amount\ndescription · reference\ncreatedAt"]
 
-        NOTIFICATIONS["notifications/{id}\n─────────────\nuserId, title, message\ntype, isRead, data{}\ncreatedAt"]
+        NOTIFICATIONS["notifications/id\nuserId · title · message\ntype · isRead · data\ncreatedAt"]
 
-        REPORTS["reports/{id}\n─────────────\npostId, reportedBy\nreason, status, createdAt"]
+        REPORTS["reports/id\npostId · reportedBy\nreason · status · createdAt"]
 
-        ADMINS["admins/{email}\n─────────────\nrole, createdAt"]
+        ADMINS["admins/email\nrole · createdAt"]
     end
 
-    USERS -->|has| WALLETS
+    USERS -->|has wallet| WALLETS
     WALLETS -->|subcollection| TRANSACTIONS
     USERS -->|submits| VERIF
     BOOKINGS -->|references| USERS
     CONVERSATIONS -->|subcollection| MESSAGES
-    POSTS -->|subcollection\nlikes/{uid}| POSTS
-    REELS -->|subcollection\nlikes/{uid}| REELS
-    POSTS -->|subcollection\ncomments/{id}| POSTS
+    POSTS -->|subcollection likes| POSTS
+    REELS -->|subcollection likes| REELS
+    POSTS -->|subcollection comments| POSTS
 ```
 
 ---
@@ -644,11 +767,11 @@ graph TB
         S9[VerificationScreen]
     end
 
-    subgraph StateLayer["State Management — Riverpod"]
-        N1[ReelsNotifier\nlike debounce\nwatch-time tracking]
-        N2[BookingNotifier\ncreate / track / cancel]
-        N3[WalletNotifier\nreal-time balance stream]
-        N4[ProfileNotifier\nload / update]
+    subgraph StateLayer["State Management - Riverpod"]
+        N1[ReelsNotifier]
+        N2[BookingNotifier]
+        N3[WalletNotifier]
+        N4[ProfileNotifier]
         N5[CommentsNotifier]
     end
 
@@ -661,15 +784,15 @@ graph TB
         M6[UserModel]
     end
 
-    subgraph Data["Data Layer — Repositories"]
-        R1[BookingRepository\nCloud Functions calls]
-        R2[PostRepository\nFirestore + Backend]
-        R3[ReelsRepository\nFirestore + Backend]
-        R4[WalletRepository\nFirestore streams]
-        R5[ChatRepository\nFirestore real-time]
-        R6[AuthRepository\nFirebase Auth + Google]
-        R7[ArtisanRepository\nFirestore queries]
-        R8[VerificationRepository\nStorage + Firestore]
+    subgraph Data["Data Layer - Repositories"]
+        R1[BookingRepository]
+        R2[PostRepository]
+        R3[ReelsRepository]
+        R4[WalletRepository]
+        R5[ChatRepository]
+        R6[AuthRepository]
+        R7[ArtisanRepository]
+        R8[VerificationRepository]
     end
 
     Presentation --> StateLayer
@@ -727,35 +850,35 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    subgraph Client["Flutter App / Admin Panel"]
-        TOKEN[Firebase ID Token\nJWT — expires 1 hour]
-        APPCHK[Firebase App Check\nPlay Integrity / DeviceCheck]
+    subgraph Client["Flutter App and Admin Panel"]
+        TOKEN[Firebase ID Token\nJWT expires 1 hour]
+        APPCHK[Firebase App Check\nPlay Integrity and DeviceCheck]
     end
 
-    subgraph Backend["Spring Boot Security Chain"]
+    subgraph SpringSec["Spring Boot Security Chain"]
         FILTER[FirebaseTokenFilter\nOncePerRequestFilter]
-        VERIFY[FirebaseAuth.verifyIdToken\nFire Admin SDK]
-        CLAIMS[Extract UID + role\nclaims from token]
+        VERIFY[FirebaseAuth.verifyIdToken\nFirebase Admin SDK]
+        CLAIMS[Extract UID and role\nfrom token claims]
         SECCTX[Populate Spring\nSecurityContext]
         ROLES{Role-based\naccess control}
     end
 
-    subgraph Firestore["Firestore Security Rules"]
+    subgraph FSRules["Firestore Security Rules"]
         FR1[Only authenticated\nusers write bookings]
-        FR2[Only booking parties\nread/update booking]
-        FR3[Only artisans\ncreate posts & reels]
+        FR2[Only booking parties\nread and update booking]
+        FR3[Only artisans\ncreate posts and reels]
         FR4[Only conversation\nparticipants read messages]
-        FR5[Users read/write\nown wallet only]
+        FR5[Users read and write\nown wallet only]
     end
 
     TOKEN -->|Authorization: Bearer| FILTER
-    APPCHK -->|App Check token\nheader| FILTER
+    APPCHK -->|App Check token header| FILTER
     FILTER --> VERIFY
     VERIFY -- Valid --> CLAIMS --> SECCTX --> ROLES
-    VERIFY -- Invalid / Expired --> REJECT[HTTP 401\nUnauthorized]
-    ROLES -- ROLE_ADMIN --> ADMINEP[Admin endpoints\n/api/admin/**]
-    ROLES -- ROLE_USER --> USEREP[User endpoints\n/api/feed/**\n/api/interactions]
-    Client -->|Firebase SDK\nrequests| Firestore
+    VERIFY -- Invalid or Expired --> REJECT[HTTP 401 Unauthorized]
+    ROLES -- ROLE_ADMIN --> ADMINEP[Admin endpoints /api/admin]
+    ROLES -- ROLE_USER --> USEREP[User endpoints /api/feed and /api/interactions]
+    Client -->|Firebase SDK requests| FSRules
 ```
 
 
@@ -797,41 +920,41 @@ sequenceDiagram
 
 ```mermaid
 gantt
-    title SkillLink GH — Agile Development Timeline
+    title SkillLink GH Agile Development Timeline
     dateFormat  YYYY-MM-DD
-    section Phase 1 — Requirements & Design
-    Stakeholder Interviews (15 artisans, 20 clients)   :done, p1a, 2024-09-01, 7d
-    Comparative Platform Analysis                       :done, p1b, 2024-09-08, 5d
-    System Architecture & UML Modelling                :done, p1c, 2024-09-13, 7d
-    Firebase Project Setup & DB Schema                 :done, p1d, 2024-09-20, 5d
+    section Phase 1 Requirements and Design
+    Stakeholder Interviews            :done, p1a, 2024-09-01, 7d
+    Comparative Platform Analysis     :done, p1b, 2024-09-08, 5d
+    System Architecture and UML       :done, p1c, 2024-09-13, 7d
+    Firebase Setup and DB Schema      :done, p1d, 2024-09-20, 5d
 
-    section Phase 2 — Core Infrastructure
-    Firebase Auth + User Roles                         :done, p2a, 2024-09-25, 7d
-    Spring Boot Project + PostgreSQL + Security        :done, p2b, 2024-09-25, 7d
-    React Admin Panel Scaffold                         :done, p2c, 2024-10-02, 5d
+    section Phase 2 Core Infrastructure
+    Firebase Auth and User Roles      :done, p2a, 2024-09-25, 7d
+    Spring Boot and PostgreSQL        :done, p2b, 2024-09-25, 7d
+    React Admin Panel Scaffold        :done, p2c, 2024-10-02, 5d
 
-    section Phase 3A — Recommendation Engine
-    Scoring Algorithm Implementation                   :done, p3a, 2024-10-07, 10d
-    Feed Service + Interaction Tracking                :done, p3b, 2024-10-17, 7d
-    Preference Learning + Analytics API                :done, p3c, 2024-10-24, 7d
+    section Phase 3A Recommendation Engine
+    Scoring Algorithm                 :done, p3a, 2024-10-07, 10d
+    Feed Service and Interaction API  :done, p3b, 2024-10-17, 7d
+    Preference Learning and Analytics :done, p3c, 2024-10-24, 7d
 
-    section Phase 3B — Mobile App Sprints
-    Sprint 1: Auth, Onboarding, TikTok Feed            :done, p3d, 2024-10-07, 14d
-    Sprint 2: Reels, Search & Discovery, Maps          :done, p3e, 2024-10-21, 14d
-    Sprint 3: Booking, Paystack, Wallet, Tracking      :done, p3f, 2024-11-04, 14d
-    Sprint 4: Chat, Notifications, Verification        :done, p3g, 2024-11-18, 14d
+    section Phase 3B Mobile App Sprints
+    Sprint 1 Auth Onboarding Feed     :done, p3d, 2024-10-07, 14d
+    Sprint 2 Reels Search Maps        :done, p3e, 2024-10-21, 14d
+    Sprint 3 Booking Paystack Wallet  :done, p3f, 2024-11-04, 14d
+    Sprint 4 Chat Notifications       :done, p3g, 2024-11-18, 14d
 
-    section Phase 3C — Admin Panel
-    Dashboard KPIs + Jobs + Escrow                     :done, p3h, 2024-11-04, 10d
-    Verifications + Reports + Disputes                 :done, p3i, 2024-11-14, 10d
-    Analytics Integration with Backend                 :done, p3j, 2024-11-24, 7d
+    section Phase 3C Admin Panel
+    Dashboard KPIs Jobs Escrow        :done, p3h, 2024-11-04, 10d
+    Verifications Reports Disputes    :done, p3i, 2024-11-14, 10d
+    Analytics Integration             :done, p3j, 2024-11-24, 7d
 
-    section Phase 4 — Testing & Integration
-    Backend Unit Tests (JUnit5 + Mockito — 78%)        :done, p4a, 2024-12-01, 7d
-    Flutter Widget Tests (Flutter Test — 65%)          :done, p4b, 2024-12-01, 7d
-    End-to-End Functional Testing                      :done, p4c, 2024-12-08, 7d
-    Security Testing + Firestore Rules Validation      :done, p4d, 2024-12-15, 5d
-    Final Documentation                                :done, p4e, 2024-12-20, 10d
+    section Phase 4 Testing and Integration
+    Backend Unit Tests JUnit5 78pct   :done, p4a, 2024-12-01, 7d
+    Flutter Widget Tests 65pct        :done, p4b, 2024-12-01, 7d
+    End-to-End Functional Testing     :done, p4c, 2024-12-08, 7d
+    Security Testing Firestore Rules  :done, p4d, 2024-12-15, 5d
+    Final Documentation               :done, p4e, 2024-12-20, 10d
 ```
 
 ---
@@ -894,71 +1017,66 @@ MIT
 
 ```mermaid
 graph TD
-    ROOT["📁 skill_link_gh\nProject Root"]
-
-    ROOT --> FRONTEND["📁 frontend\nFlutter Mobile App"]
-    ROOT --> BACKEND["📁 backend\nSpring Boot Recommendation Engine"]
-    ROOT --> ADMIN["📁 admin_panel\nReact Admin Dashboard"]
-    ROOT --> ENV[".env\nEnvironment Variables"]
-    ROOT --> README["📄 README.md\nDocumentation & Diagrams"]
+    ROOT["skill_link_gh - Project Root"]
+    ROOT --> FRONTEND["frontend - Flutter Mobile App"]
+    ROOT --> BACKEND["backend - Spring Boot Engine"]
+    ROOT --> ADMIN["admin_panel - React Dashboard"]
+    ROOT --> README["README.md"]
     ROOT --> GITIGNORE[".gitignore"]
+```
 
-    subgraph FrontendFiles["frontend/"]
-        FRONTEND --> FLIB["📁 lib/"]
-        FRONTEND --> FANDROID["📁 android/"]
-        FRONTEND --> FIOS["📁 ios/"]
-        FRONTEND --> FPUBSPEC["📄 pubspec.yaml\nDependencies"]
-        FRONTEND --> FFIREBASE["📄 firebase.json\nFirebase Config"]
-        FRONTEND --> FRULES["📄 firestore.rules\nSecurity Rules"]
+**frontend/lib structure:**
 
-        FLIB --> FMAIN["📄 main.dart\nApp Entry Point"]
-        FLIB --> FPRES["📁 presentation/\n22 Screens"]
-        FLIB --> FDATA["📁 data/\nRepositories"]
-        FLIB --> FDOMAIN["📁 domain/\nModels & Use Cases"]
-        FLIB --> FPROV["📁 provider/\nRiverpod Providers"]
-        FLIB --> FNOTIF["📁 notifier/\nState Notifiers"]
-        FLIB --> FSERV["📁 services/\nFCM, Presence, Fare"]
-        FLIB --> FROUTES["📁 routes/\napp_routes.dart"]
-        FLIB --> FWIDGETS["📁 widgets/\nShared UI Components"]
-    end
+```mermaid
+graph TD
+    FLIB["lib/"]
+    FLIB --> FMAIN["main.dart - App Entry Point"]
+    FLIB --> FPRES["presentation/ - 22 Screens"]
+    FLIB --> FDATA["data/ - Repositories"]
+    FLIB --> FDOMAIN["domain/ - Models and Use Cases"]
+    FLIB --> FPROV["provider/ - Riverpod Providers"]
+    FLIB --> FNOTIF["notifier/ - State Notifiers"]
+    FLIB --> FSERV["services/ - FCM, Presence, Fare"]
+    FLIB --> FROUTES["routes/ - app_routes.dart"]
+    FLIB --> FWIDGETS["widgets/ - Shared UI"]
+```
 
-    subgraph BackendFiles["backend/"]
-        BACKEND --> BSRC["📁 src/main/java/\ncom.skilllinkgh.backend"]
-        BACKEND --> BRES["📁 src/main/resources/\napplication.yml"]
-        BACKEND --> BPOM["📄 pom.xml\nMaven Build Config"]
+**backend/src structure:**
 
-        BSRC --> BCTRL["📁 controller/\nFeed, Interaction,\nSync, Admin"]
-        BSRC --> BSERV["📁 service/\nRecommendation,\nFeed, Preferences,\nAnalytics, Sync, Seed"]
-        BSRC --> BMODEL["📁 model/\nPost, Reel,\nUserInteraction,\nUserPreference"]
-        BSRC --> BREPO["📁 repository/\nJPA Repositories"]
-        BSRC --> BCONF["📁 config/\nFirebase, Security,\nSwagger"]
-        BSRC --> BDTO["📁 dto/\nRequest & Response DTOs"]
-    end
-
-    subgraph AdminFiles["admin_panel/"]
-        ADMIN --> ASRC["📁 src/"]
-        ADMIN --> APKG["📄 package.json\nNode Dependencies"]
-        ADMIN --> AVITE["📄 vite.config.ts\nVite Build Config"]
-
-        ASRC --> APAGES["📁 pages/\nDashboard, Jobs,\nArtisans, Customers,\nVerifications, Reports,\nEscrow, Payouts,\nDisputes, Analytics"]
-        ASRC --> ACOMP["📁 components/\nAppSidebar,\nDashboardLayout,\nJobsTable, KPICard"]
-        ASRC --> AHOOKS["📁 hooks/\nuseFirestoreData,\nuseAnalytics,\nuseReports"]
-        ASRC --> ALIB["📁 lib/\nfirebase.ts,\nmockData.ts"]
-        ASRC --> ACTX["📁 contexts/\nAuthContext.tsx"]
-    end
+```mermaid
+graph TD
+    BSRC["com.skilllinkgh.backend"]
+    BSRC --> BCTRL["controller/ - Feed, Interaction, Sync, Admin"]
+    BSRC --> BSERV["service/ - Recommendation, Feed, Preferences, Analytics"]
+    BSRC --> BMODEL["model/ - Post, Reel, UserInteraction, UserPreference"]
+    BSRC --> BREPO["repository/ - JPA Repositories"]
+    BSRC --> BCONF["config/ - Firebase, Security, Swagger"]
+    BSRC --> BDTO["dto/ - Request and Response DTOs"]
 ```
 
 
 ---
 
-### Diagram 22 — SkillLink GH Tech Stack Overview (Bar Chart)
+### Diagram 22 — SkillLink GH Tech Stack Overview
+
+| Layer | Tools | Count |
+|---|---|---|
+| Mobile Framework | Flutter, Dart | 2 |
+| State Management | Riverpod, Provider | 2 |
+| Backend Framework | Spring Boot, Java 17, Maven | 3 |
+| Database Layer | PostgreSQL, Firestore | 2 |
+| Auth and Realtime | Firebase Auth, Firestore, Storage, FCM, App Check | 5 |
+| Payment Integration | Paystack | 1 |
+| Admin UI Libraries | React, Tailwind, shadcn/ui, Recharts | 4 |
+| Dev and Build Tools | Vite, Swagger, Lombok, Docker | 4 |
+| Testing Frameworks | JUnit5, Mockito, Flutter Test | 3 |
 
 ```mermaid
-xychart-beta horizontal
-    title "SkillLink GH — Technology Stack by Component Count"
-    x-axis ["Mobile Framework", "State Management", "Backend Framework", "Database Layer", "Auth & Realtime", "Payment Integration", "Admin UI Libraries", "Dev & Build Tools", "Testing Frameworks", "Deployment & CI"]
-    y-axis "Tool Count" 0 --> 6
-    bar [2, 2, 3, 2, 5, 1, 4, 4, 2, 3]
+graph LR
+    A[Mobile\n2 tools] --> B[Backend\n3 tools] --> C[Database\n2 tools]
+    D[Firebase\n5 services] --> B
+    B --> E[Admin Panel\n4 tools]
+    F[Payments\nPaystack] --> B
 ```
 
 ---
@@ -966,54 +1084,54 @@ xychart-beta horizontal
 ### Diagram 23 — Detailed Tech Stack Breakdown (Per Layer)
 
 ```mermaid
-graph LR
-    subgraph Mobile["📱 Mobile Layer\nFlutter / Dart"]
-        M1["Flutter 3.10+\nCross-platform UI"]
-        M2["Riverpod 3.0\nState Management"]
-        M3["Dio 5.4\nHTTP Client"]
-        M4["Firebase SDK\nAuth, Firestore,\nStorage, FCM"]
-        M5["Google Maps\nLocation & Tracking"]
-        M6["Paystack Plus\nPayment Gateway"]
-        M7["Video Compress\nReel Optimization"]
-        M8["App Links\nDeep Link Handler"]
+graph TB
+    subgraph Mobile["Mobile Layer - Flutter and Dart"]
+        M1[Flutter 3.10 - Cross-platform UI]
+        M2[Riverpod 3.0 - State Management]
+        M3[Dio 5.4 - HTTP Client]
+        M4[Firebase SDK - Auth, Firestore, Storage, FCM]
+        M5[Google Maps - Location and Tracking]
+        M6[Paystack Plus - Payment Gateway]
+        M7[Video Compress - Reel Optimization]
+        M8[App Links - Deep Link Handler]
     end
 
-    subgraph BackendLayer["⚙️ Backend Layer\nSpring Boot / Java 17"]
-        B1["Spring Boot 3.2.5\nREST API Framework"]
-        B2["Spring Security\nFirebase Token Filter"]
-        B3["JPA / Hibernate\nORM & Schema Mgmt"]
-        B4["PostgreSQL 14\nScoring Database"]
-        B5["Firebase Admin SDK\nToken Verification"]
-        B6["SpringDoc / Swagger\nAPI Documentation"]
-        B7["Maven 3.8\nBuild Tool"]
-        B8["Lombok\nBoilerplate Reduction"]
+    subgraph BackendLayer["Backend Layer - Spring Boot and Java 17"]
+        B1[Spring Boot 3.2.5 - REST API]
+        B2[Spring Security - Firebase Token Filter]
+        B3[JPA and Hibernate - ORM]
+        B4[PostgreSQL 14 - Scoring Database]
+        B5[Firebase Admin SDK - Token Verification]
+        B6[SpringDoc Swagger - API Docs]
+        B7[Maven 3.8 - Build Tool]
+        B8[Lombok - Boilerplate Reduction]
     end
 
-    subgraph AdminLayer["🖥️ Admin Layer\nReact / TypeScript"]
-        A1["React 18.3\nUI Framework"]
-        A2["TypeScript 5.8\nType Safety"]
-        A3["Vite 5\nBuild Tool"]
-        A4["Tailwind CSS\nUtility Styling"]
-        A5["shadcn/ui\nComponent Library"]
-        A6["TanStack Query\nData Fetching"]
-        A7["Recharts\nAnalytics Charts"]
-        A8["Framer Motion\nAnimations"]
+    subgraph AdminLayer["Admin Layer - React and TypeScript"]
+        A1[React 18.3 - UI Framework]
+        A2[TypeScript 5.8 - Type Safety]
+        A3[Vite 5 - Build Tool]
+        A4[Tailwind CSS - Utility Styling]
+        A5[shadcn/ui - Component Library]
+        A6[TanStack Query - Data Fetching]
+        A7[Recharts - Analytics Charts]
+        A8[Framer Motion - Animations]
     end
 
-    subgraph FirebaseLayer["🔥 Firebase Platform"]
-        F1["Firebase Auth\nIdentity & JWT"]
-        F2["Firestore\nReal-time NoSQL DB"]
-        F3["Firebase Storage\nVideos & Images"]
-        F4["Cloud Functions\nServerless Business Logic"]
-        F5["Firebase Messaging\nPush Notifications"]
-        F6["Firebase App Check\nPlay Integrity / DeviceCheck"]
+    subgraph FirebaseLayer["Firebase Platform"]
+        F1[Firebase Auth - Identity and JWT]
+        F2[Firestore - Real-time NoSQL DB]
+        F3[Firebase Storage - Videos and Images]
+        F4[Cloud Functions - Serverless Logic]
+        F5[Firebase Messaging - Push Notifications]
+        F6[Firebase App Check - Fraud Prevention]
     end
 
-    Mobile -->|Bearer Token\nREST API| BackendLayer
+    Mobile -->|Bearer Token REST API| BackendLayer
     Mobile -->|Firebase SDK| FirebaseLayer
     AdminLayer -->|Firebase JS SDK| FirebaseLayer
     AdminLayer -->|HTTP REST| BackendLayer
-    FirebaseLayer -->|Cloud Function\nSync Trigger| BackendLayer
+    FirebaseLayer -->|Cloud Function Sync| BackendLayer
 ```
 
 ---
@@ -1023,39 +1141,43 @@ graph LR
 ```mermaid
 graph TB
     subgraph Devices["User Devices"]
-        AND["📱 Android Device\nFlutter App APK"]
-        IOS["📱 iOS Device\nFlutter App IPA"]
-        BROWSER["🖥️ Browser\nAdmin Panel\nlocalhost:5173 / hosted"]
+        AND[Android Device - Flutter APK]
+        IOS[iOS Device - Flutter IPA]
+        BROWSER[Browser - Admin Panel]
     end
 
-    subgraph CloudFirebase["☁️ Firebase Cloud"]
-        FAUTH2["Firebase Auth\nIdentity Provider"]
-        FSTORE["Firestore\nReal-time Database"]
-        FSTORAGE["Firebase Storage\nMedia Files"]
-        FFCM2["FCM\nPush Notifications"]
-        FCF["Cloud Functions\nNode.js 18 Runtime"]
-        FAPPCHK["App Check\nFraud Prevention"]
+    subgraph CloudFirebase["Firebase Cloud"]
+        FAUTH2[Firebase Auth]
+        FSTORE[Firestore]
+        FSTORAGE[Firebase Storage]
+        FFCM2[FCM Push Notifications]
+        FCF[Cloud Functions - Node.js 18]
+        FAPPCHK[App Check]
     end
 
-    subgraph BackendDeploy["⚙️ Backend Server\nLocal / Cloud VM"]
-        SPRING["Spring Boot JAR\njava -jar skilllink.jar\nPort 8080"]
-        PG2["PostgreSQL 14\nPort 5432"]
+    subgraph BackendDeploy["Backend Server"]
+        SPRING[Spring Boot JAR - Port 8080]
+        PG2[PostgreSQL 14 - Port 5432]
         SPRING --> PG2
     end
 
-    subgraph Paystack["💳 Paystack"]
-        PSAPI["Paystack API\nPayments & Verification"]
-        PSWH["Webhook Callbacks\nTransaction Results"]
+    subgraph PaystackSvc["Paystack"]
+        PSAPI[Paystack API]
+        PSWH[Webhook Callbacks]
     end
 
-    AND & IOS -->|HTTPS REST| SPRING
-    AND & IOS -->|Firebase SDK| CloudFirebase
+    AND -->|HTTPS REST| SPRING
+    IOS -->|HTTPS REST| SPRING
+    AND -->|Firebase SDK| CloudFirebase
+    IOS -->|Firebase SDK| CloudFirebase
     BROWSER -->|Firebase SDK| FSTORE
     BROWSER -->|HTTP GET| SPRING
-    FCF -->|HTTPS POST\n/api/sync/**| SPRING
-    FCF -->|Read/Write| FSTORE
-    AND & IOS -->|HTTPS| PSAPI
+    FCF -->|HTTPS POST /api/sync| SPRING
+    FCF -->|Read and Write| FSTORE
+    AND -->|HTTPS| PSAPI
+    IOS -->|HTTPS| PSAPI
     PSAPI --> PSWH --> FCF
-    FAPPCHK -->|Validates| AND & IOS
+    FAPPCHK -->|Validates| AND
+    FAPPCHK -->|Validates| IOS
 ```
 
