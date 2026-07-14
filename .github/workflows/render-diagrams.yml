@@ -37,6 +37,13 @@ jobs:
       - name: Extract and render diagrams from README
         run: node .github/scripts/extract-diagrams.js
 
+      - name: Upload diagrams as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mermaid-diagrams-png
+          path: docs/diagrams/*.png
+          retention-days: 30
+
       - name: Commit and push rendered PNGs
         run: |
           git config user.name "github-actions[bot]"
