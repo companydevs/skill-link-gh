@@ -18,6 +18,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT_TOKEN }}
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -37,10 +38,10 @@ jobs:
         run: node .github/scripts/extract-diagrams.js
 
       - name: Commit and push rendered PNGs
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: 'docs: auto-render Mermaid diagrams to PNG'
-          file_pattern: 'docs/diagrams/*.png'
-          commit_user_name: 'github-actions[bot]'
-          commit_user_email: 'github-actions[bot]@users.noreply.github.com'
-          token: ${{ secrets.PAT_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/diagrams/*.png
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "docs: auto-render Mermaid diagrams to PNG"
+          git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/companydevs/skill-link-gh.git HEAD:main
