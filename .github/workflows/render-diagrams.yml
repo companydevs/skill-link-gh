@@ -1,0 +1,40 @@
+name: Render Mermaid Diagrams to PNG
+
+on:
+  push:
+    paths:
+      - 'README.md'
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Mermaid CLI
+        run: npm install -g @mermaid-js/mermaid-cli
+
+      - name: Install Chromium for puppeteer
+        run: npx puppeteer browsers install chrome
+
+      - name: Create output directory
+        run: mkdir -p docs/diagrams
+
+      - name: Extract and render diagrams from README
+        run: node .github/scripts/extract-diagrams.js
+
+      - name: Commit and push rendered PNGs
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'docs: auto-render Mermaid diagrams to PNG'
+          file_pattern: 'docs/diagrams/*.png'
+          commit_user_name: 'github-actions[bot]'
+          commit_user_email: 'github-actions[bot]@users.noreply.github.com'
