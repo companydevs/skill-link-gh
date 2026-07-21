@@ -1175,3 +1175,556 @@ graph TB
     FAPPCHK -->|Validates| IOS
 ```
 
+---
+
+## Production Deployment
+
+### Overview
+
+The SkillLink GH platform is deployed across multiple environments with zero-downtime deployment strategies:
+
+| Component | Environment | URL | Status |
+|---|---|---|---|
+| **Web App** | Firebase Hosting | https://skilllink-gh-web.web.app | ✅ Live |
+| **Admin Panel** | Vercel | https://skilllink-admin.vercel.app | ✅ Live |
+| **Backend API** | AWS EC2/Lightsail | https://100-60-0-32.sslip.io | ✅ Live |
+| **Database** | Self-hosted PostgreSQL | localhost:5432 (on EC2) | ✅ Live |
+| **Cloud Functions** | Firebase Functions | us-central1 | ✅ Live |
+| **Firebase Services** | Firebase Cloud | — | ✅ Live |
+
+---
+
+### Deployment Architecture Summary
+
+```
+┌─────────────────┐
+│  User Devices   │
+│  Android / iOS  │
+│     Web App     │
+└────────┬────────┘
+         │
+         ├──────────────────┐
+         │                  │
+    ┌────▼─────┐     ┌──────▼──────┐
+    │ Firebase │     │   AWS EC2   │
+    │ Services │     │ Spring Boot │
+    │ Hosting  │     │  Backend    │
+    │ Auth     │     │ PostgreSQL  │
+    │ Firestore│     └─────────────┘
+    │ Storage  │
+    │ Functions│
+    └──────────┘
+```
+
+---
+
+### 1. Web App Deployment (Flutter Web)
+
+**Platform**: Firebase Hosting  
+**Build Tool**: Flutter SDK  
+**Deployment Method**: Firebase CLI
+
+#### Deployment Steps
+
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Clean previous builds
+flutter clean
+
+# Install dependencies
+flutter pub get
+
+# Build production web app
+flutter build web --release
+
+# Copy build to deployment directory
+xcopy "build\web\*.*" "..\skilllink_gh_web\" /E /I /Y /Q
+
+# Deploy to Firebase Hosting
+firebase deploy --only hosting:webapp
+```
+
+#### Build Optimizations
+
+- **Font tree-shaking**: MaterialIcons reduced by 83.2%, FontAwesome by 99.2%
+- **Code splitting**: Deferred loading for non-critical routes
+- **Asset optimization**: Images compressed and cached
+- **Service Worker**: Offline-first PWA capabilities
+
+#### Deployment Stats (July 2026)
+
+- **Files deployed**: 309 files
+- **Build time**: ~351 seconds
+- **Deploy time**: ~15 seconds
+- **CDN edge locations**: Global (Firebase CDN)
+- **SSL/TLS**: Automatic (Let's Encrypt)
+
+---
+
+### 2. Mobile App Deployment (Android)
+
+**Platform**: Google Play Console  
+**Build Tool**: Flutter SDK  
+**Distribution**: Split APKs by ABI
+
+#### Build Commands
+
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Clean build
+flutter clean && flutter pub get
+
+# Build release APKs
+flutter build apk --release --split-per-abi
+
+# Output:
+# - app-armeabi-v7a-release.apk  (32-bit ARM)
+# - app-arm64-v8a-release.apk    (64-bit ARM)
+# - app-x86_64-release.apk       (64-bit Intel)
+```
+
+#### APK Details
+
+| ABI | Size | Target Devices |
+|---|---|---|
+| arm64-v8a | ~45 MB | Modern Android devices (64-bit) |
+| armeabi-v7a | ~42 MB | Older Android devices (32-bit) |
+| x86_64 | ~48 MB | Emulators and Intel devices |
+
+#### Google Play Console Upload
+
+1. **Internal Testing** → Upload and test with team
+2. **Closed Testing** → Beta testers (50-100 users)
+3. **Open Testing** → Public beta (optional)
+4. **Production** → Live release with staged rollout (20% → 50% → 100%)
+
+---
+
+### 3. Admin Panel Deployment (React/Vite)
+
+**Platform**: Vercel  
+**Build Tool**: Vite  
+**Deployment Method**: Git push (auto-deploy)
+
+#### Auto-Deployment Pipeline
+
+```
+Git Push → GitHub → Vercel Webhook → Build → Deploy
+```
+
+#### Build Configuration (vercel.json)
+
+```json
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "installCommand": "npm install"
+}
+```
+
+#### Environment Variables (Vercel Dashboard)
+
+```
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=skill-link-gh.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=skill-link-gh
+VITE_FIREBASE_STORAGE_BUCKET=skill-link-gh.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=...
+VITE_FIREBASE_APP_ID=...
+```
+
+---
+
+### 4. Backend API Deployment (Spring Boot on AWS)
+
+**Platform**: AWS EC2 (Ubuntu 22.04 LTS) / AWS Lightsail  
+**Runtime**: Java 17, Embedded Tomcat  
+**Database**: PostgreSQL 14 (co-located on same instance)  
+**Deployment Method**: Manual (systemd service)
+
+#### Server Configuration
+
+**Instance**: `100.60.0.32` (AWS EC2/Lightsail)  
+**Domain**: `https://100-60-0-32.sslip.io` (DNS wildcard service)  
+**Ports**:
+- 8080: Spring Boot API
+- 5432: PostgreSQL (localhost only)
+- 443: HTTPS (reverse proxy via sslip.io)
+
+#### Deployment Process
+
+```bash
+# 1. Build JAR locally
+cd backend
+./mvnw clean package -DskipTests
+
+# 2. Transfer to AWS server
+scp target/skilllink-backend-1.0.0.jar ubuntu@100.60.0.32:/opt/skilllink-backend/app.jar
+
+# 3. SSH into server
+ssh ubuntu@100.60.0.32
+
+# 4. Restart Spring Boot service
+sudo systemctl restart skilllink-backend
+sudo systemctl status skilllink-backend
+
+# 5. Verify deployment
+curl http://localhost:8080/api/health
+```
+
+#### Systemd Service Configuration
+
+File: `/etc/systemd/system/skilllink-backend.service`
+
+```ini
+[Unit]
+Description=SkillLink Backend API
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/skilllink-backend
+ExecStart=/usr/bin/java -jar /opt/skilllink-backend/app.jar
+Restart=on-failure
+RestartSec=10
+
+Environment="SPRING_PROFILES_ACTIVE=production"
+Environment="SERVER_PORT=8080"
+
+[Install]
+WantedBy=multi-user.target
+```
+
+#### PostgreSQL Configuration
+
+- **Version**: PostgreSQL 14
+- **Listen address**: localhost only (security)
+- **Database**: `skilllink_db`
+- **Connection pooling**: HikariCP (max 20 connections)
+- **Backups**: Daily automated backups to S3 (to be implemented)
+
+---
+
+### 5. Firebase Cloud Functions Deployment
+
+**Runtime**: Node.js 18  
+**Region**: us-central1  
+**Deployment Method**: Firebase CLI
+
+#### Deploy All Functions
+
+```bash
+cd frontend/functions
+
+# Install dependencies
+npm install
+
+# Deploy all functions
+firebase deploy --only functions
+```
+
+#### Deployed Functions (29 total)
+
+**Authentication & User Management**:
+- `registerUser` - New user onboarding
+- `syncUserProfile` - Sync Firestore ↔ PostgreSQL
+
+**Booking & Payments**:
+- `createBooking` - Initialize booking with Paystack
+- `verifyPayment` - Verify Paystack webhook
+- `updateBookingStatus` - Artisan status updates
+- `releasePayment` - Escrow release to artisan wallet
+
+**Wallet Operations**:
+- `initiateWalletTopUp` - Paystack top-up
+- `verifyWalletTopUp` - Verify top-up payment
+- `handleWalletWithdrawal` - Request withdrawal
+
+**Content Management**:
+- `onPostCreated` - Sync new post to PostgreSQL
+- `onPostDeleted` - Remove from PostgreSQL
+- `onReelCreated` - Sync new reel to PostgreSQL
+- `onReelDeleted` - Remove from PostgreSQL
+- `cleanupVideos` - Delete orphaned Storage files
+
+**Notifications**:
+- `sendBookingNotification` - FCM push for bookings
+- `sendChatNotification` - FCM push for messages
+- `sendPaymentNotification` - FCM push for payments
+
+**Analytics & Maintenance**:
+- `distanceMatrixCalculation` - Precompute distances
+- `backfillUserPreferences` - Migrate user data
+- `backfillOnlineStatus` - Initialize online status
+
+---
+
+### 6. Firestore Rules & Indexes Deployment
+
+#### Deploy Security Rules
+
+```bash
+cd frontend
+
+# Deploy Firestore rules
+firebase deploy --only firestore:rules
+
+# Deploy Storage rules
+firebase deploy --only storage
+```
+
+#### Firestore Rules Summary
+
+```javascript
+// Example: Bookings collection
+match /bookings/{bookingId} {
+  // Only authenticated users can create bookings
+  allow create: if request.auth != null 
+                && request.resource.data.clientId == request.auth.uid;
+  
+  // Only booking parties can read and update
+  allow read, update: if request.auth != null 
+                      && (resource.data.clientId == request.auth.uid
+                          || resource.data.artisanId == request.auth.uid);
+}
+```
+
+#### Deploy Firestore Indexes
+
+Indexes are automatically created from `firestore.indexes.json`:
+
+```bash
+firebase deploy --only firestore:indexes
+```
+
+---
+
+### Deployment Checklist
+
+#### Pre-Deployment
+
+- [ ] Run all unit tests: `npm test`, `flutter test`, `mvn test`
+- [ ] Check for breaking changes in dependencies
+- [ ] Update environment variables if changed
+- [ ] Review Firestore security rules for new features
+- [ ] Backup production database (PostgreSQL)
+- [ ] Verify Cloud Functions budget and quotas
+
+#### Web App Deployment
+
+- [ ] `flutter build web --release`
+- [ ] Copy build to `skilllink_gh_web/`
+- [ ] `firebase deploy --only hosting:webapp`
+- [ ] Verify: https://skilllink-gh-web.web.app
+- [ ] Test critical user flows (login, booking, payment)
+- [ ] Clear CDN cache if needed
+
+#### Mobile App Deployment
+
+- [ ] Update version in `pubspec.yaml`
+- [ ] `flutter build apk --release --split-per-abi`
+- [ ] Test APKs on physical devices (arm64-v8a, armeabi-v7a)
+- [ ] Upload to Google Play Console (Internal Testing)
+- [ ] Verify App Signing and Release Management
+- [ ] Promote to Production with staged rollout
+
+#### Backend API Deployment
+
+- [ ] `./mvnw clean package -DskipTests`
+- [ ] SCP JAR to AWS server
+- [ ] SSH and restart service: `sudo systemctl restart skilllink-backend`
+- [ ] Check logs: `sudo journalctl -u skilllink-backend -f`
+- [ ] Verify health endpoint: `curl https://100-60-0-32.sslip.io/api/health`
+- [ ] Run smoke tests (create post, fetch feed, track interaction)
+
+#### Cloud Functions Deployment
+
+- [ ] `cd frontend/functions && npm install`
+- [ ] `firebase deploy --only functions`
+- [ ] Verify functions in Firebase Console → Functions dashboard
+- [ ] Check function logs for errors
+- [ ] Test critical functions (createBooking, verifyPayment)
+
+#### Post-Deployment
+
+- [ ] Monitor Firebase Console → Analytics for errors
+- [ ] Check Sentry / error tracking for crashes
+- [ ] Verify database connections and queries
+- [ ] Test end-to-end user flows (new user registration → booking → payment → completion)
+- [ ] Update deployment documentation with any changes
+- [ ] Notify team in Slack / email
+
+---
+
+### Rollback Procedures
+
+#### Web App Rollback
+
+Firebase Hosting keeps version history:
+
+```bash
+# List recent deployments
+firebase hosting:channel:list
+
+# Rollback to previous version
+firebase hosting:rollback
+```
+
+Or use Firebase Console → Hosting → Release History → Restore.
+
+#### Mobile App Rollback
+
+Google Play Console:
+1. Go to Production → Releases
+2. Click "Create new release"
+3. Select previous APK version
+4. Submit for review (takes 1-2 hours)
+
+#### Backend API Rollback
+
+```bash
+# Keep previous JAR as backup
+ssh ubuntu@100.60.0.32
+cd /opt/skilllink-backend
+
+# Restore previous version
+sudo cp app.jar.backup app.jar
+sudo systemctl restart skilllink-backend
+```
+
+#### Cloud Functions Rollback
+
+Firebase Console → Functions → Select function → Version History → Deploy previous version
+
+---
+
+### Monitoring & Observability
+
+#### Application Monitoring
+
+- **Firebase Crashlytics**: Mobile app crash reports
+- **Firebase Performance Monitoring**: App startup time, network requests
+- **Spring Boot Actuator**: Backend health checks, metrics (`/actuator/health`, `/actuator/metrics`)
+- **Cloud Functions Logs**: Firebase Console → Functions → Logs
+
+#### Infrastructure Monitoring
+
+- **AWS CloudWatch**: EC2 CPU, memory, disk usage
+- **PostgreSQL Logs**: `/var/log/postgresql/postgresql-14-main.log`
+- **Nginx Logs**: `/var/log/nginx/access.log` (if reverse proxy)
+
+#### Alerting
+
+- **Firebase Alerts**: Set up alerts for high error rates, slow functions
+- **AWS SNS**: CPU > 80%, Disk > 90% → Email notification
+- **Uptime Monitoring**: UptimeRobot or Pingdom for 100.60.0.32
+
+---
+
+### Continuous Integration / Continuous Deployment (CI/CD)
+
+#### Current Status
+
+⚠️ **Manual Deployment** - No automated CI/CD pipeline exists yet
+
+#### Recommended CI/CD Pipeline (GitHub Actions)
+
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy Backend to AWS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+      - run: ./mvnw clean package -DskipTests
+      - uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.AWS_HOST }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "target/skilllink-backend-1.0.0.jar"
+          target: "/opt/skilllink-backend/app.jar"
+      - uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.AWS_HOST }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: sudo systemctl restart skilllink-backend
+```
+
+See `AWS_PIPELINE_SETUP_GUIDE.md` for full CI/CD setup instructions.
+
+---
+
+### Deployment Costs (Estimated Monthly)
+
+| Service | Plan | Cost (USD) |
+|---|---|---|
+| Firebase Hosting | Spark Plan (Free) | $0 |
+| Firebase Firestore | Pay-as-you-go | ~$10-20 |
+| Firebase Storage | Pay-as-you-go | ~$5-10 |
+| Firebase Cloud Functions | Pay-as-you-go | ~$15-25 |
+| Firebase FCM | Free (unlimited) | $0 |
+| AWS EC2/Lightsail | t2.micro or Lightsail $10 | ~$10-15 |
+| Vercel | Hobby Plan | $0 |
+| Google Play Console | One-time fee | $25 (once) |
+| **Total Estimated** | | **~$40-70/month** |
+
+---
+
+### Security Considerations
+
+#### SSL/TLS Certificates
+
+- **Firebase Hosting**: Automatic SSL (Let's Encrypt)
+- **AWS Backend**: Using sslip.io wildcard DNS (HTTPS via proxy)
+- **Recommendation**: Set up custom domain with AWS Certificate Manager for production
+
+#### API Security
+
+- **Firebase Auth tokens**: JWT validation on every request
+- **Spring Security**: `FirebaseTokenFilter` validates tokens
+- **Firestore Rules**: Role-based access control
+- **App Check**: Protects against abuse (Play Integrity / DeviceCheck)
+
+#### Secrets Management
+
+- **Environment Variables**: Server-side only (never in client code)
+- **Firebase Admin SDK**: Service account JSON on EC2 (permissions: 600)
+- **Paystack Secret Key**: Environment variable, not in version control
+- **Database Credentials**: Environment variables, localhost-only access
+
+---
+
+## Deployment Status Summary
+
+✅ **Chapters 1-5 Implementation Complete**  
+✅ **Web App Deployed**: https://skilllink-gh-web.web.app  
+✅ **Admin Panel Deployed**: Vercel (auto-deploy from Git)  
+✅ **Backend API Deployed**: AWS EC2 at https://100-60-0-32.sslip.io  
+✅ **Cloud Functions Deployed**: 29 functions live on Firebase  
+✅ **Mobile App**: Split APKs built and ready for Google Play Console  
+
+**Last Deployment**: July 20, 2026  
+**Deployment Method**: Manual (Web, Backend, Functions)  
+**Recommended Next Step**: Set up GitHub Actions CI/CD pipeline for automated deployments
+
+---
+
+**End of Deployment Documentation**
+
