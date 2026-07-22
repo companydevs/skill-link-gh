@@ -87,7 +87,7 @@ class _PostsHomepageState extends ConsumerState<PostsHomepage> {
     Navigator.pushNamed(
       context,
       '/artisan-profile-screen',
-      arguments: post.toJson(),
+      arguments: {'id': post.artisanId}, // Pass 'id' not entire post
     );
   }
 
