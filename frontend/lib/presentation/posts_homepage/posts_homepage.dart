@@ -84,11 +84,21 @@ class _PostsHomepageState extends ConsumerState<PostsHomepage> {
   }
 
   void _navigateToArtisanProfile(PostModel post) {
+    print('🔍 [POSTS_HOMEPAGE] Navigating to artisan profile');
+    print('🔍 [POSTS_HOMEPAGE] Post ID: ${post.id}');
+    print('🔍 [POSTS_HOMEPAGE] Artisan ID: ${post.artisanId}');
+    print('🔍 [POSTS_HOMEPAGE] Artisan Name: ${post.artisanName}');
+    print(
+      '🔍 [POSTS_HOMEPAGE] Arguments being passed: ${{'id': post.artisanId}}',
+    );
+
     Navigator.pushNamed(
       context,
       '/artisan-profile-screen',
       arguments: {'id': post.artisanId}, // Pass 'id' not entire post
-    );
+    ).then((_) {
+      print('✅ [POSTS_HOMEPAGE] Returned from artisan profile screen');
+    });
   }
 
   void _navigateToBooking(PostModel post) {

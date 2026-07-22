@@ -1,6 +1,7 @@
-﻿import 'package:cloud_functions/cloud_functions.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
@@ -17,6 +18,9 @@ import '../../data/repository/booking_repository.dart';
 import '../../data/repository/post_repository.dart';
 import '../../domain/models/booking_model.dart';
 import '../../domain/models/post_model.dart';
+import '../../domain/models/reel_model.dart';
+import '../reels_screen/reels_screen.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
 import '../../widgets/unified_bottom_bar.dart';
 import '../../widgets/user_avatar_widget.dart';
 import './widgets/about_section_widget.dart';
@@ -39,6 +43,8 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
   final AuthRepository _authRepository = AuthRepository();
   int _selectedTab = 0;
   bool _isLoggingOut = false;
+  String _onlineStatus = 'offline'; // online, offline, busy
+  bool _isTogglingStatus = false; // Track if we're currently toggling
 
   // For viewing another user's profile
   String? _viewingUserId;
@@ -65,28 +71,60 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+
+    print('🔍 [ARTISAN_PROFILE] didChangeDependencies called');
+
     final args =
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    print('🔍 [ARTISAN_PROFILE] Raw arguments: $args');
+    print('🔍 [ARTISAN_PROFILE] Arguments type: ${args.runtimeType}');
+
     final uid = args?['id'] as String?;
+    print('🔍 [ARTISAN_PROFILE] Extracted uid: $uid');
+
     final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    print('🔍 [ARTISAN_PROFILE] Current user ID: $currentUid');
+    print(
+      '🔍 [ARTISAN_PROFILE] Is viewing other user: ${uid != null && uid != currentUid}',
+    );
 
     // Only load other user if it's a different person
     if (uid != null && uid != currentUid && uid != _viewingUserId) {
+      print('✅ [ARTISAN_PROFILE] Loading other user profile: $uid');
       _viewingUserId = uid;
       _loadOtherUser(uid);
+    } else if (uid == _viewingUserId) {
+      print('⚠️ [ARTISAN_PROFILE] Already viewing this user: $uid');
+    } else if (uid == currentUid) {
+      print('ℹ️ [ARTISAN_PROFILE] Viewing own profile');
+    } else {
+      print('❌ [ARTISAN_PROFILE] No valid uid to load');
     }
   }
 
   Future<void> _loadOtherUser(String userId) async {
+    print('🔍 [ARTISAN_PROFILE] _loadOtherUser started for: $userId');
     setState(() => _otherLoading = true);
     try {
+      print('🔍 [ARTISAN_PROFILE] Fetching user document from Firestore...');
       final doc = await FirebaseFirestore.instance
           .collection('users')
           .doc(userId)
           .get();
-      if (!doc.exists || !mounted) return;
+
+      print('🔍 [ARTISAN_PROFILE] Document exists: ${doc.exists}');
+      if (!doc.exists || !mounted) {
+        print(
+          '❌ [ARTISAN_PROFILE] Document does not exist or widget unmounted',
+        );
+        return;
+      }
+
       final data = doc.data()!;
       data['id'] = userId;
+      print(
+        '✅ [ARTISAN_PROFILE] User data loaded: ${data['name']} (${data['trade']})',
+      );
 
       // Resolve profile photo: profileImage → photoUrl → photoURL (Google sign-in field)
       final profileImage = data['profileImage'] as String? ?? '';
@@ -97,11 +135,18 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
         if (resolved.isNotEmpty) data['profileImage'] = resolved;
       }
 
+      print(
+        '🔍 [ARTISAN_PROFILE] Fetching portfolio, reviews, and services...',
+      );
       final results = await Future.wait<List<Map<String, dynamic>>>([
         ref.read(profileRepositoryProvider).getPortfolioImages(userId),
         ref.read(profileRepositoryProvider).getReviews(userId),
         ref.read(profileRepositoryProvider).getServices(userId),
       ]);
+
+      print('✅ [ARTISAN_PROFILE] Portfolio items: ${results[0].length}');
+      print('✅ [ARTISAN_PROFILE] Reviews: ${results[1].length}');
+      print('✅ [ARTISAN_PROFILE] Services: ${results[2].length}');
 
       if (mounted) {
         setState(() {
@@ -111,8 +156,10 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
           _otherServices = results[2];
           _otherLoading = false;
         });
+        print('✅ [ARTISAN_PROFILE] Profile loaded successfully!');
       }
-    } catch (_) {
+    } catch (e) {
+      print('❌ [ARTISAN_PROFILE] Error loading user: $e');
       if (mounted) setState(() => _otherLoading = false);
     }
   }
@@ -185,6 +232,8 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
                       postsCount: 0,
                     ),
                   ),
+                  // ── Online Status Badge (Read-only for other users) ──
+                  SliverToBoxAdapter(child: _buildOnlineStatusBadge(data)),
                   SliverPersistentHeader(
                     pinned: true,
                     delegate: _PillTabBarDelegate(
@@ -291,6 +340,8 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
                     postsCount: profileState.postsCount,
                   ),
                 ),
+                // ── Online Status Toggle ──────────────────────────────
+                SliverToBoxAdapter(child: _buildOnlineStatusToggle(data)),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.only(bottom: 1.h),
@@ -542,6 +593,198 @@ class _ArtisanProfileScreenState extends ConsumerState<ArtisanProfileScreen> {
       AppToast.show(
         context,
         message: 'Failed to delete account. Please try again.',
+        type: ToastType.error,
+      );
+    }
+  }
+
+  Widget _buildOnlineStatusToggle(Map<String, dynamic> data) {
+    // Use local optimistic state during toggle, otherwise use stream data
+    final currentStatus = _isTogglingStatus
+        ? _onlineStatus
+        : (data['onlineStatus'] as String? ?? _onlineStatus);
+    final isOnline = currentStatus == 'online';
+    final theme = Theme.of(context);
+
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+      padding: EdgeInsets.all(4.w),
+      decoration: BoxDecoration(
+        color: isOnline
+            ? const Color(0xFF10B981).withOpacity(0.05)
+            : theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isOnline
+              ? const Color(0xFF10B981)
+              : theme.colorScheme.outline.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 12.w,
+            height: 12.w,
+            decoration: BoxDecoration(
+              color: isOnline
+                  ? const Color(0xFF10B981).withOpacity(0.1)
+                  : theme.colorScheme.surfaceContainerHighest,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Icon(
+                isOnline ? Icons.check_circle : Icons.circle_outlined,
+                color: isOnline
+                    ? const Color(0xFF10B981)
+                    : theme.colorScheme.onSurfaceVariant,
+                size: 24,
+              ),
+            ),
+          ),
+          SizedBox(width: 3.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isOnline ? "You're Online" : "You're Offline",
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: 0.5.h),
+                Text(
+                  isOnline
+                      ? 'Accepting bookings and visible to clients'
+                      : 'Not accepting immediate bookings',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: 2.w),
+          Switch(
+            value: isOnline,
+            onChanged: (value) => _toggleOnlineStatus(value),
+            activeColor: const Color(0xFF10B981),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Read-only online status badge for viewing other users
+  Widget _buildOnlineStatusBadge(Map<String, dynamic> data) {
+    final currentStatus = data['onlineStatus'] as String? ?? 'offline';
+    final isOnline = currentStatus == 'online';
+    final theme = Theme.of(context);
+
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+      padding: EdgeInsets.all(4.w),
+      decoration: BoxDecoration(
+        color: isOnline
+            ? const Color(0xFF10B981).withOpacity(0.05)
+            : theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isOnline
+              ? const Color(0xFF10B981)
+              : theme.colorScheme.outline.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 12.w,
+            height: 12.w,
+            decoration: BoxDecoration(
+              color: isOnline
+                  ? const Color(0xFF10B981).withOpacity(0.1)
+                  : theme.colorScheme.surfaceContainerHighest,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Icon(
+                isOnline ? Icons.check_circle : Icons.circle_outlined,
+                color: isOnline
+                    ? const Color(0xFF10B981)
+                    : theme.colorScheme.onSurfaceVariant,
+                size: 24,
+              ),
+            ),
+          ),
+          SizedBox(width: 3.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isOnline ? "Available Now" : "Currently Offline",
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: 0.5.h),
+                Text(
+                  isOnline
+                      ? 'Accepting bookings and available for work'
+                      : 'Not accepting immediate bookings',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _toggleOnlineStatus(bool goOnline) async {
+    final newStatus = goOnline ? 'online' : 'offline';
+
+    // Update local state immediately for instant feedback
+    setState(() {
+      _onlineStatus = newStatus;
+      _isTogglingStatus = true;
+    });
+
+    try {
+      // Update in Firestore (in background)
+      await ref.read(profileRepositoryProvider).updateOnlineStatus(newStatus);
+
+      if (!mounted) return;
+
+      // Clear toggling flag after successful update
+      setState(() => _isTogglingStatus = false);
+
+      AppToast.show(
+        context,
+        message: goOnline
+            ? '✅ You are now online and accepting bookings'
+            : '⚪ You are now offline',
+        type: ToastType.success,
+      );
+
+      // Refresh profile to sync with backend
+      ref.read(profileNotifierProvider.notifier).refreshProfile();
+    } catch (e) {
+      // Revert on error
+      setState(() {
+        _onlineStatus = goOnline ? 'offline' : 'online';
+        _isTogglingStatus = false;
+      });
+
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        message: 'Failed to update status. Please try again.',
         type: ToastType.error,
       );
     }
@@ -1215,14 +1458,26 @@ class _MyPostsTabState extends State<_MyPostsTab>
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
+      // No orderBy — avoids depending on a composite index existing for
+      // artisanId + createdAt; sort client-side instead.
       final snap = await FirebaseFirestore.instance
           .collection('posts')
-          .where('userId', isEqualTo: widget.userId)
-          .orderBy('createdAt', descending: true)
+          .where('artisanId', isEqualTo: widget.userId)
           .get();
+      final docs = List<QueryDocumentSnapshot>.from(snap.docs)
+        ..sort((a, b) {
+          final aTime =
+              (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+          final bTime =
+              (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+          if (aTime == null && bTime == null) return 0;
+          if (aTime == null) return 1;
+          if (bTime == null) return -1;
+          return bTime.compareTo(aTime);
+        });
       if (mounted)
         setState(() {
-          _posts = snap.docs;
+          _posts = docs;
           _loading = false;
         });
     } catch (_) {
@@ -1309,6 +1564,21 @@ class _MyPostsTabState extends State<_MyPostsTab>
               ? (images[0] as Map<String, dynamic>)['url'] as String? ?? ''
               : '';
           return GestureDetector(
+            onTap: () {
+              final postModels = _posts
+                  .map((doc) => PostModel.fromFirestore(doc))
+                  .toList();
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => _MyPostDetailSheet(
+                  posts: postModels,
+                  initialIndex: i,
+                  onDelete: () => _deletePost(_posts[i].id),
+                ),
+              );
+            },
             onLongPress: () => _deletePost(_posts[i].id),
             child: Stack(
               fit: StackFit.expand,
@@ -1325,23 +1595,24 @@ class _MyPostsTabState extends State<_MyPostsTab>
                         color: theme.colorScheme.surfaceContainerHighest,
                         child: const Icon(Icons.image_outlined),
                       ),
-                // Delete hint overlay
-                Positioned(
-                  bottom: 4,
-                  right: 4,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Icon(
-                      Icons.delete_outline,
-                      color: Colors.white,
-                      size: 14,
+                // Multiple images indicator
+                if (images.length > 1)
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.collections,
+                        color: Colors.white,
+                        size: 14,
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
           );
@@ -1377,32 +1648,30 @@ class _MyReelsTabState extends State<_MyReelsTab>
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
+      // No orderBy — avoids depending on a composite index existing for
+      // artisanId + createdAt; sort client-side instead.
       final snap = await FirebaseFirestore.instance
           .collection('reels')
-          .where('userId', isEqualTo: widget.userId)
-          .orderBy('createdAt', descending: true)
+          .where('artisanId', isEqualTo: widget.userId)
           .get();
+      final docs = List<QueryDocumentSnapshot>.from(snap.docs)
+        ..sort((a, b) {
+          final aTime =
+              (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+          final bTime =
+              (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+          if (aTime == null && bTime == null) return 0;
+          if (aTime == null) return 1;
+          if (bTime == null) return -1;
+          return bTime.compareTo(aTime);
+        });
       if (mounted)
         setState(() {
-          _reels = snap.docs;
+          _reels = docs;
           _loading = false;
         });
     } catch (_) {
-      // Try artisanId field as fallback
-      try {
-        final snap = await FirebaseFirestore.instance
-            .collection('reels')
-            .where('artisanId', isEqualTo: widget.userId)
-            .orderBy('createdAt', descending: true)
-            .get();
-        if (mounted)
-          setState(() {
-            _reels = snap.docs;
-            _loading = false;
-          });
-      } catch (_) {
-        if (mounted) setState(() => _loading = false);
-      }
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -1481,32 +1750,28 @@ class _MyReelsTabState extends State<_MyReelsTab>
         itemBuilder: (context, i) {
           final data = _reels[i].data() as Map<String, dynamic>;
           final thumbnail = data['thumbnailUrl'] as String? ?? '';
+          final videoUrl = data['videoUrl'] as String? ?? '';
           return GestureDetector(
+            onTap: () {
+              final reelsList = _reels
+                  .map((doc) => Reel.fromFirestore(doc))
+                  .toList();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      ReelsScreen(initialReels: reelsList, initialIndex: i),
+                ),
+              );
+            },
             onLongPress: () => _deleteReel(_reels[i].id),
             child: Stack(
               fit: StackFit.expand,
               children: [
-                thumbnail.isNotEmpty
-                    ? Image.network(
-                        thumbnail,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          color: Colors.black,
-                          child: const Icon(
-                            Icons.play_circle_outline,
-                            color: Colors.white54,
-                            size: 32,
-                          ),
-                        ),
-                      )
-                    : Container(
-                        color: Colors.black,
-                        child: const Icon(
-                          Icons.play_circle_outline,
-                          color: Colors.white54,
-                          size: 32,
-                        ),
-                      ),
+                ReelThumbnailWidget(
+                  thumbnailUrl: thumbnail,
+                  videoUrl: videoUrl,
+                ),
                 // Play icon overlay
                 const Center(
                   child: Icon(
@@ -1536,6 +1801,203 @@ class _MyReelsTabState extends State<_MyReelsTab>
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class ReelThumbnailWidget extends StatefulWidget {
+  final String? thumbnailUrl;
+  final String videoUrl;
+
+  const ReelThumbnailWidget({
+    super.key,
+    required this.thumbnailUrl,
+    required this.videoUrl,
+  });
+
+  @override
+  State<ReelThumbnailWidget> createState() => _ReelThumbnailWidgetState();
+}
+
+class _ReelThumbnailWidgetState extends State<ReelThumbnailWidget> {
+  Uint8List? _frameBytes;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.thumbnailUrl == null || widget.thumbnailUrl!.isEmpty) {
+      _generateThumbnail();
+    } else {
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _generateThumbnail() async {
+    try {
+      final bytes = await VideoThumbnail.thumbnailData(
+        video: widget.videoUrl,
+        imageFormat: ImageFormat.JPEG,
+        maxWidth: 400,
+        quality: 75,
+        timeMs: 1000, // grab frame at 1 second — avoids black first frame
+      );
+      if (mounted) {
+        setState(() {
+          _frameBytes = bytes;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Thumbnail generation error: $e');
+      if (mounted)
+        setState(() {
+          _loading = false;
+        });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Has stored thumbnail URL — use it directly
+    if (widget.thumbnailUrl != null && widget.thumbnailUrl!.isNotEmpty) {
+      return Image.network(
+        widget.thumbnailUrl!,
+        fit: BoxFit.cover,
+        loadingBuilder: (_, child, progress) =>
+            progress == null ? child : _buildSpinner(),
+        errorBuilder: (_, __, ___) => _buildBlack(),
+      );
+    }
+
+    // Still generating
+    if (_loading) return _buildSpinner();
+
+    // Generated frame bytes available
+    if (_frameBytes != null) {
+      return Image.memory(
+        _frameBytes!,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildBlack(),
+      );
+    }
+
+    // Error fallback
+    return _buildBlack();
+  }
+
+  Widget _buildSpinner() => Container(
+    color: const Color(0xFF1C1C1E),
+    child: const Center(
+      child: SizedBox(
+        width: 20,
+        height: 20,
+        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white38),
+      ),
+    ),
+  );
+
+  Widget _buildBlack() => Container(
+    color: const Color(0xFF1C1C1E),
+    child: const Icon(
+      Icons.play_circle_outline,
+      color: Colors.white38,
+      size: 32,
+    ),
+  );
+}
+
+// ─── My Post Detail Sheet ─────────────────────────────────────────────────────
+class _MyPostDetailSheet extends StatefulWidget {
+  final List<PostModel> posts;
+  final int initialIndex;
+  final VoidCallback onDelete;
+
+  const _MyPostDetailSheet({
+    required this.posts,
+    required this.initialIndex,
+    required this.onDelete,
+  });
+
+  @override
+  State<_MyPostDetailSheet> createState() => _MyPostDetailSheetState();
+}
+
+class _MyPostDetailSheetState extends State<_MyPostDetailSheet> {
+  late PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final h = MediaQuery.of(context).size.height;
+
+    return Container(
+      height: h * 0.92,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          // drag handle
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          // page counter + delete button
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${_currentIndex + 1} / ${widget.posts.length}',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.delete_outline,
+                    color: theme.colorScheme.error,
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    widget.onDelete();
+                  },
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: widget.posts.length,
+              onPageChanged: (i) => setState(() => _currentIndex = i),
+              itemBuilder: (_, i) => _PostDetailCard(post: widget.posts[i]),
+            ),
+          ),
+        ],
       ),
     );
   }
