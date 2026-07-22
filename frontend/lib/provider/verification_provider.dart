@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -58,10 +57,10 @@ class VerificationNotifier extends StateNotifier<VerificationState> {
   Future<bool> submitVerification({
     required String idType,
     required String idNumber,
-    required File idFrontImage,
-    required File idBackImage,
-    File? businessCertImage,
-    File? skillCertImage,
+    required UploadData idFrontImage,
+    required UploadData idBackImage,
+    UploadData? businessCertImage,
+    UploadData? skillCertImage,
     String? businessName,
     String? businessRegNumber,
   }) async {

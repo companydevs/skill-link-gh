@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -10,6 +12,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../provider/verification_provider.dart';
 import '../../widgets/custom_app_bar.dart';
+import '../../data/repository/verification_repository.dart' show UploadData;
+
+// Model to handle both mobile and web file uploads
+class UploadedFile {
+  final File? file; // For mobile
+  final Uint8List? bytes; // For web
+  final String? name; // Filename
+
+  UploadedFile({this.file, this.bytes, this.name});
+
+  bool get isValid => file != null || bytes != null;
+}
 
 class VerificationScreen extends ConsumerStatefulWidget {
   const VerificationScreen({super.key});
@@ -26,10 +40,10 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
   final _businessNameController = TextEditingController();
   final _businessRegNumberController = TextEditingController();
 
-  File? _idFrontImage;
-  File? _idBackImage;
-  File? _businessCertImage;
-  File? _skillCertImage;
+  UploadedFile? _idFrontImage;
+  UploadedFile? _idBackImage;
+  UploadedFile? _businessCertImage;
+  UploadedFile? _skillCertImage;
   String _selectedIdType = 'Ghana Card';
   bool _isLoading = false;
 
@@ -58,29 +72,89 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
         maxHeight: 800,
         imageQuality: 85,
       );
-      if (pickedFile != null) {
+
+      if (pickedFile == null) {
+        // User cancelled, no error needed
+        return;
+      }
+
+      // Handle web and mobile platforms differently
+      UploadedFile uploadedFile;
+
+      if (kIsWeb) {
+        // For web, read as bytes
+        try {
+          final bytes = await pickedFile.readAsBytes();
+          uploadedFile = UploadedFile(bytes: bytes, name: pickedFile.name);
+        } catch (e) {
+          throw Exception('Failed to read file on web platform');
+        }
+      } else {
+        // For mobile, use File
+        try {
+          final file = File(pickedFile.path);
+          // Verify file exists
+          if (!await file.exists()) {
+            throw Exception('Selected file does not exist');
+          }
+          uploadedFile = UploadedFile(file: file, name: pickedFile.name);
+        } catch (e) {
+          throw Exception('Failed to access file: ${e.toString()}');
+        }
+      }
+
+      if (mounted) {
         setState(() {
           switch (imageType) {
             case 'id_front':
-              _idFrontImage = File(pickedFile.path);
+              _idFrontImage = uploadedFile;
               break;
             case 'id_back':
-              _idBackImage = File(pickedFile.path);
+              _idBackImage = uploadedFile;
               break;
             case 'business_cert':
-              _businessCertImage = File(pickedFile.path);
+              _businessCertImage = uploadedFile;
               break;
             case 'skill_cert':
-              _skillCertImage = File(pickedFile.path);
+              _skillCertImage = uploadedFile;
               break;
           }
         });
-      }
-    } catch (e) {
-      if (mounted) {
+
+        // Show success feedback
         AppToast.show(
           context,
-          message: 'Failed to pick image: $e',
+          message: 'Image uploaded successfully',
+          type: ToastType.success,
+        );
+      }
+    } on Exception catch (e) {
+      // Handle known exceptions with user-friendly messages
+      if (mounted) {
+        String errorMessage = 'Failed to upload image';
+
+        if (e.toString().contains('permission')) {
+          errorMessage = 'Permission denied. Please allow access to photos.';
+        } else if (e.toString().contains('network')) {
+          errorMessage = 'Network error. Please check your connection.';
+        } else if (e.toString().contains('size')) {
+          errorMessage = 'Image is too large. Please select a smaller image.';
+        } else if (e.toString().contains('format')) {
+          errorMessage = 'Unsupported image format. Please use JPG or PNG.';
+        } else {
+          // Show simplified error without technical details
+          errorMessage = 'Unable to upload image. Please try again.';
+        }
+
+        AppToast.show(context, message: errorMessage, type: ToastType.error);
+      }
+    } catch (e) {
+      // Catch-all for unexpected errors
+      if (mounted) {
+        print('Unexpected error in _pickImage: $e'); // Log for debugging
+        AppToast.show(
+          context,
+          message: 'Something went wrong. Please try again.',
           type: ToastType.error,
         );
       }
@@ -88,7 +162,15 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
   }
 
   Future<void> _submitVerification() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      AppToast.show(
+        context,
+        message: 'Please fill in all required fields',
+        type: ToastType.error,
+      );
+      return;
+    }
+
     if (_idFrontImage == null || _idBackImage == null) {
       AppToast.show(
         context,
@@ -97,20 +179,73 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
       );
       return;
     }
+
+    if (!_idFrontImage!.isValid || !_idBackImage!.isValid) {
+      AppToast.show(
+        context,
+        message: 'Invalid ID images. Please upload again.',
+        type: ToastType.error,
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
+
     try {
+      // Convert UploadedFile to UploadData for repository
+      final idFrontData = kIsWeb
+          ? UploadData(
+              bytes: _idFrontImage!.bytes,
+              filename: _idFrontImage!.name,
+            )
+          : UploadData(
+              file: _idFrontImage!.file,
+              filename: _idFrontImage!.name,
+            );
+
+      final idBackData = kIsWeb
+          ? UploadData(bytes: _idBackImage!.bytes, filename: _idBackImage!.name)
+          : UploadData(file: _idBackImage!.file, filename: _idBackImage!.name);
+
+      UploadData? businessCertData;
+      if (_businessCertImage != null && _businessCertImage!.isValid) {
+        businessCertData = kIsWeb
+            ? UploadData(
+                bytes: _businessCertImage!.bytes,
+                filename: _businessCertImage!.name,
+              )
+            : UploadData(
+                file: _businessCertImage!.file,
+                filename: _businessCertImage!.name,
+              );
+      }
+
+      UploadData? skillCertData;
+      if (_skillCertImage != null && _skillCertImage!.isValid) {
+        skillCertData = kIsWeb
+            ? UploadData(
+                bytes: _skillCertImage!.bytes,
+                filename: _skillCertImage!.name,
+              )
+            : UploadData(
+                file: _skillCertImage!.file,
+                filename: _skillCertImage!.name,
+              );
+      }
+
       final success = await ref
           .read(verificationNotifierProvider.notifier)
           .submitVerification(
             idType: _selectedIdType,
             idNumber: _idNumberController.text.trim(),
-            idFrontImage: _idFrontImage!,
-            idBackImage: _idBackImage!,
-            businessCertImage: _businessCertImage,
-            skillCertImage: _skillCertImage,
+            idFrontImage: idFrontData,
+            idBackImage: idBackData,
+            businessCertImage: businessCertData,
+            skillCertImage: skillCertData,
             businessName: _businessNameController.text.trim(),
             businessRegNumber: _businessRegNumberController.text.trim(),
           );
+
       if (mounted) {
         if (success) {
           AppToast.show(
@@ -121,12 +256,57 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
           Navigator.pop(context);
         } else {
           final error = ref.read(verificationNotifierProvider).error;
-          AppToast.show(
-            context,
-            message: 'Failed to submit: ${error ?? 'Unknown error'}',
-            type: ToastType.error,
-          );
+          String errorMessage = 'Failed to submit verification';
+
+          // Parse error for user-friendly message
+          if (error != null) {
+            if (error.contains('network') || error.contains('connection')) {
+              errorMessage =
+                  'Network error. Please check your internet connection.';
+            } else if (error.contains('permission')) {
+              errorMessage =
+                  'Permission denied. Please check your account settings.';
+            } else if (error.contains('storage')) {
+              errorMessage = 'Upload failed. Please try with smaller images.';
+            } else {
+              errorMessage = 'Unable to submit. Please try again later.';
+            }
+          }
+
+          AppToast.show(context, message: errorMessage, type: ToastType.error);
         }
+      }
+    } on Exception catch (e) {
+      if (mounted) {
+        String errorMessage = 'Submission failed';
+
+        final errorStr = e.toString().toLowerCase();
+        if (errorStr.contains('network') || errorStr.contains('connection')) {
+          errorMessage =
+              'Network error. Please check your connection and try again.';
+        } else if (errorStr.contains('storage') ||
+            errorStr.contains('upload')) {
+          errorMessage = 'Upload failed. Please try with smaller images.';
+        } else if (errorStr.contains('permission') ||
+            errorStr.contains('auth')) {
+          errorMessage = 'Permission denied. Please log in and try again.';
+        } else {
+          errorMessage = 'Something went wrong. Please try again later.';
+        }
+
+        AppToast.show(context, message: errorMessage, type: ToastType.error);
+      }
+    } catch (e) {
+      // Catch-all for any unexpected errors
+      if (mounted) {
+        print(
+          'Unexpected error in _submitVerification: $e',
+        ); // Log for debugging
+        AppToast.show(
+          context,
+          message: 'An unexpected error occurred. Please try again.',
+          type: ToastType.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -137,10 +317,15 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
     int count = 0;
     if (_idFrontImage != null &&
         _idBackImage != null &&
-        _idNumberController.text.isNotEmpty)
+        _idNumberController.text.isNotEmpty) {
       count++;
-    if (_businessCertImage != null) count++;
-    if (_skillCertImage != null) count++;
+    }
+    if (_businessCertImage != null) {
+      count++;
+    }
+    if (_skillCertImage != null) {
+      count++;
+    }
     return count;
   }
 
@@ -250,7 +435,6 @@ class _VerificationStatusView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isPending = status == 'pending';
     final isApproved = status == 'approved';
     final isRejected = status == 'rejected';
 
@@ -576,8 +760,8 @@ class _IdentitySection extends StatelessWidget {
   final List<String> idTypes;
   final String selectedIdType;
   final TextEditingController idNumberController;
-  final File? idFrontImage;
-  final File? idBackImage;
+  final UploadedFile? idFrontImage;
+  final UploadedFile? idBackImage;
   final ValueChanged<String?> onIdTypeChanged;
   final VoidCallback onPickFront;
   final VoidCallback onPickBack;
@@ -661,7 +845,7 @@ class _BusinessSection extends StatelessWidget {
   final ThemeData theme;
   final TextEditingController businessNameController;
   final TextEditingController businessRegController;
-  final File? certImage;
+  final UploadedFile? certImage;
   final VoidCallback onPickCert;
 
   const _BusinessSection({
@@ -703,7 +887,7 @@ class _BusinessSection extends StatelessWidget {
 // ── Skill section ─────────────────────────────────────────────────────────────
 class _SkillSection extends StatelessWidget {
   final ThemeData theme;
-  final File? certImage;
+  final UploadedFile? certImage;
   final VoidCallback onPickCert;
 
   const _SkillSection({
@@ -732,7 +916,7 @@ class _UploadTile extends StatelessWidget {
   final String label;
   final String hint;
   final IconData icon;
-  final File? image;
+  final UploadedFile? image;
   final VoidCallback onTap;
   final bool fullWidth;
 
@@ -748,7 +932,7 @@ class _UploadTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uploaded = image != null;
+    final uploaded = image != null && image!.isValid;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -774,12 +958,26 @@ class _UploadTile extends StatelessWidget {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(13),
-                    child: Image.file(
-                      image!,
-                      width: double.infinity,
-                      height: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
+                    child: kIsWeb && image!.bytes != null
+                        ? Image.memory(
+                            image!.bytes!,
+                            width: double.infinity,
+                            height: double.infinity,
+                            fit: BoxFit.cover,
+                          )
+                        : image!.file != null
+                        ? Image.file(
+                            image!.file!,
+                            width: double.infinity,
+                            height: double.infinity,
+                            fit: BoxFit.cover,
+                          )
+                        : Container(
+                            color: theme.colorScheme.surfaceContainerHighest,
+                            child: const Center(
+                              child: Icon(Icons.image, size: 40),
+                            ),
+                          ),
                   ),
                   Positioned(
                     top: 6,
